@@ -1,0 +1,14 @@
+#!/bin/sh
+
+if ! pnpm run lint; then
+  echo "❌ ESLint errors found."
+  exit 1
+fi
+
+if ! pnpm run format; then
+  echo "❌ Formatting issues found."
+  exit 1
+fi
+
+echo "All checks passed."
+exit 0
