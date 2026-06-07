@@ -26,10 +26,11 @@ export default tseslint.config(
   },
   {
     rules: {
-      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/no-floating-promises': 'warn',
       '@typescript-eslint/no-unsafe-argument': 'warn',
-      "prettier/prettier": ["error", { endOfLine: "auto" }],
+      'no-console': ['warn', { allow: ['warn', 'error', 'info'] }],
+      'no-duplicate-imports': ['error', { allowSeparateTypeImports: true }],
     },
   },
 );
