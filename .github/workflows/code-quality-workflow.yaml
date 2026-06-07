@@ -1,0 +1,55 @@
+name: Code Style & Quality Checks
+on:
+  pull_request:
+    branches: [main, dev]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  style-quality:
+    if: |
+      github.event.pull_request.milestone != null &&
+      !startsWith(github.event.pull_request.milestone.title, 'Phase 0') &&
+      github.event.pull_request.draft == false
+    name: Code Style & Quality
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Corepack
+        run: corepack enable
+
+      - name: Setup pnpm
+        run: corepack prepare pnpm@10.18.0 --activate
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+          cache-dependency-path: '**/pnpm-lock.yaml'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Formatter
+        run: pnpm run format:check
+
+      - name: Run Linter
+        run: pnpm run lint:check
+
+      - name: Run Unit Tests
+        run: pnpm run test:cov
+
+      - name: Comment Coverage on PR
+        uses: romeovs/lcov-reporter-action@v0.4.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          lcov-file: ./coverage/lcov.info
+          filter-changed-files: true
+          delete-old-comments: true
+          title: Unit Tests Coverage Report

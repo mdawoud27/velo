@@ -1,0 +1,77 @@
+name: Pull Request Validations
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, ready_for_review]
+    branches: [main, dev]
+
+permissions:
+  pull-requests: read
+  contents: read
+
+jobs:
+  validate-merge-permissions:
+    if: github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    name: Validate Merge Permissions
+    steps:
+      - name: Verify Authorized User
+        run: |
+          TARGET_BRANCH="${{ github.event.pull_request.base.ref }}"
+          PR_AUTHOR="${{ github.actor }}"
+          ALLOWED_USER="mdawoud27"
+
+          if [ "$PR_AUTHOR" != "$ALLOWED_USER" ] && [ "$TARGET_BRANCH" = "main" ]; then
+            echo "Unauthorized PR to main by $PR_AUTHOR, only $ALLOWED_USER is allowed."
+            exit 1
+          fi
+
+          echo "Authorized PR to main branch."
+
+  branch-name-validation:
+    if: github.event.pull_request.base.ref == 'dev'
+    name: Validate branch naming convention
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Enforce kebab-case branch name
+        env:
+          BRANCH_NAME: ${{ github.head_ref }}
+          BRANCH_PATTERN: '^(feat|fix|build|chore|refactor|docs|perf|test)/([0-9]+/)?[a-z0-9]+(-[a-z0-9]+)*$'
+        run: |
+          echo "Checking branch: $BRANCH_NAME"
+          if ! echo "$BRANCH_NAME" | grep -Eq "$BRANCH_PATTERN"; then
+            echo "Branch name doesn't match the required pattern. Please setup your git hooks locally to avoid this error."
+            exit 1
+          fi
+
+          echo "Branch name passed."
+
+  validate-pr-title:
+    if: |
+      github.event.pull_request.milestone != null &&
+      !startsWith(github.event.pull_request.milestone.title, 'Phase 0')
+    name: Validate PR title format
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check PR title format
+        env:
+          PR_TITLE: ${{github.event.pull_request.title}}
+          PREFIX_PATTERN: '^(feat|fix|build|chore|refactor|docs|perf|test)(\(.+\))?: .+'
+          POSTFIX_PATTERN: " - \\[[A-Z]+-[0-9]+\\]$"
+        run: |
+          CLEAN_TITLE=$(echo "$PR_TITLE" | tr -d '\r' | sed 's/[[:space:]]\+/ /g' | sed 's/^ *//;s/ *$//')
+
+          echo "Checking PR title: $CLEAN_TITLE"
+          if ! echo "$CLEAN_TITLE" | grep -Eq "$PREFIX_PATTERN"; then
+            echo "PR title must start with a valid prefix (feat, fix, build, chore, refactor, docs, perf, test) followed by a colon and a space."
+            exit 1
+          fi
+
+          if ! echo "$CLEAN_TITLE" | grep -Eq "$POSTFIX_PATTERN"; then
+            echo "PR title must end with a user story ID. (e.g., ' - [AUTH-01]')"
+            exit 1
+          fi
+
+          echo "PR title passed."

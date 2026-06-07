@@ -1,13 +1,13 @@
 #!/bin/sh
 
 if ! pnpm run lint:check; then
-  echo "❌ ESLint errors found."
+  echo "ESLint errors found."
   echo "Run 'pnpm run lint' to fix them."
   exit 1
 fi
 
 if ! pnpm run format:check; then
-  echo "❌ Formatting issues found."
+  echo "Formatting issues found."
   echo "Run 'pnpm run format' to fix them."
   exit 1
 fi
