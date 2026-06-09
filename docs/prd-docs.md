@@ -23,7 +23,7 @@
 
 ## 1. Executive Summary
 
-**Velo** is a full rebuild of [TaskTrial](https://github.com/TaskTrial/server-v1) (_Velo is a the second version of TaskTrial_). It is a production-grade, multi-tenant task and project management API. Built with NestJS and TypeScript, it serves teams inside organizations with real-time collaboration, async background queues, AI-powered task suggestions, Stripe subscription billing, and a super-admin control plane.
+**Velo** is a full rebuild of [TaskTrial](https://github.com/TaskTrial/server-v1) (_Velo is the second version of TaskTrial_). It is a production-grade, multi-tenant task and project management API. Built with NestJS and TypeScript, it serves teams inside organizations with real-time collaboration, async background queues, AI-powered task suggestions, Stripe subscription billing, and a super-admin control plane.
 
 The system models a three-level hierarchy: an **Organization** contains **Teams**, each Team manages **Projects**, and each Project contains **Tasks** that members collaborate on in real time via WebSockets. Background processing runs through BullMQ queues backed by Redis, covering email delivery, Excel exports, and scheduled due-date reminders via cron jobs. Subscription plans (Free / Pro / Business) gate access to advanced features via Stripe webhooks. A Redis caching layer reduces database load on hot read paths, and a distributed locking strategy prevents race conditions on concurrent writes.
 
