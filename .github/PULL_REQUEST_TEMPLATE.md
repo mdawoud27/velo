@@ -1,10 +1,19 @@
-## Description
+## Proposed changes
 
 <!-- What does this PR do and why? Be concise but clear. -->
 
-## Issue
+## Issue(s)
 
-Closes #
+<!-- Link the issues being closed by or related to this PR. For example, you can use #594 if this PR closes issue number 594 -->
+
+closes #
+
+## PR Checklist
+
+Please check if your PR fulfills the following requirements:
+
+- [ ] Commit message follows the [conventional commit guidelines](https://www.conventionalcommits.org/en/v1.0.0/#summary)
+- [ ] Tests for the changes have been added (for bugfixes/features)
 
 ## PR Type
 
@@ -12,31 +21,9 @@ What kind of change does this PR introduce?
 
 - [ ] Bugfix
 - [ ] Feature
-- [ ] Refactoring (no functional changes)
-- [ ] Code style / formatting
-- [ ] Build / CI changes
-- [ ] Documentation
-- [ ] Other
-
-## How to Test
-
-<!-- Steps to verify the changes work as expected -->
-
-1.
-2.
-
-## Screenshots
-
-<!-- If applicable, add screenshots or screen recordings -->
-<!-- Remove this section if not relevant -->
-
-## Checklist
-
-- [ ] Commit message follows the [conventional commit guidelines](https://www.conventionalcommits.org/en/v1.0.0/#summary)
-- [ ] Tests added / updated for the changes
-- [ ] No breaking changes — or breaking changes are documented below
-
-## Breaking Changes
-
-<!-- If any, describe what breaks and how consumers should migrate -->
-<!-- Remove this section if there are no breaking changes -->
+- [ ] Code style update (formatting, local variables)
+- [ ] Refactoring (no functional changes, no api changes)
+- [ ] Build related changes
+- [ ] CI related changes
+- [ ] Documentation changes
+- [ ] Other... Please describe:
