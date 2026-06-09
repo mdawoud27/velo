@@ -1,11 +1,20 @@
 #!/bin/sh
 
-branch_name=$(git rev-parse --abbrev-ref HEAD)
+read local_ref local_sha remote_ref remote_sha
 
-# Allowed format: type/number?/feature-name (kebab-case)
+# nothing being pushed
+[ -z "$remote_ref" ] && exit 0
+
+# skip tags
+if echo "$remote_ref" | grep -q "refs/tags/"; then
+  exit 0
+fi
+
+branch=$(echo "$remote_ref" | sed 's|refs/heads/||')
+
 branch_regex="^(feat|fix|build|chore|refactor|docs|perf|test)/([0-9]+/)?[a-z0-9]+(-[a-z0-9]+)*$"
 
-if ! echo "$branch_name" | grep -Eq "$branch_regex"; then
+if ! echo "$branch" | grep -Eq "$branch_regex"; then
   echo "Invalid branch name. Expected format: type/number?/feature-name"
   echo "Allowed types: feat, fix, build, chore, refactor, docs, perf, test"
   echo "Example: feat/1/login-page"
