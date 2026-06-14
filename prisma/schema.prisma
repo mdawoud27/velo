@@ -1,0 +1,332 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id               String     @id @default(uuid())
+  email            String     @unique
+  password         String?
+  name             String
+  avatarUrl        String?
+  isEmailVerified  Boolean    @default(false)
+  googleId         String?    @unique
+  systemRole       SystemRole @default(USER)
+  bannedAt         DateTime?
+  notifPreferences Json       @default("{}")
+  stripeCustomerId String?    @unique
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  memberships        OrgMember[]
+  teamMemberships    TeamMember[]
+  projectMemberships ProjectMember[]
+  assignedTasks      Task[]          @relation("Assignee")
+  createdTasks       Task[]          @relation("Creator")
+  comments           Comment[]
+  attachments        Attachment[]
+  activityLogs       ActivityLog[]   @relation("Actor")
+  notifications      Notification[]
+  taskWatchers       TaskWatcher[]
+  auditLogs          AuditLog[]
+
+  @@index([bannedAt])
+}
+
+model Organization {
+  id                     String    @id @default(uuid())
+  name                   String
+  description            String?
+  plan                   Plan      @default(FREE)
+  stripeCustomerId       String?   @unique
+  stripeSubscriptionId   String?   @unique
+  stripeCurrentPeriodEnd DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  deletedAt              DateTime?
+
+  members      OrgMember[]
+  teams        Team[]
+  activityLogs ActivityLog[]
+  invitations  OrgInvitation[]
+
+  @@index([deletedAt])
+}
+
+model OrgMember {
+  id       String   @id @default(uuid())
+  userId   String
+  orgId    String
+  role     OrgRole  @default(MEMBER)
+  joinedAt DateTime @default(now())
+
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, orgId])
+  @@index([orgId])
+}
+
+model OrgInvitation {
+  id        String   @id @default(uuid())
+  orgId     String
+  email     String
+  token     String   @unique
+  role      OrgRole  @default(MEMBER)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+}
+
+model Team {
+  id          String    @id @default(uuid())
+  name        String
+  description String?
+  orgId       String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  org      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  members  TeamMember[]
+  projects Project[]
+
+  @@index([orgId])
+  @@index([deletedAt])
+}
+
+model TeamMember {
+  id     String   @id @default(uuid())
+  userId String
+  teamId String
+  role   TeamRole @default(MEMBER)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, teamId])
+  @@index([teamId])
+}
+
+model Project {
+  id          String        @id @default(uuid())
+  name        String
+  description String?
+  status      ProjectStatus @default(ACTIVE)
+  deadline    DateTime?
+  teamId      String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  deletedAt   DateTime?
+
+  team         Team            @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  members      ProjectMember[]
+  tasks        Task[]
+  activityLogs ActivityLog[]
+
+  @@index([teamId])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+model ProjectMember {
+  id        String @id @default(uuid())
+  userId    String
+  projectId String
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId])
+  @@index([projectId])
+}
+
+model Task {
+  id           String     @id @default(uuid())
+  title        String
+  description  String?
+  status       TaskStatus @default(TODO)
+  priority     Priority   @default(MEDIUM)
+  dueDate      DateTime?
+  tags         String[]
+  projectId    String
+  assigneeId   String?
+  creatorId    String
+  parentTaskId String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  deletedAt    DateTime?
+
+  project     Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignee    User?         @relation("Assignee", fields: [assigneeId], references: [id])
+  creator     User          @relation("Creator", fields: [creatorId], references: [id])
+  parent      Task?         @relation("Subtasks", fields: [parentTaskId], references: [id], onDelete: SetNull)
+  subtasks    Task[]        @relation("Subtasks")
+  comments    Comment[]
+  watchers    TaskWatcher[]
+  attachments Attachment[]
+
+  @@index([projectId])
+  @@index([assigneeId])
+  @@index([creatorId])
+  @@index([status])
+  @@index([deletedAt])
+  @@index([dueDate])
+  @@index([parentTaskId])
+}
+
+model Comment {
+  id        String    @id @default(uuid())
+  body      String
+  taskId    String
+  authorId  String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  task   Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id])
+
+  @@index([taskId])
+  @@index([authorId])
+  @@index([deletedAt])
+}
+
+model Attachment {
+  id         String   @id @default(uuid())
+  filename   String
+  url        String
+  size       Int
+  taskId     String
+  uploaderId String
+  createdAt  DateTime @default(now())
+
+  task     Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  uploader User @relation(fields: [uploaderId], references: [id])
+
+  @@index([taskId])
+}
+
+model TaskWatcher {
+  id        String   @id @default(uuid())
+  userId    String
+  taskId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, taskId])
+  @@index([taskId])
+}
+
+model ActivityLog {
+  id         String   @id @default(uuid())
+  action     String // e.g. "task.status.changed"
+  entityType String // "Task" | "Project" | "Organization" | ...
+  entityId   String
+  actorId    String
+  metadata   Json     @default("{}") // e.g. { from, to, field }
+  projectId  String?
+  orgId      String?
+  createdAt  DateTime @default(now())
+
+  actor   User          @relation("Actor", fields: [actorId], references: [id])
+  project Project?      @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  org     Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+
+  @@index([entityId, entityType])
+  @@index([actorId])
+  @@index([projectId])
+}
+
+model Notification {
+  id         String   @id @default(uuid())
+  userId     String
+  type       String
+  title      String
+  body       String
+  isRead     Boolean  @default(false)
+  entityType String
+  entityId   String
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([userId])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String
+  action     String // e.g. "admin.user.banned"
+  targetType String // "User" | "Organization" | "Queue" | ...
+  targetId   String?
+  metadata   Json     @default("{}")
+  createdAt  DateTime @default(now())
+
+  actor User @relation(fields: [actorId], references: [id])
+
+  @@index([actorId])
+  @@index([targetType, targetId])
+}
+
+model StripeEvent {
+  id          String   @id // Stripe event ID (evt_xxx)
+  type        String
+  processedAt DateTime @default(now())
+}
+
+enum SystemRole {
+  USER
+  SUPER_ADMIN
+}
+
+enum OrgRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum TeamRole {
+  LEAD
+  MEMBER
+}
+
+enum Plan {
+  FREE
+  PRO
+  BUSINESS
+}
+
+enum ProjectStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  IN_REVIEW
+  DONE
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
