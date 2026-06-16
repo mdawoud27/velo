@@ -48,9 +48,6 @@ jobs:
           echo "Branch name passed."
 
   validate-pr-title:
-    if: |
-      github.event.pull_request.milestone != null &&
-      !startsWith(github.event.pull_request.milestone.title, 'Phase 0')
     name: Validate PR title format
     runs-on: ubuntu-latest
 

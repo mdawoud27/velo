@@ -11,10 +11,7 @@ permissions:
 
 jobs:
   style-quality:
-    if: |
-      github.event.pull_request.milestone != null &&
-      !startsWith(github.event.pull_request.milestone.title, 'Phase 0') &&
-      github.event.pull_request.draft == false
+    if: github.event.pull_request.draft == false
     name: Code Style & Quality
     runs-on: ubuntu-latest
 
