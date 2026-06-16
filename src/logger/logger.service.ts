@@ -5,29 +5,34 @@ import { PinoLogger } from 'nestjs-pino';
 export class LoggerService implements NestLoggerService {
   constructor(private readonly logger: PinoLogger) {}
 
-  log(message: string, context?: object) {
-    this.logger.info(context ?? {}, message);
+  log(message: string, context?: string | Record<string, unknown>) {
+    this.logger.info(this.toBindings(context), message);
   }
 
-  error(message: string, error?: Error, context?: object) {
+  error(message: string, error?: Error, context?: string | Record<string, unknown>) {
     this.logger.error(
       {
         err: error,
-        ...context,
+        ...this.toBindings(context),
       },
       message,
     );
   }
 
-  warn(message: string, context?: object) {
-    this.logger.warn(context ?? {}, message);
+  warn(message: string, context?: string | Record<string, unknown>) {
+    this.logger.warn(this.toBindings(context), message);
   }
 
-  debug(message: string, context?: object) {
-    this.logger.debug(context ?? {}, message);
+  debug(message: string, context?: string | Record<string, unknown>) {
+    this.logger.debug(this.toBindings(context), message);
   }
 
-  verbose(message: string, context?: object) {
-    this.logger.trace(context ?? {}, message);
+  verbose(message: string, context?: string | Record<string, unknown>) {
+    this.logger.trace(this.toBindings(context), message);
+  }
+
+  private toBindings(context?: string | Record<string, unknown>) {
+    if (!context) return {};
+    return typeof context === 'string' ? { context } : context;
   }
 }
