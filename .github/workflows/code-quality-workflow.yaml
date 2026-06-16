@@ -33,6 +33,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: generate prisma schema
+        run: pnpm run db:generate
+        env:
+          DATABASE_URL: "postgresql://user:password@localhost:5432/mydb"
+
       - name: Run Formatter
         run: pnpm run format:check
 
