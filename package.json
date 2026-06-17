@@ -1,6 +1,6 @@
 {
   "name": "velo",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "",
   "author": "",
   "private": true,
@@ -34,6 +34,7 @@
     "@nestjs/platform-express": "^11.0.1",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
+    "crypto": "^1.0.1",
     "dotenv": "^17.4.2",
     "ioredis": "^5.11.1",
     "nestjs-pino": "^4.6.1",

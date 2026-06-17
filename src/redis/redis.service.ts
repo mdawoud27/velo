@@ -1,4 +1,5 @@
 import { Inject, Injectable, OnModuleDestroy } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import Redis from 'ioredis';
 import { LoggerService } from 'src/logger/logger.service';
 
@@ -53,20 +54,29 @@ export class RedisService implements OnModuleDestroy {
   }
 
   // Distributed lock
-  async acquireLock(resource: string, ttl: number): Promise<boolean> {
+  async acquireLock(resource: string, ttl: number): Promise<string | null> {
     this.validateTtl(ttl);
+    const token = randomUUID();
     const result = await this.client.set(
       `lock:${resource}`,
-      '1',
+      token,
       'EX',
       ttl,
       'NX', // only set if not exists
     );
-    return result === 'OK';
+    return result === 'OK' ? token : null;
   }
 
-  async releaseLock(resource: string): Promise<void> {
-    await this.client.del(`lock:${resource}`);
+  async releaseLock(resource: string, token: string): Promise<boolean> {
+    const script = `
+      if redis.call("get", KEYS[1]) == ARGV[1] then
+        return redis.call("del", KEYS[1])
+      else
+        return 0
+      end
+    `;
+    const result = await this.client.eval(script, 1, `lock:${resource}`, token);
+    return result === 1;
   }
 
   private validateTtl(ttl: number): void {
