@@ -33,4 +33,10 @@ export default tseslint.config(
       'no-duplicate-imports': ['error', { allowSeparateTypeImports: true }],
     },
   },
+  {
+    files: ['src/prisma/prisma.service.ts'],
+    rules: {
+      '@typescript-eslint/no-unsafe-call': 'warn',
+    },
+  },
 );

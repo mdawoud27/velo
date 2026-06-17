@@ -13,11 +13,21 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     const adapter = new PrismaPg(pool);
     super({ adapter });
   }
-  async onModuleDestroy(): Promise<void> {
-    await this.$disconnect();
-  }
 
   async onModuleInit(): Promise<void> {
-    await this.$connect();
+    try {
+      await this.$connect();
+      this.logger.log('Database connected');
+    } catch (err) {
+      this.logger.error(
+        'Database connection error',
+        err instanceof Error ? err.stack : String(err),
+      );
+      process.exit(1);
+    }
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    await this.$disconnect();
   }
 }
