@@ -10,6 +10,10 @@ export class RedisService implements OnModuleDestroy {
     private readonly logger: LoggerService,
   ) {}
 
+  getClient() {
+    return this.client;
+  }
+
   async onModuleDestroy() {
     await this.client.quit();
   }
