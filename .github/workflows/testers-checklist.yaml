@@ -6,10 +6,7 @@ on:
 
 jobs:
   checklist:
-    if: |
-      github.event.pull_request.milestone != null &&
-      !startsWith(github.event.pull_request.milestone.title, 'Phase 2') &&
-      github.event.pull_request.draft == false
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
 
     permissions:
