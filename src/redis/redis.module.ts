@@ -13,7 +13,7 @@ import { RedisService } from './redis.service';
         const redisUrl = config.get<string>('REDIS_URL');
         if (!redisUrl) {
           logger.error('REDIS_URL is not defined', undefined, 'RedisModule');
-          process.exit(1);
+          throw new Error('REDIS_URL is not defined');
         }
 
         const client: Redis = new Redis(redisUrl, {
