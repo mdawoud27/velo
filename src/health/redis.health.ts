@@ -10,13 +10,13 @@ export class RedisHealthIndicator {
   ) {}
 
   async pingCheck(key: string): Promise<HealthIndicatorResult> {
-    const indecator = this.healthIndicatorService.check(key);
+    const indicator = this.healthIndicatorService.check(key);
 
     try {
       const result = await this.redisService.getClient().ping();
-      return result === 'PONG' ? indecator.up() : indecator.down();
+      return result === 'PONG' ? indicator.up() : indicator.down();
     } catch {
-      return indecator.down();
+      return indicator.down();
     }
   }
 }

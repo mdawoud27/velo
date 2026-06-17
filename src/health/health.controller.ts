@@ -14,10 +14,14 @@ export class HealthController {
 
   @Get()
   @HealthCheck()
-  check() {
-    return this.health.check([
+  async check() {
+    const result = await this.health.check([
       () => this.db.pingCheck('prisma', this.prisma, { timeout: 5000 }),
       () => this.redisHealthIndicator.pingCheck('redis'),
     ]);
+    return {
+      ...result,
+      version: process.env.npm_package_version,
+    };
   }
 }
