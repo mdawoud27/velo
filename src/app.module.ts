@@ -6,6 +6,8 @@ import { PrismaModule } from './prisma/prisma.module';
 import { LoggerModule } from './logger/logger.module';
 import { RedisModule } from './redis/redis.module';
 import { HealthModule } from './health/health.module';
+import { QueueModule } from './queue/queue.module';
+import { MailModule } from './mail/mail.module';
 
 @Module({
   imports: [
@@ -14,6 +16,8 @@ import { HealthModule } from './health/health.module';
     LoggerModule,
     RedisModule,
     HealthModule,
+    QueueModule,
+    MailModule,
   ],
   controllers: [AppController],
   providers: [AppService],
