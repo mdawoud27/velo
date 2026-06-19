@@ -19,10 +19,12 @@ export class MailHandlebarsAdapter extends HandlebarsAdapter {
   constructor(partialsDir: string) {
     super();
     this.partials = existsSync(partialsDir)
-      ? readdirSync(partialsDir).map((file) => ({
-          name: basename(file, extname(file)),
-          content: readFileSync(join(partialsDir, file), 'utf-8'),
-        }))
+      ? readdirSync(partialsDir, { withFileTypes: true })
+          .filter((entry) => entry.isFile())
+          .map((entry) => ({
+            name: basename(entry.name, extname(entry.name)),
+            content: readFileSync(join(partialsDir, entry.name), 'utf-8'),
+          }))
       : [];
   }
 

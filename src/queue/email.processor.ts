@@ -1,0 +1,49 @@
+import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { Job } from 'bullmq';
+import { LoggerService } from '../logger/logger.service';
+import { MailService } from '../mail/mail.service';
+import { EMAIL_QUEUE, EmailJobType } from './constants';
+import type {
+  PasswordResetPayload,
+  VerifyEmailPayload,
+  WelcomeEmailPayload,
+} from './email-queue.service';
+
+type EmailJob =
+  | Job<WelcomeEmailPayload, void, EmailJobType.WELCOME>
+  | Job<VerifyEmailPayload, void, EmailJobType.VERIFY_EMAIL>
+  | Job<PasswordResetPayload, void, EmailJobType.PASSWORD_RESET>;
+
+@Processor(EMAIL_QUEUE)
+export class EmailProcessor extends WorkerHost {
+  constructor(
+    private readonly mail: MailService,
+    private readonly logger: LoggerService,
+  ) {
+    super();
+  }
+
+  async process(job: EmailJob): Promise<void> {
+    const jobName: string = job.name;
+
+    this.logger.log(`Processing job ${jobName} (id: ${job.id})`, 'EmailProcessor');
+
+    switch (job.name) {
+      case EmailJobType.WELCOME:
+        await this.mail.sendWelcomeEmail(job.data.to, job.data.name);
+        break;
+
+      case EmailJobType.VERIFY_EMAIL:
+        await this.mail.sendVerifyEmail(job.data.to, job.data.name, job.data.verificationUrl);
+        break;
+
+      case EmailJobType.PASSWORD_RESET:
+        await this.mail.sendPasswordResetEmail(job.data.to, job.data.name, job.data.resetUrl);
+        break;
+
+      default:
+        this.logger.error(`Unknown job type: ${jobName}`, undefined, 'EmailProcessor');
+        throw new Error(`Unsupported email job type: ${jobName}`);
+    }
+  }
+}

@@ -7,6 +7,7 @@ import { LoggerModule } from './logger/logger.module';
 import { RedisModule } from './redis/redis.module';
 import { HealthModule } from './health/health.module';
 import { QueueModule } from './queue/queue.module';
+import { MailModule } from './mail/mail.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { QueueModule } from './queue/queue.module';
     RedisModule,
     HealthModule,
     QueueModule,
+    MailModule,
   ],
   controllers: [AppController],
   providers: [AppService],
