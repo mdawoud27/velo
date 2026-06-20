@@ -26,10 +26,7 @@ export class BanGuard implements CanActivate {
       });
 
       cached = dbUser?.bannedAt ? 'banned' : 'active';
-
-      if (cached === 'active') {
-        await this.redis.setex(cacheKey, 'active', 300);
-      }
+      await this.redis.setex(cacheKey, cached, 300);
     }
 
     if (cached === 'banned') {
