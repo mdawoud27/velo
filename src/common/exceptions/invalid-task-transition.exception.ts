@@ -8,6 +8,7 @@ export class InvalidTaskTransitionException extends DomainException {
       HttpStatus.UNPROCESSABLE_ENTITY,
       'INVALID_TASK_TRANSITION',
       `Cannot transition task from ${from} to ${to}`,
+      { from, to },
     );
   }
 }

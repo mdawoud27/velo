@@ -1,7 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Request } from 'express';
 import { JwtPayload } from 'src/auth/interfaces';
-import { BannedUserException } from 'src/common/exceptions/banned-user.exception';
+import { BannedUserException } from 'src/common/exceptions';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { RedisService } from 'src/redis/redis.service';
 
