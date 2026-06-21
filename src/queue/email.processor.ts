@@ -1,4 +1,4 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
 import { LoggerService } from '../logger/logger.service';
 import { MailService } from '../mail/mail.service';
@@ -45,5 +45,14 @@ export class EmailProcessor extends WorkerHost {
         this.logger.error(`Unknown job type: ${jobName}`, undefined, 'EmailProcessor');
         throw new Error(`Unsupported email job type: ${jobName}`);
     }
+  }
+
+  @OnWorkerEvent('failed')
+  onFailed(job: EmailJob, error: Error) {
+    this.logger.error(
+      `Job ${job.name} (id: ${job.id}) failed after ${job.attemptsMade} attempts: ${error.message}`,
+      undefined,
+      'EmailProcessor',
+    );
   }
 }
