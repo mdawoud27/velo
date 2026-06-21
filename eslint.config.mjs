@@ -17,35 +17,35 @@ export default tseslint.config(
         ...globals.node,
         ...globals.jest,
       },
-      sourceType: 'commonjs',
+      sourceType: 'module',
       parserOptions: {
         projectService: true,
         tsconfigRootDir: import.meta.dirname,
       },
     },
   },
-  {
-    rules: {
-      '@typescript-eslint/no-explicit-any': 'warn',
-      '@typescript-eslint/no-floating-promises': 'warn',
-      '@typescript-eslint/no-unsafe-argument': 'warn',
-      'no-console': ['warn', { allow: ['warn', 'error', 'info'] }],
-      'no-duplicate-imports': ['error', { allowSeparateTypeImports: true }],
-    },
-  },
-  {
-    files: ['src/prisma/prisma.service.ts'],
-    rules: {
-      '@typescript-eslint/no-unsafe-call': 'warn',
-    },
-  },
-  {
-    files: ['src/redis/redis.module.ts'],
-    rules: {
-      '@typescript-eslint/no-unsafe-assignment': 'off',
-      '@typescript-eslint/no-unsafe-call': 'off',
-      '@typescript-eslint/no-unsafe-member-access': 'off',
-      '@typescript-eslint/no-unsafe-return': 'off',
-    },
-  },
+  // {
+  //   rules: {
+  //     '@typescript-eslint/no-explicit-any': 'warn',
+  //     '@typescript-eslint/no-floating-promises': 'warn',
+  //     '@typescript-eslint/no-unsafe-argument': 'warn',
+  //     'no-console': ['warn', { allow: ['warn', 'error', 'info'] }],
+  //     'no-duplicate-imports': ['error', { allowSeparateTypeImports: true }],
+  //   },
+  // },
+  // {
+  //   files: ['src/prisma/prisma.service.ts'],
+  //   rules: {
+  //     '@typescript-eslint/no-unsafe-call': 'warn',
+  //   },
+  // },
+  // {
+  //   files: ['src/redis/redis.module.ts'],
+  //   rules: {
+  //     '@typescript-eslint/no-unsafe-assignment': 'off',
+  //     '@typescript-eslint/no-unsafe-call': 'off',
+  //     '@typescript-eslint/no-unsafe-member-access': 'off',
+  //     '@typescript-eslint/no-unsafe-return': 'off',
+  //   },
+  // },
 );
