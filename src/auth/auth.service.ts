@@ -1,12 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { RedisService } from 'src/redis/redis.service';
-import { RegistrationDto } from './dtos/registration.dto';
+import { RegistrationDto, VerifyEmailDto } from './dtos';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { ConfigService } from '@nestjs/config';
-import { EmailAlreadyRegisteredException } from 'src/common/exceptions';
+import {
+  EmailAlreadyRegisteredException,
+  InvalidOrExpiredTokenException,
+} from 'src/common/exceptions';
 import { EmailQueueService } from 'src/queue/email-queue.service';
+import { LoggerService } from 'src/logger/logger.service';
 
 @Injectable()
 export class AuthService {
@@ -15,6 +19,7 @@ export class AuthService {
     private readonly redis: RedisService,
     private readonly emailQueue: EmailQueueService,
     private readonly config: ConfigService,
+    private readonly logger: LoggerService,
   ) {}
 
   async register(dto: RegistrationDto) {
@@ -52,5 +57,24 @@ export class AuthService {
     });
 
     return { message: 'Check your inbox to verify your email' };
+  }
+
+  async verifyEmail(dto: VerifyEmailDto) {
+    const redisKey = `email-verify:${dto.token}`;
+    const userId = await this.redis.get(redisKey);
+
+    if (!userId) {
+      throw new InvalidOrExpiredTokenException();
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { isEmailVerified: true },
+    });
+
+    await this.redis.del(redisKey);
+    console.warn('verifcation-token:', redisKey, userId);
+
+    return { message: 'Email verified successfully' };
   }
 }
