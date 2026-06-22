@@ -17,7 +17,7 @@ export default tseslint.config(
         ...globals.node,
         ...globals.jest,
       },
-      sourceType: 'commonjs',
+      sourceType: 'module',
       parserOptions: {
         projectService: true,
         tsconfigRootDir: import.meta.dirname,
@@ -33,19 +33,19 @@ export default tseslint.config(
       'no-duplicate-imports': ['error', { allowSeparateTypeImports: true }],
     },
   },
-  {
-    files: ['src/prisma/prisma.service.ts'],
-    rules: {
-      '@typescript-eslint/no-unsafe-call': 'warn',
-    },
-  },
-  {
-    files: ['src/redis/redis.module.ts'],
-    rules: {
-      '@typescript-eslint/no-unsafe-assignment': 'off',
-      '@typescript-eslint/no-unsafe-call': 'off',
-      '@typescript-eslint/no-unsafe-member-access': 'off',
-      '@typescript-eslint/no-unsafe-return': 'off',
-    },
-  },
+  // {
+  //   files: ['src/prisma/prisma.service.ts'],
+  //   rules: {
+  //     '@typescript-eslint/no-unsafe-call': 'warn',
+  //   },
+  // },
+  // {
+  //   files: ['src/redis/redis.module.ts'],
+  //   rules: {
+  //     '@typescript-eslint/no-unsafe-assignment': 'off',
+  //     '@typescript-eslint/no-unsafe-call': 'off',
+  //     '@typescript-eslint/no-unsafe-member-access': 'off',
+  //     '@typescript-eslint/no-unsafe-return': 'off',
+  //   },
+  // },
 );

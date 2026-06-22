@@ -4,3 +4,7 @@ export * from './insufficient-role.exception';
 export * from './invalid-task-transition.exception';
 export * from './plan-limit.exception';
 export * from './resource-not-found.exception';
+export * from './email-already-registered.exception';
+export * from './invalid-or-expired-token.exception';
+export * from './invalid-credentials.exception';
+export * from './email-not-verified.exception';
