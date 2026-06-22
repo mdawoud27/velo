@@ -24,15 +24,15 @@ export default tseslint.config(
       },
     },
   },
-  // {
-  //   rules: {
-  //     '@typescript-eslint/no-explicit-any': 'warn',
-  //     '@typescript-eslint/no-floating-promises': 'warn',
-  //     '@typescript-eslint/no-unsafe-argument': 'warn',
-  //     'no-console': ['warn', { allow: ['warn', 'error', 'info'] }],
-  //     'no-duplicate-imports': ['error', { allowSeparateTypeImports: true }],
-  //   },
-  // },
+  {
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-floating-promises': 'warn',
+      '@typescript-eslint/no-unsafe-argument': 'warn',
+      'no-console': ['warn', { allow: ['warn', 'error', 'info'] }],
+      'no-duplicate-imports': ['error', { allowSeparateTypeImports: true }],
+    },
+  },
   // {
   //   files: ['src/prisma/prisma.service.ts'],
   //   rules: {
