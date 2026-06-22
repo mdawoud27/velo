@@ -48,10 +48,18 @@ export class EmailProcessor extends WorkerHost {
   }
 
   @OnWorkerEvent('failed')
-  onFailed(job: EmailJob, error: Error) {
+  onFailed(job: EmailJob | undefined, error: Error) {
+    if (!job) {
+      this.logger.error(
+        `Email job failed before job metadata was available: ${error.message}`,
+        error,
+        'EmailProcessor',
+      );
+      return;
+    }
     this.logger.error(
       `Job ${job.name} (id: ${job.id}) failed after ${job.attemptsMade} attempts: ${error.message}`,
-      undefined,
+      error,
       'EmailProcessor',
     );
   }

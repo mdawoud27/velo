@@ -13,7 +13,7 @@ import { LoggerService } from 'src/logger/logger.service';
         transport: {
           host: config.getOrThrow<string>('SMTP_HOST'),
           port: config.get<number>('SMTP_PORT', 587),
-          secure: config.get('SMTP_SECURE', false) === 'true',
+          secure: String(config.get('SMTP_SECURE', 'false')).toLowerCase() === 'true',
           auth: {
             user: config.getOrThrow<string>('SMTP_USER'),
             pass: config.getOrThrow<string>('SMTP_PASS'),
