@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { RedisService } from 'src/redis/redis.service';
-import { LoginDto, RegistrationDto, VerifyEmailDto } from './dtos';
+import { LoginDto, RegistrationDto, ResendEmailDto, VerifyEmailDto } from './dtos';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { ConfigService } from '@nestjs/config';
@@ -71,6 +71,35 @@ export class AuthService {
     return { message: 'Check your inbox to verify your email' };
   }
 
+  async resendVerificationEmail(dto: ResendEmailDto) {
+    const email = dto.email.trim().toLowerCase();
+
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+      select: { id: true, email: true, name: true, isEmailVerified: true },
+    });
+
+    if (!user) {
+      return { message: 'No account with that email exists.' };
+    }
+
+    if (user.isEmailVerified) {
+      return { message: 'Email already verified' };
+    }
+
+    const verificationToken = crypto.randomUUID();
+    await this.redis.setex(`email-verify:${verificationToken}`, user.id.toString(), 86400);
+
+    const verificationUrl = `${this.config.getOrThrow('FRONTEND_URL')}/verify-email?token=${verificationToken}`;
+    await this.emailQueue.addVerifyEmail({
+      to: user.email,
+      name: user.name ?? '',
+      verificationUrl,
+    });
+
+    return { message: 'If that account needs verification, a new email has been sent.' };
+  }
+
   async verifyEmail(dto: VerifyEmailDto) {
     const redisKey = `email-verify:${dto.token}`;
     const userId = await this.redis.get(redisKey);
@@ -90,8 +119,10 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
+    const email = dto.email.trim().toLowerCase();
+
     const user = await this.prisma.user.findUnique({
-      where: { email: dto.email },
+      where: { email },
     });
 
     if (!user || !user.password) {
@@ -100,7 +131,7 @@ export class AuthService {
 
     const isPasswordValid = await bcrypt.compare(dto.password, user.password);
     if (!isPasswordValid) {
-      throw new InvalidOrExpiredTokenException();
+      throw new InvalidCredentialsException();
     }
 
     if (!user.isEmailVerified) {
@@ -135,8 +166,8 @@ export class AuthService {
 
     const accessToken = this.jwtService.sign(payload);
     const refreshToken = this.jwtService.sign(payload, {
-      secret: this.config.get('JWT_REFRESH_SECRET'),
-      expiresIn: this.config.get('JWT_REFRESH_EXPIRES_IN'),
+      secret: this.config.getOrThrow('JWT_REFRESH_SECRET'),
+      expiresIn: this.config.getOrThrow('JWT_REFRESH_EXPIRES_IN'),
     });
 
     const hashedRefresh = await bcrypt.hash(refreshToken, 12);

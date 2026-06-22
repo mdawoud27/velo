@@ -1,5 +1,5 @@
 import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
-import { LoginDto, RegistrationDto, VerifyEmailDto } from './dtos';
+import { LoginDto, RegistrationDto, ResendEmailDto, VerifyEmailDto } from './dtos';
 import { AuthService } from './auth.service';
 
 @Controller('auth')
@@ -10,6 +10,12 @@ export class AuthController {
   @HttpCode(HttpStatus.CREATED)
   async register(@Body() dto: RegistrationDto) {
     return this.authService.register(dto);
+  }
+
+  @Post('resend-verification-email')
+  @HttpCode(HttpStatus.OK)
+  async resendVerificationEmail(@Body() dto: ResendEmailDto) {
+    return this.authService.resendVerificationEmail(dto);
   }
 
   @Post('verify-email')
