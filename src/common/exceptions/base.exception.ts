@@ -1,9 +1,10 @@
 import { HttpException } from '@nestjs/common';
+import { ErrorCode } from '../types';
 
 export class DomainException extends HttpException {
   constructor(
     statusCode: number,
-    errorCode: string,
+    errorCode: ErrorCode,
     message: string,
     extra?: Record<string, unknown>,
   ) {
