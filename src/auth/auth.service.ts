@@ -1,7 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { RedisService } from 'src/redis/redis.service';
-import { LoginDto, RefreshTokenDto, RegistrationDto, ResendEmailDto, VerifyEmailDto } from './dtos';
+import {
+  ForgotPasswordDto,
+  LoginDto,
+  RefreshTokenDto,
+  RegistrationDto,
+  ResendEmailDto,
+  ResetPassword,
+  VerifyEmailDto,
+} from './dtos';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { ConfigService } from '@nestjs/config';
@@ -35,7 +43,7 @@ export class AuthService {
   ) {}
 
   async register(dto: RegistrationDto) {
-    const email = dto.email.trim().toLowerCase();
+    const email = dto.email.trim();
 
     const existingUser = await this.prisma.user.findUnique({
       where: { email },
@@ -72,7 +80,7 @@ export class AuthService {
   }
 
   async resendVerificationEmail(dto: ResendEmailDto) {
-    const email = dto.email.trim().toLowerCase();
+    const email = dto.email.trim();
 
     const user = await this.prisma.user.findUnique({
       where: { email },
@@ -101,8 +109,7 @@ export class AuthService {
   }
 
   async verifyEmail(dto: VerifyEmailDto) {
-    const redisKey = `email-verify:${dto.token}`;
-    const userId = await this.redis.get(redisKey);
+    const userId = await this.redis.getdel(`email-verify:${dto.token}`);
 
     if (!userId) {
       throw new InvalidOrExpiredTokenException();
@@ -113,13 +120,11 @@ export class AuthService {
       data: { isEmailVerified: true },
     });
 
-    await this.redis.del(redisKey);
-
     return { message: 'Email verified successfully' };
   }
 
   async login(dto: LoginDto) {
-    const email = dto.email.trim().toLowerCase();
+    const email = dto.email.trim();
 
     const user = await this.prisma.user.findUnique({
       where: { email },
@@ -201,6 +206,56 @@ export class AuthService {
     await this.redis.setex(`refresh:${user.id}`, hashedRefresh, 7 * 24 * 60 * 60);
 
     return { accessToken, refreshToken };
+  }
+
+  async forgotPassword(dto: ForgotPasswordDto) {
+    const email = dto.email.trim();
+
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      return { message: 'If that account exists, a reset link has been sent' };
+    }
+
+    if (!user.isEmailVerified) {
+      throw new EmailNotVerifiedException();
+    }
+
+    if (user.bannedAt) {
+      throw new BannedUserException();
+    }
+
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    await this.redis.setex(`pwd-reset:${resetToken}`, user.id.toString(), 3600);
+
+    const resetUrl = `${this.config.getOrThrow('FRONTEND_URL')}/reset-password?token=${resetToken}`;
+
+    await this.emailQueue.addPasswordResetEmail({
+      to: user.email,
+      name: user.name ?? '',
+      resetUrl,
+    });
+
+    return { message: 'If that account exists, a reset link has been sent' };
+  }
+
+  async resetPassword(dto: ResetPassword) {
+    const userId = await this.redis.getdel(`pwd-reset:${dto.token}`);
+    if (!userId) {
+      throw new InvalidOrExpiredTokenException();
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.newPassword, 12);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword },
+    });
+
+    await this.redis.del(`refresh:${userId}`);
+
+    return { message: 'Password reset successfully' };
   }
 
   async logout(payload: JwtPayload & { exp: number }) {
