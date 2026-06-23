@@ -1,5 +1,5 @@
 import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
-import { LoginDto, RegistrationDto, ResendEmailDto, VerifyEmailDto } from './dtos';
+import { LoginDto, RefreshTokenDto, RegistrationDto, ResendEmailDto, VerifyEmailDto } from './dtos';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards';
 import { CurrentUser, Public } from './decorators';
@@ -36,6 +36,12 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
+  }
+
+  @Post('refresh-token')
+  @HttpCode(HttpStatus.OK)
+  async refreshToken(@Body() dto: RefreshTokenDto) {
+    return this.authService.refreshToken(dto);
   }
 
   @Post('logout')
