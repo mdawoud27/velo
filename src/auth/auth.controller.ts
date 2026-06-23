@@ -5,6 +5,7 @@ import {
   RefreshTokenDto,
   RegistrationDto,
   ResendEmailDto,
+  ResetPassword,
   VerifyEmailDto,
 } from './dtos';
 import { AuthService } from './auth.service';
@@ -57,6 +58,13 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async forgetPassword(@Body() dto: ForgetPasswordDto) {
     return this.authService.forgetPassword(dto);
+  }
+
+  @Public()
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  async resetPassword(@Body() dto: ResetPassword) {
+    return this.authService.resetPassword(dto);
   }
 
   @Post('logout')

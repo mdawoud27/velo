@@ -7,6 +7,7 @@ import {
   RefreshTokenDto,
   RegistrationDto,
   ResendEmailDto,
+  ResetPassword,
   VerifyEmailDto,
 } from './dtos';
 import bcrypt from 'bcryptjs';
@@ -241,6 +242,23 @@ export class AuthService {
     });
 
     return { message: 'Reset password email has been sent' };
+  }
+
+  async resetPassword(dto: ResetPassword) {
+    const userId = await this.redis.getdel(`pwd-reset:${dto.token}`);
+    if (!userId) {
+      throw new InvalidOrExpiredTokenException();
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.newPassword, 12);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword },
+    });
+
+    await this.redis.del(`refresh:${userId}`);
+
+    return { message: 'Password reset successfully' };
   }
 
   async logout(payload: JwtPayload & { exp: number }) {
