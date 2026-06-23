@@ -1,7 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { RedisService } from 'src/redis/redis.service';
-import { LoginDto, RefreshTokenDto, RegistrationDto, ResendEmailDto, VerifyEmailDto } from './dtos';
+import {
+  ForgetPasswordDto,
+  LoginDto,
+  RefreshTokenDto,
+  RegistrationDto,
+  ResendEmailDto,
+  VerifyEmailDto,
+} from './dtos';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { ConfigService } from '@nestjs/config';
@@ -35,7 +42,7 @@ export class AuthService {
   ) {}
 
   async register(dto: RegistrationDto) {
-    const email = dto.email.trim().toLowerCase();
+    const email = dto.email.trim();
 
     const existingUser = await this.prisma.user.findUnique({
       where: { email },
@@ -72,7 +79,7 @@ export class AuthService {
   }
 
   async resendVerificationEmail(dto: ResendEmailDto) {
-    const email = dto.email.trim().toLowerCase();
+    const email = dto.email.trim();
 
     const user = await this.prisma.user.findUnique({
       where: { email },
@@ -119,7 +126,7 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const email = dto.email.trim().toLowerCase();
+    const email = dto.email.trim();
 
     const user = await this.prisma.user.findUnique({
       where: { email },
@@ -201,6 +208,39 @@ export class AuthService {
     await this.redis.setex(`refresh:${user.id}`, hashedRefresh, 7 * 24 * 60 * 60);
 
     return { accessToken, refreshToken };
+  }
+
+  async forgetPassword(dto: ForgetPasswordDto) {
+    const email = dto.email.trim();
+
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      return;
+    }
+
+    if (!user.isEmailVerified) {
+      throw new EmailNotVerifiedException();
+    }
+
+    if (user.bannedAt) {
+      throw new BannedUserException();
+    }
+
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    await this.redis.setex(`pwd-reset:${resetToken}`, user.id.toString(), 3600);
+
+    const resetUrl = `${this.config.getOrThrow('FRONTEND_URL')}/reset-password?token=${resetToken}`;
+
+    await this.emailQueue.addPasswordResetEmail({
+      to: user.email,
+      name: user.name ?? '',
+      resetUrl,
+    });
+
+    return { message: 'Reset password email has been sent' };
   }
 
   async logout(payload: JwtPayload & { exp: number }) {

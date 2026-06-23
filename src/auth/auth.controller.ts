@@ -1,5 +1,12 @@
 import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
-import { LoginDto, RefreshTokenDto, RegistrationDto, ResendEmailDto, VerifyEmailDto } from './dtos';
+import {
+  ForgetPasswordDto,
+  LoginDto,
+  RefreshTokenDto,
+  RegistrationDto,
+  ResendEmailDto,
+  VerifyEmailDto,
+} from './dtos';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards';
 import { CurrentUser, Public } from './decorators';
@@ -43,6 +50,13 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async refreshToken(@Body() dto: RefreshTokenDto) {
     return this.authService.refreshToken(dto);
+  }
+
+  @Public()
+  @Post('forget-password')
+  @HttpCode(HttpStatus.OK)
+  async forgetPassword(@Body() dto: ForgetPasswordDto) {
+    return this.authService.forgetPassword(dto);
   }
 
   @Post('logout')
