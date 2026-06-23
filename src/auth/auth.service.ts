@@ -216,7 +216,7 @@ export class AuthService {
     });
 
     if (!user) {
-      return;
+      return { message: 'If that account exists, a reset link has been sent' };
     }
 
     if (!user.isEmailVerified) {
@@ -238,7 +238,7 @@ export class AuthService {
       resetUrl,
     });
 
-    return { message: 'Reset password email has been sent' };
+    return { message: 'If that account exists, a reset link has been sent' };
   }
 
   async resetPassword(dto: ResetPassword) {

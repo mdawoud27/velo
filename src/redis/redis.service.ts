@@ -37,7 +37,7 @@ export class RedisService implements OnModuleDestroy {
 
   async getex(key: string, ttl: number): Promise<string | null> {
     this.validateTtl(ttl);
-    return this.client.getex(key, 'EX', ttl);
+    return await this.client.getex(key, 'EX', ttl);
   }
 
   async del(key: string): Promise<void> {
@@ -89,11 +89,7 @@ export class RedisService implements OnModuleDestroy {
 
   private validateTtl(ttl: number): void {
     if (!Number.isInteger(ttl) || ttl <= 0) {
-      this.logger.error(
-        `Invalid ttl: must be a positive integer, got ${ttl}`,
-        undefined,
-        'RedisService',
-      );
+      throw new Error(`Invalid TTL: must be a positive integer, got ${ttl}`);
     }
   }
 }
