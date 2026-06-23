@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { RedisService } from 'src/redis/redis.service';
-import { LoginDto, RegistrationDto, ResendEmailDto, VerifyEmailDto } from './dtos';
+import { LoginDto, RefreshTokenDto, RegistrationDto, ResendEmailDto, VerifyEmailDto } from './dtos';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { ConfigService } from '@nestjs/config';
@@ -151,6 +151,68 @@ export class AuthService {
     const { accessToken, refreshToken } = await this.generateTokens(user, orgMember ?? undefined);
 
     return { accessToken, refreshToken, user: new UserEntity(user) };
+  }
+
+  async refreshToken(dto: RefreshTokenDto) {
+    let decodedToken: JwtPayload;
+    try {
+      decodedToken = this.jwtService.verify<JwtPayload>(dto.refreshToken, {
+        secret: this.config.getOrThrow('JWT_REFRESH_SECRET'),
+      });
+    } catch {
+      throw new InvalidOrExpiredTokenException();
+    }
+
+    const userId = decodedToken.sub;
+
+    const storedHash = await this.redis.get(`refresh:${userId}`);
+    const isMatch = await bcrypt.compare(dto.refreshToken, storedHash ?? '');
+
+    if (!isMatch) {
+      await this.redis.del(`refresh:${userId}`);
+      throw new InvalidOrExpiredTokenException();
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new InvalidCredentialsException();
+    }
+
+    if (!user.isEmailVerified) {
+      throw new EmailNotVerifiedException();
+    }
+
+    if (user.bannedAt) {
+      throw new BannedUserException();
+    }
+
+    const orgMember = await this.prisma.orgMember.findFirst({
+      where: { userId: user.id },
+      orderBy: { joinedAt: 'asc' },
+      select: { orgId: true, role: true },
+    });
+
+    const { accessToken, refreshToken } = await this.generateTokens(user, orgMember ?? undefined);
+
+    const hashedRefresh = await bcrypt.hash(refreshToken, 12);
+    await this.redis.setex(`refresh:${user.id}`, hashedRefresh, 7 * 24 * 60 * 60);
+
+    return { accessToken, refreshToken };
+  }
+
+  async logout(payload: JwtPayload & { exp: number }) {
+    const remainingTtl = payload.exp - Math.floor(Date.now() / 1000);
+
+    if (remainingTtl > 0) {
+      await this.redis.setex(`blacklist:${payload.jti}`, '1', remainingTtl);
+    }
+
+    await this.redis.del(`refresh:${payload.sub}`);
+
+    return { message: 'You are logged out successfully' };
   }
 
   private async generateTokens(user: TokenUser, orgMembership?: TokenOrgMembership) {
