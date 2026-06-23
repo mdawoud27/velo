@@ -2,7 +2,8 @@ import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs
 import { LoginDto, RegistrationDto, ResendEmailDto, VerifyEmailDto } from './dtos';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards';
-import { Public } from './decorators';
+import { CurrentUser, Public } from './decorators';
+import { JwtPayload } from './interfaces';
 
 @Controller('auth')
 @UseGuards(JwtAuthGuard)
@@ -35,5 +36,11 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
+  }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  async logout(@CurrentUser() user: JwtPayload & { exp: number }) {
+    return this.authService.logout(user);
   }
 }

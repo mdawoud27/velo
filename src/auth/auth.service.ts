@@ -153,6 +153,18 @@ export class AuthService {
     return { accessToken, refreshToken, user: new UserEntity(user) };
   }
 
+  async logout(payload: JwtPayload & { exp: number }) {
+    const remainingTtl = payload.exp - Math.floor(Date.now() / 1000);
+
+    if (remainingTtl > 0) {
+      await this.redis.setex(`blacklist:${payload.jti}`, '1', remainingTtl);
+    }
+
+    await this.redis.del(`refresh:${payload.sub}`);
+
+    return { message: 'You are logged out successfully' };
+  }
+
   private async generateTokens(user: TokenUser, orgMembership?: TokenOrgMembership) {
     const jti = uuidv4();
     const payload: JwtPayload = {
