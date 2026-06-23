@@ -109,8 +109,7 @@ export class AuthService {
   }
 
   async verifyEmail(dto: VerifyEmailDto) {
-    const redisKey = `email-verify:${dto.token}`;
-    const userId = await this.redis.get(redisKey);
+    const userId = await this.redis.getdel(`email-verify:${dto.token}`);
 
     if (!userId) {
       throw new InvalidOrExpiredTokenException();
@@ -120,8 +119,6 @@ export class AuthService {
       where: { id: userId },
       data: { isEmailVerified: true },
     });
-
-    await this.redis.del(redisKey);
 
     return { message: 'Email verified successfully' };
   }
