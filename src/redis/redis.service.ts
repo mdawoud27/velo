@@ -31,6 +31,10 @@ export class RedisService implements OnModuleDestroy {
     return await this.client.get(key);
   }
 
+  async getdel(key: string): Promise<string | null> {
+    return await this.client.getdel(key);
+  }
+
   async getex(key: string, ttl: number): Promise<string | null> {
     this.validateTtl(ttl);
     return this.client.getex(key, 'EX', ttl);
