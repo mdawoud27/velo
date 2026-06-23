@@ -6,7 +6,7 @@ export class InvalidOrExpiredTokenException extends DomainException {
     super(
       HttpStatus.BAD_REQUEST,
       'INVALID_OR_EXPIRED_TOKEN',
-      'This verification link is invalid or has expired.',
+      'This token is invalid or has expired.',
     );
   }
 }
