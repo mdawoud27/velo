@@ -154,9 +154,14 @@ export class AuthService {
   }
 
   async refreshToken(dto: RefreshTokenDto) {
-    const decodedToken: JwtPayload = this.jwtService.verify(dto.refreshToken, {
-      secret: this.config.getOrThrow('JWT_REFRESH_SECRET'),
-    });
+    let decodedToken: JwtPayload;
+    try {
+      decodedToken = this.jwtService.verify<JwtPayload>(dto.refreshToken, {
+        secret: this.config.getOrThrow('JWT_REFRESH_SECRET'),
+      });
+    } catch {
+      throw new InvalidOrExpiredTokenException();
+    }
 
     const userId = decodedToken.sub;
 
@@ -174,6 +179,14 @@ export class AuthService {
 
     if (!user) {
       throw new InvalidCredentialsException();
+    }
+
+    if (!user.isEmailVerified) {
+      throw new EmailNotVerifiedException();
+    }
+
+    if (user.bannedAt) {
+      throw new BannedUserException();
     }
 
     const orgMember = await this.prisma.orgMember.findFirst({
