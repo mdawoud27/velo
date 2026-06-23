@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { RedisService } from 'src/redis/redis.service';
 import {
-  ForgetPasswordDto,
+  ForgotPasswordDto,
   LoginDto,
   RefreshTokenDto,
   RegistrationDto,
@@ -211,7 +211,7 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
-  async forgetPassword(dto: ForgetPasswordDto) {
+  async forgotPassword(dto: ForgotPasswordDto) {
     const email = dto.email.trim();
 
     const user = await this.prisma.user.findUnique({

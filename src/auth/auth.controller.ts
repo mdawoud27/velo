@@ -1,6 +1,6 @@
 import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
 import {
-  ForgetPasswordDto,
+  ForgotPasswordDto,
   LoginDto,
   RefreshTokenDto,
   RegistrationDto,
@@ -54,10 +54,10 @@ export class AuthController {
   }
 
   @Public()
-  @Post('forget-password')
+  @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
-  async forgetPassword(@Body() dto: ForgetPasswordDto) {
-    return this.authService.forgetPassword(dto);
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto);
   }
 
   @Public()
