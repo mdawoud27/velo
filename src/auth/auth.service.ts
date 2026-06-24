@@ -23,13 +23,9 @@ import {
 import { EmailQueueService } from 'src/queue/email-queue.service';
 import { LoggerService } from 'src/logger/logger.service';
 import { JwtService } from '@nestjs/jwt';
-import { v4 as uuidv4 } from 'uuid';
 import { JwtPayload } from './interfaces';
-import { OrgMember, User } from '@prisma/client';
 import { UserEntity } from './entities/user.entity';
-
-type TokenUser = Pick<User, 'id' | 'email' | 'systemRole'>;
-type TokenOrgMembership = Pick<OrgMember, 'orgId' | 'role'>;
+import { TokensService } from './tokens.service';
 
 @Injectable()
 export class AuthService {
@@ -40,6 +36,7 @@ export class AuthService {
     private readonly config: ConfigService,
     private readonly logger: LoggerService,
     private readonly jwtService: JwtService,
+    private readonly tokensService: TokensService,
   ) {}
 
   async register(dto: RegistrationDto) {
@@ -153,7 +150,10 @@ export class AuthService {
       select: { orgId: true, role: true },
     });
 
-    const { accessToken, refreshToken } = await this.generateTokens(user, orgMember ?? undefined);
+    const { accessToken, refreshToken } = await this.tokensService.generateTokens(
+      user,
+      orgMember ?? undefined,
+    );
 
     return { accessToken, refreshToken, user: new UserEntity(user) };
   }
@@ -200,10 +200,10 @@ export class AuthService {
       select: { orgId: true, role: true },
     });
 
-    const { accessToken, refreshToken } = await this.generateTokens(user, orgMember ?? undefined);
-
-    const hashedRefresh = await bcrypt.hash(refreshToken, 12);
-    await this.redis.setex(`refresh:${user.id}`, hashedRefresh, 7 * 24 * 60 * 60);
+    const { accessToken, refreshToken } = await this.tokensService.generateTokens(
+      user,
+      orgMember ?? undefined,
+    );
 
     return { accessToken, refreshToken };
   }
@@ -268,28 +268,5 @@ export class AuthService {
     await this.redis.del(`refresh:${payload.sub}`);
 
     return { message: 'You are logged out successfully' };
-  }
-
-  private async generateTokens(user: TokenUser, orgMembership?: TokenOrgMembership) {
-    const jti = uuidv4();
-    const payload: JwtPayload = {
-      sub: user.id,
-      email: user.email,
-      jti,
-      systemRole: user.systemRole,
-      orgId: orgMembership?.orgId,
-      orgRole: orgMembership?.role,
-    };
-
-    const accessToken = this.jwtService.sign(payload);
-    const refreshToken = this.jwtService.sign(payload, {
-      secret: this.config.getOrThrow('JWT_REFRESH_SECRET'),
-      expiresIn: this.config.getOrThrow('JWT_REFRESH_EXPIRES_IN'),
-    });
-
-    const hashedRefresh = await bcrypt.hash(refreshToken, 12);
-    await this.redis.setex(`refresh:${user.id}`, hashedRefresh, 7 * 24 * 60 * 60);
-
-    return { accessToken, refreshToken };
   }
 }
