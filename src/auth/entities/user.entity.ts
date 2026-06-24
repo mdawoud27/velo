@@ -19,6 +19,9 @@ export class UserEntity implements User {
   googleId: string | null;
 
   @Exclude()
+  githubId: string | null;
+
+  @Exclude()
   stripeCustomerId: string | null;
 
   @Exclude()

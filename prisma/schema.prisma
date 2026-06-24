@@ -20,6 +20,7 @@ model User {
   avatarUrl        String?
   isEmailVerified  Boolean    @default(false)
   googleId         String?    @unique
+  githubId         String?    @unique
   systemRole       SystemRole @default(USER)
   bannedAt         DateTime?
   notifPreferences Json       @default("{}")
