@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { RedisService } from 'src/redis/redis.service';
 import {
@@ -170,12 +170,10 @@ export class AuthService {
 
     const userId = decodedToken.sub;
 
-    const storedHash = await this.redis.get(`refresh:${userId}`);
-    const isMatch = await bcrypt.compare(dto.refreshToken, storedHash ?? '');
-
-    if (!isMatch) {
-      await this.redis.del(`refresh:${userId}`);
-      throw new InvalidOrExpiredTokenException();
+    const isValid = await this.tokensService.verifyAndRotateRefreshToken(userId, dto.refreshToken);
+    if (!isValid) {
+      await this.tokensService.revokeRefreshToken(userId);
+      throw new UnauthorizedException('Refresh token is invalid or has been revoked.');
     }
 
     const user = await this.prisma.user.findUnique({

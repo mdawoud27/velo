@@ -4,4 +4,5 @@ export interface OAuthProfile {
   email: string;
   name: string;
   avatarUrl?: string;
+  emailVerified: boolean;
 }

@@ -1,4 +1,4 @@
-import { Controller, Get, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Res, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
 import type { Response } from 'express';
@@ -38,19 +38,24 @@ export class OAuthController {
     await this.handleOAuthCallback(profile, res);
   }
 
-  private async handleOAuthCallback(profile: OAuthProfile, res: Response) {
-    const { accessToken, refreshToken } = await this.oauthService.handleOAuthLogin(profile);
+  @Public()
+  @Post('exchange-code')
+  exchangeCode(@Body('code') code: string) {
+    return this.oauthService.exchangeOAuthCode(code);
+  }
 
+  private async handleOAuthCallback(profile: OAuthProfile, res: Response) {
+    const tokens = await this.oauthService.handleOAuthLogin(profile);
     const clientUrl = this.config.get<string>('CLIENT_URL');
+
+    // No CLIENT_URL: dev/test mode
     if (!clientUrl || clientUrl === '') {
-      res.json({
-        message: 'OAuth Login Successful!',
-        accessToken,
-        refreshToken,
-      });
+      res.json({ message: 'OAuth Login Successful!', ...tokens });
       return;
     }
 
-    res.redirect(`${clientUrl}/auth/callback?token=${accessToken}`);
+    // Production: redirect with a 60-second one-time code
+    const code = await this.oauthService.storeOAuthCode(tokens);
+    res.redirect(`${clientUrl}/auth/callback?code=${code}`);
   }
 }
