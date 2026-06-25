@@ -10,7 +10,7 @@ import { AuthModule } from './auth/auth.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { APP_GUARD } from '@nestjs/core';
-import { JwtAuthGuard } from './auth/guards';
+import { BanGuard, JwtAuthGuard } from './auth/guards';
 import { OAuthModule } from './auth/oauth/oauth.module';
 
 @Module({
@@ -26,6 +26,10 @@ import { OAuthModule } from './auth/oauth/oauth.module';
     OAuthModule,
   ],
   controllers: [AppController],
-  providers: [AppService, { provide: APP_GUARD, useClass: JwtAuthGuard }],
+  providers: [
+    AppService,
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: BanGuard },
+  ],
 })
 export class AppModule {}
