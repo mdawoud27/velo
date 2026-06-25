@@ -6,7 +6,7 @@ import { RedisService } from 'src/redis/redis.service';
 import { randomBytes } from 'crypto';
 import { Prisma, User } from '@prisma/client';
 
-type TokenUser = Pick<User, 'id' | 'email' | 'systemRole'>;
+type TokenUser = Pick<User, 'id' | 'email' | 'systemRole' | 'bannedAt'>;
 
 @Injectable()
 export class OAuthService {
@@ -35,13 +35,17 @@ export class OAuthService {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         const existing = await this.prisma.user.findFirst({
           where: { [providerField]: profile.providerId },
-          select: { id: true, email: true, systemRole: true },
+          select: { id: true, email: true, systemRole: true, bannedAt: true },
         });
         if (!existing) throw error;
         user = existing;
       } else {
         throw error;
       }
+    }
+
+    if (user.bannedAt) {
+      throw new UnauthorizedException('Account is banned.');
     }
 
     const orgMember = await this.prisma.orgMember.findFirst({
@@ -71,7 +75,7 @@ export class OAuthService {
     profile: OAuthProfile,
     providerField: 'googleId' | 'githubId',
   ): Promise<TokenUser> {
-    const select = { id: true, email: true, systemRole: true } as const;
+    const select = { id: true, email: true, systemRole: true, bannedAt: true } as const;
 
     // Case 1: already linked
     const linked = await this.prisma.user.findFirst({

@@ -18,10 +18,15 @@ export class RedisSessionStore extends Store {
   }
 
   set(sid: string, session: SessionData, cb?: (err?: unknown) => void): void {
-    const ttl = session.cookie.maxAge ? Math.ceil(session.cookie.maxAge / 1000) : this.DEFAULT_TTL;
-
+    const ttl = this.getTtl(session);
     this.redis
       .setex(this.PREFIX + sid, JSON.stringify(session), ttl)
+      .then(() => cb?.())
+      .catch((err: unknown) => cb?.(err));
+  }
+  touch(sid: string, session: SessionData, cb?: (err?: unknown) => void): void {
+    this.redis
+      .setex(this.PREFIX + sid, JSON.stringify(session), this.getTtl(session))
       .then(() => cb?.())
       .catch((err: unknown) => cb?.(err));
   }
@@ -31,5 +36,9 @@ export class RedisSessionStore extends Store {
       .del(this.PREFIX + sid)
       .then(() => cb?.())
       .catch((err: unknown) => cb?.(err));
+  }
+
+  private getTtl(session: SessionData): number {
+    return session.cookie.maxAge ? Math.ceil(session.cookie.maxAge / 1000) : this.DEFAULT_TTL;
   }
 }

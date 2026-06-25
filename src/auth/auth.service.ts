@@ -170,27 +170,39 @@ export class AuthService {
 
     const userId = decodedToken.sub;
 
-    const isValid = await this.tokensService.verifyAndRotateRefreshToken(userId, dto.refreshToken);
-    if (!isValid) {
-      await this.tokensService.revokeRefreshToken(userId);
-      throw new UnauthorizedException('Refresh token is invalid or has been revoked.');
+    const status = await this.tokensService.verifyAndConsumeRefreshToken(userId, dto.refreshToken);
+
+    switch (status) {
+      case 'missing':
+        // Expired, logged out, or already rotated so nothing to revoke
+        throw new UnauthorizedException('Session expired. Please log in again.');
+
+      case 'mismatch':
+        // Wrong token so don't touch the stored one, it may belong to a live session
+        throw new UnauthorizedException('Invalid refresh token. Please log in again.');
+
+      case 'race_lost':
+        // Concurrent rotation won so both were valid, client should retry
+        throw new UnauthorizedException('Refresh token already used. Please retry.');
+
+      case 'valid':
+        // Token consumed so issue a fresh pair
+        break;
     }
 
-    const user = await this.prisma.user.findUnique({
+    const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        systemRole: true,
+        isEmailVerified: true,
+        bannedAt: true,
+      },
     });
 
-    if (!user) {
-      throw new InvalidCredentialsException();
-    }
-
-    if (!user.isEmailVerified) {
-      throw new EmailNotVerifiedException();
-    }
-
-    if (user.bannedAt) {
-      throw new BannedUserException();
-    }
+    if (!user.isEmailVerified) throw new EmailNotVerifiedException();
+    if (user.bannedAt) throw new BannedUserException();
 
     const orgMember = await this.prisma.orgMember.findFirst({
       where: { userId: user.id },
@@ -198,12 +210,7 @@ export class AuthService {
       select: { orgId: true, role: true },
     });
 
-    const { accessToken, refreshToken } = await this.tokensService.generateTokens(
-      user,
-      orgMember ?? undefined,
-    );
-
-    return { accessToken, refreshToken };
+    return this.tokensService.generateTokens(user, orgMember ?? undefined);
   }
 
   async forgotPassword(dto: ForgotPasswordDto) {
