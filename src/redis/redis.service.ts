@@ -61,6 +61,10 @@ export class RedisService implements OnModuleDestroy {
     return await this.client.ttl(key);
   }
 
+  eval(script: string, numkeys: number, ...args: string[]): Promise<unknown> {
+    return this.client.eval(script, numkeys, ...args);
+  }
+
   // Distributed lock
   async acquireLock(resource: string, ttl: number): Promise<string | null> {
     this.validateTtl(ttl);
