@@ -39,6 +39,8 @@ export class RedisSessionStore extends Store {
   }
 
   private getTtl(session: SessionData): number {
-    return session.cookie.maxAge ? Math.ceil(session.cookie.maxAge / 1000) : this.DEFAULT_TTL;
+    return session.cookie.maxAge == null
+      ? this.DEFAULT_TTL
+      : Math.ceil(session.cookie.maxAge / 1000);
   }
 }
