@@ -11,6 +11,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards';
+import { OAuthModule } from './auth/oauth/oauth.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { JwtAuthGuard } from './auth/guards';
     QueueModule,
     MailModule,
     AuthModule,
+    OAuthModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: JwtAuthGuard }],

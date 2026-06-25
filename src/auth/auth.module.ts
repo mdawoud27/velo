@@ -6,6 +6,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { QueueModule } from 'src/queue/queue.module';
+import { TokensService } from './tokens.service';
 
 @Module({
   imports: [
@@ -22,8 +23,8 @@ import { QueueModule } from 'src/queue/queue.module';
     }),
     QueueModule,
   ],
-  providers: [JwtStrategy, AuthService],
+  providers: [JwtStrategy, AuthService, TokensService],
   controllers: [AuthController],
-  exports: [JwtModule],
+  exports: [JwtModule, AuthService, TokensService],
 })
 export class AuthModule {}

@@ -33,19 +33,4 @@ export default tseslint.config(
       'no-duplicate-imports': ['error', { allowSeparateTypeImports: true }],
     },
   },
-  // {
-  //   files: ['src/prisma/prisma.service.ts'],
-  //   rules: {
-  //     '@typescript-eslint/no-unsafe-call': 'warn',
-  //   },
-  // },
-  // {
-  //   files: ['src/redis/redis.module.ts'],
-  //   rules: {
-  //     '@typescript-eslint/no-unsafe-assignment': 'off',
-  //     '@typescript-eslint/no-unsafe-call': 'off',
-  //     '@typescript-eslint/no-unsafe-member-access': 'off',
-  //     '@typescript-eslint/no-unsafe-return': 'off',
-  //   },
-  // },
 );
