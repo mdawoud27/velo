@@ -190,7 +190,7 @@ export class AuthService {
         break;
     }
 
-    const user = await this.prisma.user.findUniqueOrThrow({
+    const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
         id: true,
@@ -200,7 +200,7 @@ export class AuthService {
         bannedAt: true,
       },
     });
-
+    if (!user) throw new InvalidOrExpiredTokenException();
     if (!user.isEmailVerified) throw new EmailNotVerifiedException();
     if (user.bannedAt) throw new BannedUserException();
 

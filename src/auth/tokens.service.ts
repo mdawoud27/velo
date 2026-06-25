@@ -20,8 +20,6 @@ interface StoredRefreshToken {
 
 @Injectable()
 export class TokensService {
-  private readonly REFRESH_TTL = 7 * 24 * 60 * 60;
-
   // Atomically deletes refresh:{userId} ONLY if the stored nonce still matches
   // the nonce we read during the comparison step.
   //
@@ -73,10 +71,10 @@ export class TokensService {
    * 'valid'     → token is correct and has been consumed, caller must call
    *               generateTokens() to issue a replacement.
    * 'missing'   → no stored token for this user (expired, logged out, or already
-   *               consumed by a prior rotation). Do NOT revoke - there is nothing
+   *               consumed by a prior rotation). Do NOT revoke so there is nothing
    *               to revoke, and revoking would delete a freshly issued token.
    * 'mismatch'  → token exists but hash doesn't match. Suspicious (possible replay
-   *               attack or client bug). Reject; do not delete the stored token.
+   *               attack or client bug). Reject so don't delete the stored token.
    * 'race_lost' → hash matched but another concurrent request consumed the token
    *               first. Both requests had a valid token; one won. Do NOT revoke.
    */
@@ -93,6 +91,10 @@ export class TokensService {
     try {
       stored = JSON.parse(raw) as StoredRefreshToken;
     } catch {
+      return 'missing';
+    }
+
+    if (typeof stored.hash !== 'string' || typeof stored.nonce !== 'string') {
       return 'missing';
     }
 
@@ -120,7 +122,11 @@ export class TokensService {
   private async storeRefreshToken(userId: string, refreshToken: string): Promise<void> {
     const hash = await bcrypt.hash(this.toSafeHash(refreshToken), 12);
     const data: StoredRefreshToken = { hash, nonce: uuidv4() };
-    await this.redis.setex(`refresh:${userId}`, JSON.stringify(data), this.REFRESH_TTL);
+    await this.redis.setex(
+      `refresh:${userId}`,
+      JSON.stringify(data),
+      this.config.getOrThrow('JWT_REFRESH_EXPIRES_IN'),
+    );
   }
 
   private toSafeHash(input: string): string {
