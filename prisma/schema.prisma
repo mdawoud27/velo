@@ -23,6 +23,7 @@ model User {
   githubId         String?    @unique
   systemRole       SystemRole @default(USER)
   bannedAt         DateTime?
+  deletedAt        DateTime?
   notifPreferences Json       @default("{}")
   stripeCustomerId String?    @unique
   createdAt        DateTime   @default(now())
@@ -40,7 +41,7 @@ model User {
   taskWatchers       TaskWatcher[]
   auditLogs          AuditLog[]
 
-  @@index([bannedAt])
+  @@index([bannedAt, deletedAt])
 }
 
 model Organization {
