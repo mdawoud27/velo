@@ -95,17 +95,24 @@ export class UsersService {
   async softDeleteMe(payload: AccessPayload): Promise<{ message: string }> {
     const user = await this.findActiveUser(payload.sub);
 
+    await Promise.all([
+      this.tokensService.revokeRefreshToken(user.id),
+      this.blacklistAccessToken(payload),
+      this.cleanupEmailVerificationKeys(user.id),
+    ]);
+
+    await this.cacheUserAsInactive(user.id);
+
     await this.prisma.user.update({
       where: { id: user.id },
       data: {
         deletedAt: new Date(),
         avatarUrl: null,
+        isEmailVerified: false,
+        email: `deleted_${user.id}_${user.email.replace('@', '_at_')}@void.local`,
       },
     });
 
-    await this.tokensService.revokeRefreshToken(user.id);
-    await this.cacheUserAsInactive(user.id);
-    await this.blacklistAccessToken(payload);
     await this.deleteAvatarBestEffort(user.id, user.avatarUrl);
 
     return { message: 'Account deleted successfully' };
@@ -200,6 +207,13 @@ export class UsersService {
         userId,
         error: error instanceof Error ? error.message : String(error),
       });
+    }
+  }
+
+  private async cleanupEmailVerificationKeys(userId: string): Promise<void> {
+    const currentToken = await this.redis.getdel(`email-verify-current:${userId}`);
+    if (currentToken) {
+      await this.redis.del(`email-verify:${currentToken}`);
     }
   }
 }
