@@ -12,6 +12,7 @@ import { AppService } from './app.service';
 import { APP_GUARD } from '@nestjs/core';
 import { BanGuard, JwtAuthGuard } from './auth/guards';
 import { OAuthModule } from './auth/oauth/oauth.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { OAuthModule } from './auth/oauth/oauth.module';
     MailModule,
     AuthModule,
     OAuthModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [

@@ -13,6 +13,9 @@ export class UserEntity implements User {
   updatedAt: Date;
 
   @Exclude()
+  deletedAt: Date | null;
+
+  @Exclude()
   password: string | null;
 
   @Exclude()

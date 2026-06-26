@@ -5,8 +5,9 @@ import { TokensService } from '../tokens.service';
 import { RedisService } from 'src/redis/redis.service';
 import { randomBytes } from 'crypto';
 import { Prisma, User } from '@prisma/client';
+import { AccountDeactivatedException } from 'src/common/exceptions';
 
-type TokenUser = Pick<User, 'id' | 'email' | 'systemRole' | 'bannedAt'>;
+type TokenUser = Pick<User, 'id' | 'email' | 'systemRole' | 'bannedAt' | 'deletedAt'>;
 
 @Injectable()
 export class OAuthService {
@@ -35,13 +36,17 @@ export class OAuthService {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         const existing = await this.prisma.user.findFirst({
           where: { [providerField]: profile.providerId },
-          select: { id: true, email: true, systemRole: true, bannedAt: true },
+          select: { id: true, email: true, systemRole: true, bannedAt: true, deletedAt: true },
         });
         if (!existing) throw error;
         user = existing;
       } else {
         throw error;
       }
+    }
+
+    if (user.deletedAt) {
+      throw new AccountDeactivatedException();
     }
 
     if (user.bannedAt) {
@@ -75,7 +80,13 @@ export class OAuthService {
     profile: OAuthProfile,
     providerField: 'googleId' | 'githubId',
   ): Promise<TokenUser> {
-    const select = { id: true, email: true, systemRole: true, bannedAt: true } as const;
+    const select = {
+      id: true,
+      email: true,
+      systemRole: true,
+      bannedAt: true,
+      deletedAt: true,
+    } as const;
 
     // Case 1: already linked
     const linked = await this.prisma.user.findFirst({
@@ -84,20 +95,22 @@ export class OAuthService {
     });
     if (linked) return linked;
 
-    // Case 2: email exists — link the account.
-    // Safe because the strategy confirmed the provider verified this email.
+    // Case 2: email exists so link the account.
     const byEmail = await this.prisma.user.findUnique({
       where: { email: profile.email },
       select,
     });
 
     if (byEmail) {
+      if (byEmail.deletedAt) {
+        throw new AccountDeactivatedException();
+      }
+
       return this.prisma.user.update({
         where: { id: byEmail.id },
         data: {
           [providerField]: profile.providerId,
           isEmailVerified: true,
-          // Avatar intentionally omitted — don't overwrite an existing profile photo
         },
         select,
       });

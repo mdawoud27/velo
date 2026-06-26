@@ -7,6 +7,7 @@ import { JwtPayload } from './interfaces';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 import { createHash } from 'crypto';
+import { parseDurationToSeconds } from 'src/common/utils';
 
 type TokenUser = Pick<User, 'id' | 'email' | 'systemRole'>;
 type TokenOrgMembership = Pick<OrgMember, 'orgId' | 'role'>;
@@ -125,7 +126,7 @@ export class TokensService {
     await this.redis.setex(
       `refresh:${userId}`,
       JSON.stringify(data),
-      this.config.getOrThrow('JWT_REFRESH_EXPIRES_IN'),
+      parseDurationToSeconds(this.config.getOrThrow('JWT_REFRESH_EXPIRES_IN')),
     );
   }
 

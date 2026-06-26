@@ -28,6 +28,8 @@ import { LoggerService } from './logger.service';
             redact: [
               'req.headers.authorization',
               'req.body.password',
+              'req.body.currentPassword',
+              'req.body.newPassword',
               'req.body.confirmPassword',
               'req.body.refreshToken',
             ],
