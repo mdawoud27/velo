@@ -18,17 +18,20 @@ export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
       clientSecret: config.getOrThrow<string>('GITHUB_CLIENT_SECRET'),
       callbackURL: config.getOrThrow<string>('GITHUB_CALLBACK_URL'),
       scope: ['user:email'],
+      allRawEmails: true,
     });
   }
 
   validate(_accessToken: string, _refreshToken: string, profile: Profile): OAuthProfile {
     const emails = profile.emails as GitHubEmail[];
 
-    const primary = emails?.find((e) => e.primary === true && e.verified === true);
+    const email =
+      emails?.find((e) => e.primary === true && e.verified === true)?.value ??
+      emails?.find((e) => e.verified === true)?.value;
 
-    if (!primary?.value) {
+    if (!email) {
       throw new UnauthorizedException(
-        'No verified primary email found on this GitHub account. ' +
+        'No verified email found on this GitHub account. ' +
           'Verify your email in GitHub Settings → Emails and try again.',
       );
     }
@@ -36,7 +39,7 @@ export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
     return {
       provider: 'github',
       providerId: String(profile.id),
-      email: primary.value,
+      email,
       name: profile.displayName ?? profile.username ?? '',
       avatarUrl: profile.photos?.[0]?.value,
       emailVerified: true,
