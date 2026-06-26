@@ -1,4 +1,5 @@
 export type ErrorCode =
+  | 'ACCOUNT_DEACTIVATED'
   | 'EMAIL_REGISTERED'
   | 'BANNED_USER'
   | 'INSUFFICIENT_ROLE'
