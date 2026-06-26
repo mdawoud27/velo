@@ -14,6 +14,7 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import {
+  AccountDeactivatedException,
   BannedUserException,
   EmailAlreadyRegisteredException,
   EmailNotVerifiedException,
@@ -127,7 +128,7 @@ export class AuthService {
       where: { email },
     });
 
-    if (!user || !user.password) {
+    if (!user || !user.password || user.deletedAt) {
       throw new InvalidCredentialsException();
     }
 
@@ -198,10 +199,12 @@ export class AuthService {
         systemRole: true,
         isEmailVerified: true,
         bannedAt: true,
+        deletedAt: true,
       },
     });
     if (!user) throw new InvalidOrExpiredTokenException();
     if (!user.isEmailVerified) throw new EmailNotVerifiedException();
+    if (user.deletedAt) throw new AccountDeactivatedException();
     if (user.bannedAt) throw new BannedUserException();
 
     const orgMember = await this.prisma.orgMember.findFirst({
@@ -220,7 +223,7 @@ export class AuthService {
       where: { email },
     });
 
-    if (!user) {
+    if (!user || user.deletedAt) {
       return { message: 'If that account exists, a reset link has been sent' };
     }
 
@@ -253,10 +256,14 @@ export class AuthService {
     }
 
     const hashedPassword = await bcrypt.hash(dto.newPassword, 12);
-    await this.prisma.user.update({
-      where: { id: userId },
+    const result = await this.prisma.user.updateMany({
+      where: { id: userId, deletedAt: null },
       data: { password: hashedPassword },
     });
+
+    if (result.count === 0) {
+      throw new AccountDeactivatedException();
+    }
 
     await this.redis.del(`refresh:${userId}`);
 

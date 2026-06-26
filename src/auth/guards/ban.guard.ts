@@ -1,7 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Request } from 'express';
 import { JwtPayload } from 'src/auth/interfaces';
-import { BannedUserException } from 'src/common/exceptions';
+import { AccountDeactivatedException, BannedUserException } from 'src/common/exceptions';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { RedisService } from 'src/redis/redis.service';
 
@@ -23,15 +23,23 @@ export class BanGuard implements CanActivate {
     if (!cached) {
       const dbUser = await this.prisma.user.findUnique({
         where: { id: user.sub },
-        select: { bannedAt: true },
+        select: { bannedAt: true, deletedAt: true },
       });
 
-      cached = !dbUser || dbUser.bannedAt ? 'banned' : 'active';
+      if (!dbUser || dbUser.deletedAt) {
+        cached = 'inactive';
+      } else {
+        cached = dbUser.bannedAt ? 'banned' : 'active';
+      }
       await this.redis.setex(cacheKey, cached, 300);
     }
 
     if (cached === 'banned') {
       throw new BannedUserException();
+    }
+
+    if (cached === 'inactive') {
+      throw new AccountDeactivatedException();
     }
 
     return true;
