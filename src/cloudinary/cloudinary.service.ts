@@ -35,6 +35,7 @@ export class CloudinaryService {
     const response = await fetch(this.endpoint(credentials.cloudName, 'auto', 'upload'), {
       method: 'POST',
       body: formData,
+      signal: AbortSignal.timeout(10000),
     });
     const payload = await this.readJson(response);
 

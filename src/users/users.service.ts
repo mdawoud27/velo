@@ -109,7 +109,7 @@ export class UsersService {
         deletedAt: new Date(),
         avatarUrl: null,
         isEmailVerified: false,
-        email: `deleted_${user.id}_${user.email.replace('@', '_at_')}@void.local`,
+        email: `deleted_${user.id}@void.local`,
       },
     });
 
@@ -134,15 +134,12 @@ export class UsersService {
 
   async deleteAvatar(userId: string): Promise<UserEntity> {
     const user = await this.findActiveUser(userId);
-
-    if (user.avatarUrl) {
-      await this.cloudinary.deleteByUrl(user.avatarUrl);
-    }
-
     const updated = await this.prisma.user.update({
       where: { id: userId },
       data: { avatarUrl: null },
     });
+
+    await this.deleteAvatarBestEffort(userId, user.avatarUrl);
 
     return new UserEntity(updated);
   }

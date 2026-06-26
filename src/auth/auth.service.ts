@@ -130,11 +130,10 @@ export class AuthService {
 
     const currentToken = await this.redis.getdel(`email-verify-current:${userId}`);
     if (currentToken && currentToken !== dto.token) {
-      await this.redis.setex(
-        `email-verify-current:${userId}`,
-        currentToken,
-        await this.redis.ttl(`email-verify:${currentToken}`),
-      );
+      const remainingTtl = await this.redis.ttl(`email-verify:${currentToken}`);
+      if (remainingTtl > 0) {
+        await this.redis.setex(`email-verify-current:${userId}`, currentToken, remainingTtl);
+      }
       throw new InvalidOrExpiredTokenException();
     }
 
