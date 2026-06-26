@@ -63,7 +63,12 @@ export class AuthService {
     });
 
     const verificationToken = crypto.randomUUID();
-    await this.redis.setex(`email-verify:${verificationToken}`, newUser.id.toString(), 86400);
+    const ttl = 86400;
+
+    await Promise.all([
+      this.redis.setex(`email-verify:${verificationToken}`, newUser.id.toString(), ttl),
+      this.redis.setex(`email-verify-current:${newUser.id}`, verificationToken, ttl),
+    ]);
 
     const verificationUrl = `${this.config.getOrThrow('FRONTEND_URL')}/verify-email?token=${verificationToken}`;
 
@@ -94,7 +99,17 @@ export class AuthService {
     }
 
     const verificationToken = crypto.randomUUID();
-    await this.redis.setex(`email-verify:${verificationToken}`, user.id.toString(), 86400);
+    const ttl = 86400;
+
+    const oldToken = await this.redis.getdel(`email-verify-current:${user.id}`);
+    if (oldToken) {
+      await this.redis.del(`email-verify:${oldToken}`);
+    }
+
+    await Promise.all([
+      this.redis.setex(`email-verify:${verificationToken}`, user.id.toString(), ttl),
+      this.redis.setex(`email-verify-current:${user.id}`, verificationToken, ttl),
+    ]);
 
     const verificationUrl = `${this.config.getOrThrow('FRONTEND_URL')}/verify-email?token=${verificationToken}`;
     await this.emailQueue.addVerifyEmail({
@@ -110,6 +125,16 @@ export class AuthService {
     const userId = await this.redis.getdel(`email-verify:${dto.token}`);
 
     if (!userId) {
+      throw new InvalidOrExpiredTokenException();
+    }
+
+    const currentToken = await this.redis.getdel(`email-verify-current:${userId}`);
+    if (currentToken && currentToken !== dto.token) {
+      await this.redis.setex(
+        `email-verify-current:${userId}`,
+        currentToken,
+        await this.redis.ttl(`email-verify:${currentToken}`),
+      );
       throw new InvalidOrExpiredTokenException();
     }
 
