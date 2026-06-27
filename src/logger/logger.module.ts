@@ -2,6 +2,9 @@ import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { LoggerModule as PinoLoggerModule } from 'nestjs-pino';
 import { LoggerService } from './logger.service';
+import { randomUUID } from 'crypto';
+import { requestContext } from 'src/common/middlewares';
+import { Request } from 'express';
 
 @Global()
 @Module({
@@ -25,14 +28,39 @@ import { LoggerService } from './logger.service';
                   },
                 }
               : undefined,
-            redact: [
-              'req.headers.authorization',
-              'req.body.password',
-              'req.body.currentPassword',
-              'req.body.newPassword',
-              'req.body.confirmPassword',
-              'req.body.refreshToken',
-            ],
+            genReqId: (req) => {
+              const headerRequestId = Array.isArray(req.headers['x-request-id'])
+                ? req.headers['x-request-id'][0]
+                : req.headers['x-request-id'];
+              const requestId =
+                headerRequestId ?? requestContext.getStore()?.requestId ?? randomUUID();
+              req.headers['x-request-id'] = requestId;
+              return requestId;
+            },
+            customProps: (req) => ({
+              requestId:
+                requestContext.getStore()?.requestId ??
+                (Array.isArray(req.headers['x-request-id'])
+                  ? req.headers['x-request-id'][0]
+                  : req.headers['x-request-id']),
+            }),
+            redact: {
+              paths: [
+                'req.headers.authorization',
+                'req.body.password',
+                'req.body.currentPassword',
+                'req.body.newPassword',
+                'req.body.token',
+                'req.body.refreshToken',
+              ],
+              censor: '[REDACTED]',
+            },
+            serializers: {
+              req(req: Request) {
+                const [path] = req.url.split('?');
+                return { method: req.method, url: path };
+              },
+            },
           },
         };
       },
