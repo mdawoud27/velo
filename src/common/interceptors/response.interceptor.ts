@@ -62,7 +62,7 @@ export class ResponseInterceptor<T> implements NestInterceptor<
         return {
           success: true,
           ...(message && { message }),
-          data: response,
+          data: response ?? null,
           timestamp,
         };
       }),
