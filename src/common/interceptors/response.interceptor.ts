@@ -3,6 +3,7 @@ import { map, Observable } from 'rxjs';
 import { ApiPaginatedResponse, ApiSuccessResponse, PaginationMeta } from '../interfaces';
 import { Reflector } from '@nestjs/core';
 import { RESPONSE_MESSAGE_KEY } from '../decorators';
+import { ServiceMessage } from '../classes';
 
 type PaginatedPayload<T> = { data: T[]; meta: PaginationMeta };
 
@@ -39,10 +40,19 @@ export class ResponseInterceptor<T> implements NestInterceptor<
           timeStyle: 'long',
         });
 
+        if (response instanceof ServiceMessage) {
+          return {
+            success: true,
+            data: null,
+            message: response.message,
+            timestamp,
+          };
+        }
+
         if (isPaginatedPayload(response)) {
           return {
             success: true,
-            message: message || 'Data fetched successfully',
+            ...(message && { message }),
             data: response.data,
             meta: response.meta,
             timestamp,
@@ -51,7 +61,7 @@ export class ResponseInterceptor<T> implements NestInterceptor<
 
         return {
           success: true,
-          message: message || 'Data fetched successfully',
+          ...(message && { message }),
           data: response,
           timestamp,
         };
