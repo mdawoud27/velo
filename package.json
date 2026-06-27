@@ -1,6 +1,6 @@
 {
   "name": "velo",
-  "version": "0.2.37",
+  "version": "0.2.38",
   "description": "",
   "author": "",
   "private": true,
@@ -48,6 +48,7 @@
     "dotenv": "^17.4.2",
     "express-session": "^1.19.0",
     "handlebars": "^4.7.9",
+    "helmet": "^8.2.0",
     "ioredis": "^5.11.1",
     "nestjs-pino": "^4.6.1",
     "nodemailer": "^9.0.1",
