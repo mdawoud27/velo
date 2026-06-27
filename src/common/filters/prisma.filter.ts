@@ -12,17 +12,26 @@ export class PrismaExceptionFilter implements ExceptionFilter {
       case 'P2002': // Unique constraint violation
         response.status(409).json({
           success: false,
+          statusCode: 409,
           message: 'Resource already exists',
+          timestamp: new Date().toISOString(),
         });
         break;
       case 'P2025': // Record not found
         response.status(404).json({
           success: false,
+          statusCode: 404,
           message: 'Resource not found',
+          timestamp: new Date().toISOString(),
         });
         break;
       default:
-        response.status(500).json({ success: false, message: 'Database error' });
+        response.status(500).json({
+          success: false,
+          statusCode: 500,
+          message: 'Database error',
+          timestamp: new Date().toISOString(),
+        });
     }
   }
 }

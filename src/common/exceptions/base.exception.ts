@@ -11,9 +11,10 @@ export class DomainException extends HttpException {
     super(
       {
         success: false,
-        statusCode,
-        error: errorCode,
-        message,
+        error: {
+          code: errorCode,
+          message,
+        },
         ...extra,
       },
       statusCode,
