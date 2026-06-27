@@ -28,9 +28,21 @@ import { Request } from 'express';
                   },
                 }
               : undefined,
-            genReqId: (req) => (req.headers['x-request-id'] as string) ?? randomUUID(),
-            customProps: () => ({
-              requestId: requestContext?.getStore()?.requestId,
+            genReqId: (req) => {
+              const headerRequestId = Array.isArray(req.headers['x-request-id'])
+                ? req.headers['x-request-id'][0]
+                : req.headers['x-request-id'];
+              const requestId =
+                headerRequestId ?? requestContext.getStore()?.requestId ?? randomUUID();
+              req.headers['x-request-id'] = requestId;
+              return requestId;
+            },
+            customProps: (req) => ({
+              requestId:
+                requestContext.getStore()?.requestId ??
+                (Array.isArray(req.headers['x-request-id'])
+                  ? req.headers['x-request-id'][0]
+                  : req.headers['x-request-id']),
             }),
             redact: {
               paths: [
@@ -45,7 +57,8 @@ import { Request } from 'express';
             },
             serializers: {
               req(req: Request) {
-                return { method: req.method, url: req.url };
+                const [path] = req.url.split('?');
+                return { method: req.method, url: path };
               },
             },
           },
