@@ -2,6 +2,9 @@ import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { LoggerModule as PinoLoggerModule } from 'nestjs-pino';
 import { LoggerService } from './logger.service';
+import { randomUUID } from 'crypto';
+import { requestContext } from 'src/common/middlewares';
+import { Request } from 'express';
 
 @Global()
 @Module({
@@ -25,14 +28,26 @@ import { LoggerService } from './logger.service';
                   },
                 }
               : undefined,
-            redact: [
-              'req.headers.authorization',
-              'req.body.password',
-              'req.body.currentPassword',
-              'req.body.newPassword',
-              'req.body.confirmPassword',
-              'req.body.refreshToken',
-            ],
+            genReqId: (req) => (req.headers['x-request-id'] as string) ?? randomUUID(),
+            customProps: () => ({
+              requestId: requestContext?.getStore()?.requestId,
+            }),
+            redact: {
+              paths: [
+                'req.headers.authorization',
+                'req.body.password',
+                'req.body.currentPassword',
+                'req.body.newPassword',
+                'req.body.token',
+                'req.body.refreshToken',
+              ],
+              censor: '[REDACTED]',
+            },
+            serializers: {
+              req(req: Request) {
+                return { method: req.method, url: req.url };
+              },
+            },
           },
         };
       },
