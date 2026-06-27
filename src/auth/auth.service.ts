@@ -25,7 +25,7 @@ import { EmailQueueService } from 'src/queue/email-queue.service';
 import { LoggerService } from 'src/logger/logger.service';
 import { JwtService } from '@nestjs/jwt';
 import { JwtPayload } from './interfaces';
-import { UserEntity } from './entities/user.entity';
+import { UserEntity } from '../users/entities';
 import { TokensService } from './tokens.service';
 import { ServiceMessage } from 'src/common/classes';
 

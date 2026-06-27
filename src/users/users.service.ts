@@ -3,7 +3,7 @@ import { Prisma, User } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import type { JwtPayload } from 'src/auth/interfaces';
 import { TokensService } from 'src/auth/tokens.service';
-import { UserEntity } from 'src/auth/entities/user.entity';
+import { UserEntity } from './entities';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 import { InvalidCredentialsException, ResourceNotFoundException } from 'src/common/exceptions';
 import { LoggerService } from 'src/logger/logger.service';
