@@ -4,6 +4,7 @@ import { AppModule } from './app.module';
 import { Logger } from 'nestjs-pino';
 import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
 import session from 'express-session';
+import helmet from 'helmet';
 import { requestIdMiddleware } from './common/middlewares';
 import { RedisService } from './redis/redis.service';
 import { RedisSessionStore } from './common/session/redis-session.store';
@@ -45,6 +46,18 @@ async function bootstrap() {
   );
 
   app.useLogger(app.get(Logger));
+
+  app.use(helmet());
+  app.enableCors({
+    origin: process.env.CLIENT_URL ?? 'http://localhost:3000',
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  });
+
+  app.setGlobalPrefix('api/v1', {
+    exclude: ['health'],
+  });
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -53,6 +66,8 @@ async function bootstrap() {
     }),
   );
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
+
+  app.enableShutdownHooks();
 
   await app.listen(process.env.PORT ?? 3000);
 }
