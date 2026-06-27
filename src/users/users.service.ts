@@ -66,10 +66,7 @@ export class UsersService {
     return new UserEntity(user);
   }
 
-  async updatePassword(
-    payload: AccessPayload,
-    dto: UpdatePasswordDto,
-  ): Promise<{ message: string }> {
+  async updatePassword(payload: AccessPayload, dto: UpdatePasswordDto): Promise<void> {
     const user = await this.findActiveUser(payload.sub);
     if (!user.password) {
       throw new BadRequestException('This account does not have a password to update.');
@@ -88,11 +85,9 @@ export class UsersService {
 
     await this.tokensService.revokeRefreshToken(user.id);
     await this.blacklistAccessToken(payload);
-
-    return { message: 'Password updated successfully' };
   }
 
-  async softDeleteMe(payload: AccessPayload): Promise<{ message: string }> {
+  async softDeleteMe(payload: AccessPayload): Promise<void> {
     const user = await this.findActiveUser(payload.sub);
 
     await Promise.all([
@@ -114,8 +109,6 @@ export class UsersService {
     });
 
     await this.deleteAvatarBestEffort(user.id, user.avatarUrl);
-
-    return { message: 'Account deleted successfully' };
   }
 
   async uploadAvatar(userId: string, file: UploadedFile): Promise<UserEntity> {

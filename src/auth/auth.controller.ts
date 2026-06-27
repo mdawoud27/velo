@@ -12,6 +12,7 @@ import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards';
 import { CurrentUser, Public } from './decorators';
 import { JwtPayload } from './interfaces';
+import { ResponseMessage } from 'src/common/decorators';
 
 @Controller('auth')
 @UseGuards(JwtAuthGuard)
@@ -21,6 +22,7 @@ export class AuthController {
   @Public()
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
+  @ResponseMessage('Check your inbox to verify your email')
   async register(@Body() dto: RegistrationDto) {
     return this.authService.register(dto);
   }
@@ -42,6 +44,7 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
+  @ResponseMessage('User logged in successfully')
   async login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
   }
@@ -49,6 +52,7 @@ export class AuthController {
   @Public()
   @Post('refresh-token')
   @HttpCode(HttpStatus.OK)
+  @ResponseMessage('New tokens generated successfully')
   async refreshToken(@Body() dto: RefreshTokenDto) {
     return this.authService.refreshToken(dto);
   }
@@ -63,12 +67,14 @@ export class AuthController {
   @Public()
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
+  @ResponseMessage('Password reset successfully')
   async resetPassword(@Body() dto: ResetPassword) {
     return this.authService.resetPassword(dto);
   }
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
+  @ResponseMessage('You are logged out successfully')
   async logout(@CurrentUser() user: JwtPayload & { exp: number }) {
     return this.authService.logout(user);
   }
