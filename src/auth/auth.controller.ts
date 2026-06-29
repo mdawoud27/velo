@@ -7,13 +7,19 @@ import {
   ResendEmailDto,
   ResetPassword,
   VerifyEmailDto,
+  AuthTokensDto,
 } from './dtos';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards';
 import { CurrentUser, Public } from './decorators';
 import { JwtPayload } from './interfaces';
-import { ResponseMessage } from 'src/common/decorators';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiDataResponse,
+  ApiErrorResponses,
+  ApiMessageResponse,
+  ResponseMessage,
+} from 'src/common/decorators';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -21,98 +27,86 @@ import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagg
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @ApiOperation({ summary: 'Register a new user', description: 'Register a new user' })
-  @ApiResponse({ status: 201, description: 'Check your inbox to verify your email' })
-  @ApiResponse({ status: 409, description: 'Email is already registered.' })
   @Public()
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   @ResponseMessage('Check your inbox to verify your email')
+  @ApiOperation({ summary: 'Register a new user' })
+  @ApiMessageResponse('Check your inbox to verify your email', HttpStatus.CREATED)
+  @ApiErrorResponses(409)
   async register(@Body() dto: RegistrationDto) {
     return this.authService.register(dto);
   }
 
-  @ApiOperation({ summary: 'Resend verification email', description: 'Resend verification email' })
-  @ApiResponse({
-    status: 200,
-    description: 'If that account needs verification, a new email has been sent.',
-  })
   @Public()
   @Post('resend-verification-email')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Resend verification email' })
+  @ApiMessageResponse('If that account needs verification, a new email has been sent.')
   async resendVerificationEmail(@Body() dto: ResendEmailDto) {
     return this.authService.resendVerificationEmail(dto);
   }
 
-  @ApiOperation({ summary: 'Verify user email', description: 'Verify user email' })
-  @ApiResponse({ status: 200, description: 'Email verified successfully' })
-  @ApiResponse({ status: 400, description: 'This token is invalid or has expired.' })
   @Public()
   @Post('verify-email')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verify user email' })
+  @ApiMessageResponse('Email verified successfully')
+  @ApiErrorResponses(400)
   async verifyEmail(@Body() dto: VerifyEmailDto) {
     return this.authService.verifyEmail(dto);
   }
 
-  @ApiOperation({ summary: 'User login', description: 'User login' })
-  @ApiResponse({ status: 200, description: 'User logged in successfully' })
-  @ApiResponse({ status: 401, description: 'Invalid email or password.' })
-  @ApiResponse({ status: 403, description: 'Email is not verified.' })
-  @ApiResponse({ status: 403, description: 'Your account has been suspended.' })
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ResponseMessage('User logged in successfully')
+  @ApiOperation({ summary: 'User login' })
+  @ApiDataResponse(AuthTokensDto, 'User logged in successfully')
+  @ApiErrorResponses(401, 403)
   async login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
   }
 
-  @ApiOperation({ summary: 'Refresh access token', description: 'Refresh access token' })
-  @ApiResponse({ status: 200, description: 'New tokens generated successfully' })
-  @ApiResponse({ status: 400, description: 'This token is invalid or has expired.' })
-  @ApiResponse({ status: 401, description: 'Session expired. Please log in again.' })
-  @ApiResponse({ status: 401, description: 'Invalid refresh token. Please log in again.' })
-  @ApiResponse({ status: 401, description: 'Refresh token already used. Please retry.' })
-  @ApiResponse({ status: 403, description: 'Email is not verified.' })
-  @ApiResponse({ status: 403, description: 'Your account has been deactivated.' })
-  @ApiResponse({ status: 403, description: 'Your account has been suspended.' })
   @Public()
   @Post('refresh-token')
   @HttpCode(HttpStatus.OK)
   @ResponseMessage('New tokens generated successfully')
+  @ApiOperation({ summary: 'Refresh access token' })
+  @ApiDataResponse(AuthTokensDto, 'New tokens generated successfully')
+  @ApiErrorResponses(400, 401, 403)
   async refreshToken(@Body() dto: RefreshTokenDto) {
     return this.authService.refreshToken(dto);
   }
 
-  @ApiOperation({ summary: 'Forgot password', description: 'Forgot password' })
-  @ApiResponse({ status: 200, description: 'If that account exists, a reset link has been sent' })
-  @ApiResponse({ status: 403, description: 'Email is not verified.' })
-  @ApiResponse({ status: 403, description: 'Your account has been suspended.' })
   @Public()
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Forgot password' })
+  @ApiMessageResponse('If that account exists, a reset link has been sent')
+  @ApiErrorResponses(403)
   async forgotPassword(@Body() dto: ForgotPasswordDto) {
     return this.authService.forgotPassword(dto);
   }
 
-  @ApiOperation({ summary: 'Reset password', description: 'Reset password' })
-  @ApiResponse({ status: 200, description: 'Password reset successfully' })
-  @ApiResponse({ status: 400, description: 'This token is invalid or has expired.' })
-  @ApiResponse({ status: 403, description: 'Your account has been deactivated.' })
   @Public()
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   @ResponseMessage('Password reset successfully')
+  @ApiOperation({ summary: 'Reset password' })
+  @ApiMessageResponse('Password reset successfully')
+  @ApiErrorResponses(400, 403)
   async resetPassword(@Body() dto: ResetPassword) {
     return this.authService.resetPassword(dto);
   }
 
-  @ApiOperation({ summary: 'User logout', description: 'User logout' })
-  @ApiResponse({ status: 200, description: 'You are logged out successfully' })
-  @ApiBearerAuth()
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   @ResponseMessage('You are logged out successfully')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'User logout' })
+  @ApiMessageResponse('You are logged out successfully')
+  @ApiErrorResponses(401)
   async logout(@CurrentUser() user: JwtPayload & { exp: number }) {
     return this.authService.logout(user);
   }
