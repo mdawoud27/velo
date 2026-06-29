@@ -5,3 +5,4 @@ export * from './resend-email.dto';
 export * from './refresh-token.dto';
 export * from './forgot-password.dto';
 export * from './reset-password.dto';
+export * from './auth-tokens.dto';
