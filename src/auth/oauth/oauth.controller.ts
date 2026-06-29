@@ -4,9 +4,13 @@ import { ConfigService } from '@nestjs/config';
 import type { Response } from 'express';
 import { OAuthService } from './oauth.service';
 import type { OAuthProfile } from '../interfaces';
-import { CurrentUser } from '../decorators/current-user.decorator';
-import { Public } from '../decorators';
+import { CurrentUser, Public } from '../decorators';
+import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ExchangeOAuthCodeDto } from './dtos';
+import { ApiDataResponse, ApiErrorResponses, ApiRedirectResponse } from 'src/common/decorators';
+import { AuthTokensDto } from '../dtos';
 
+@ApiTags('Auth')
 @Controller('auth')
 export class OAuthController {
   constructor(
@@ -17,11 +21,16 @@ export class OAuthController {
   @Public()
   @Get('google')
   @UseGuards(AuthGuard('google'))
+  @ApiOperation({ summary: 'Initiate Google OAuth flow' })
+  @ApiRedirectResponse('Redirects to Google sign-in page')
   googleAuth() {}
 
   @Public()
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
+  @ApiOperation({ summary: 'Google OAuth callback' })
+  @ApiRedirectResponse('Redirects to frontend after successful login')
+  @ApiDataResponse(AuthTokensDto, 'Returns tokens directly when CLIENT_URL is not set')
   async googleCallback(@CurrentUser() profile: OAuthProfile, @Res() res: Response) {
     await this.handleOAuthCallback(profile, res);
   }
@@ -29,32 +38,38 @@ export class OAuthController {
   @Public()
   @Get('github')
   @UseGuards(AuthGuard('github'))
+  @ApiOperation({ summary: 'Initiate GitHub OAuth flow' })
+  @ApiRedirectResponse('Redirects to GitHub sign-in page')
   githubAuth() {}
 
   @Public()
   @Get('github/callback')
   @UseGuards(AuthGuard('github'))
+  @ApiOperation({ summary: 'GitHub OAuth callback' })
+  @ApiRedirectResponse('Redirects to frontend after successful login')
+  @ApiDataResponse(AuthTokensDto, 'Returns tokens directly when CLIENT_URL is not set')
   async githubCallback(@CurrentUser() profile: OAuthProfile, @Res() res: Response) {
     await this.handleOAuthCallback(profile, res);
   }
 
   @Public()
   @Post('exchange-code')
-  exchangeCode(@Body('code') code: string) {
-    return this.oauthService.exchangeOAuthCode(code);
+  @ApiOperation({ summary: 'Exchange one-time OAuth code for tokens' })
+  @ApiDataResponse(AuthTokensDto, 'OAuth code exchanged successfully')
+  @ApiErrorResponses(401)
+  exchangeCode(@Body() dto: ExchangeOAuthCodeDto) {
+    return this.oauthService.exchangeOAuthCode(dto.code);
   }
 
   private async handleOAuthCallback(profile: OAuthProfile, res: Response) {
     const tokens = await this.oauthService.handleOAuthLogin(profile);
     const clientUrl = this.config.get<string>('CLIENT_URL');
 
-    // No CLIENT_URL: dev/test mode
     if (!clientUrl || clientUrl === '') {
       res.json({ message: 'OAuth Login Successful!', ...tokens });
       return;
     }
 
-    // Production: redirect with a 60-second one-time code
     const code = await this.oauthService.storeOAuthCode(tokens);
     res.redirect(`${clientUrl}/auth/callback?code=${code}`);
   }

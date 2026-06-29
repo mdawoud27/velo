@@ -8,6 +8,7 @@ import helmet from 'helmet';
 import { requestIdMiddleware } from './common/middlewares';
 import { RedisService } from './redis/redis.service';
 import { RedisSessionStore } from './common/session/redis-session.store';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -68,6 +69,29 @@ async function bootstrap() {
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
 
   app.enableShutdownHooks();
+
+  const config = new DocumentBuilder()
+    .setTitle('Velo API')
+    .setDescription('Production-grade project management API')
+    .setVersion('1.0')
+    .addBearerAuth({
+      type: 'http',
+      scheme: 'bearer',
+      bearerFormat: 'JWT',
+      name: 'Authorization',
+      in: 'header',
+    })
+    .addTag('Health', 'Health check')
+    .addTag('Home', 'API root and health check')
+    .addTag('Auth', 'Authentication and account management')
+    .addTag('Users', 'User profile management')
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api-docs', app, document, {
+    swaggerOptions: { persistAuthorization: true, filter: true },
+    jsonDocumentUrl: 'api-docs/json',
+  });
 
   await app.listen(process.env.PORT ?? 3000);
 }
