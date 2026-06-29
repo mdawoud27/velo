@@ -60,6 +60,8 @@ export function PaginatedResponseOf<T>(DataDto: Type<T>) {
 // Message-only (ServiceMessage case, data is always null)
 
 export class MessageResponseDto extends ApiResponseBaseDto {
+  @ApiProperty({ example: 'Operation successful' })
+  declare message: string;
   @ApiProperty({ type: Object, nullable: true, example: null })
   data: null;
 }
