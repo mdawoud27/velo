@@ -1,7 +1,7 @@
 # Velo API Documentation
 
 **Base URL:** `https://<host>/api/v1`
-**API Docs UI:** `https://<host>/api-docs` (Swagger UI)
+**API Docs UI:** `https://<host>/api/docs` (Swagger UI)
 
 ## Authentication
 
