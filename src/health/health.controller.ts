@@ -4,7 +4,6 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { RedisHealthIndicator } from './redis.health';
 import { Public } from 'src/auth/decorators';
 
-@Public()
 @Controller('health')
 export class HealthController {
   constructor(
@@ -14,7 +13,13 @@ export class HealthController {
     private readonly redisHealthIndicator: RedisHealthIndicator,
   ) {}
 
+  @Public()
   @Get()
+  liveness() {
+    return { status: 'ok' };
+  }
+
+  @Get('details')
   @HealthCheck()
   async check() {
     const result = await this.health.check([

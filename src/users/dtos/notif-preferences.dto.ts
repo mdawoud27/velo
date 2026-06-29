@@ -1,9 +1,9 @@
 import { IsBoolean, IsOptional } from 'class-validator';
 import type { NotifPreferences } from '../types';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class NotifPreferencesDto implements NotifPreferences {
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: true,
     description: 'Email on task assigned',
     type: Boolean,
@@ -12,7 +12,7 @@ export class NotifPreferencesDto implements NotifPreferences {
   @IsBoolean()
   emailOnTaskAssigned?: boolean;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: true,
     description: 'Email on mention',
     type: Boolean,
@@ -21,7 +21,7 @@ export class NotifPreferencesDto implements NotifPreferences {
   @IsBoolean()
   emailOnMention?: boolean;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: true,
     description: 'Email on due reminder',
     type: Boolean,
@@ -30,7 +30,7 @@ export class NotifPreferencesDto implements NotifPreferences {
   @IsBoolean()
   emailOnDueReminder?: boolean;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: true,
     description: 'Email on comment',
     type: Boolean,

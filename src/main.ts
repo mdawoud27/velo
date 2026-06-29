@@ -74,16 +74,13 @@ async function bootstrap() {
     .setTitle('Velo API')
     .setDescription('Production-grade project management API')
     .setVersion('1.0')
-    .addBearerAuth(
-      {
-        type: 'http',
-        scheme: 'bearer',
-        bearerFormat: 'JWT',
-        name: 'Authorization',
-        in: 'header',
-      },
-      'access-token',
-    )
+    .addBearerAuth({
+      type: 'http',
+      scheme: 'bearer',
+      bearerFormat: 'JWT',
+      name: 'Authorization',
+      in: 'header',
+    })
     .addTag('Health', 'Health check')
     .addTag('Home', 'API root and health check')
     .addTag('Auth', 'Authentication and account management')

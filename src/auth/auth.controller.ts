@@ -16,7 +16,6 @@ import { ResponseMessage } from 'src/common/decorators';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('Auth')
-@ApiBearerAuth()
 @Controller('auth')
 @UseGuards(JwtAuthGuard)
 export class AuthController {
@@ -110,6 +109,7 @@ export class AuthController {
 
   @ApiOperation({ summary: 'User logout', description: 'User logout' })
   @ApiResponse({ status: 200, description: 'You are logged out successfully' })
+  @ApiBearerAuth()
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   @ResponseMessage('You are logged out successfully')

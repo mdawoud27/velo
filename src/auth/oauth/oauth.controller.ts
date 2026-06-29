@@ -7,6 +7,7 @@ import type { OAuthProfile } from '../interfaces';
 import { CurrentUser } from '../decorators/current-user.decorator';
 import { Public } from '../decorators';
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ExchangeOAuthCodeDto } from './dtos';
 
 @Controller('auth')
 export class OAuthController {
@@ -23,6 +24,10 @@ export class OAuthController {
   googleAuth() {}
 
   @ApiOperation({ summary: 'User login using Google', description: 'User login using Google' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns tokens JSON when CLIENT_URL is not configured',
+  })
   @ApiResponse({ status: 302, description: 'Redirect to frontend after successful login' })
   @Public()
   @Get('google/callback')
@@ -39,6 +44,10 @@ export class OAuthController {
   githubAuth() {}
 
   @ApiOperation({ summary: 'User login using GitHub', description: 'User login using GitHub' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns tokens JSON when CLIENT_URL is not configured',
+  })
   @ApiResponse({ status: 302, description: 'Redirect to frontend after successful login' })
   @Public()
   @Get('github/callback')
@@ -52,8 +61,8 @@ export class OAuthController {
   @ApiResponse({ status: 401, description: 'OAuth code is invalid or has expired.' })
   @Public()
   @Post('exchange-code')
-  exchangeCode(@Body('code') code: string) {
-    return this.oauthService.exchangeOAuthCode(code);
+  exchangeCode(@Body() dto: ExchangeOAuthCodeDto) {
+    return this.oauthService.exchangeOAuthCode(dto.code);
   }
 
   private async handleOAuthCallback(profile: OAuthProfile, res: Response) {
