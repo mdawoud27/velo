@@ -3,6 +3,6 @@ import { DomainException } from './base.exception';
 
 export class EmailNotVerifiedException extends DomainException {
   constructor() {
-    super(HttpStatus.BAD_REQUEST, 'EMAIL_NOT_VERIFIED', 'Email is not verified.');
+    super(HttpStatus.FORBIDDEN, 'EMAIL_NOT_VERIFIED', 'Email is not verified.');
   }
 }

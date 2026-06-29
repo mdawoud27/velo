@@ -25,8 +25,9 @@ import { EmailQueueService } from 'src/queue/email-queue.service';
 import { LoggerService } from 'src/logger/logger.service';
 import { JwtService } from '@nestjs/jwt';
 import { JwtPayload } from './interfaces';
-import { UserEntity } from './entities/user.entity';
+import { UserEntity } from '../users/entities';
 import { TokensService } from './tokens.service';
+import { ServiceMessage } from 'src/common/classes';
 
 @Injectable()
 export class AuthService {
@@ -78,8 +79,6 @@ export class AuthService {
       name: newUser.name ?? '',
       verificationUrl,
     });
-
-    return { message: 'Check your inbox to verify your email' };
   }
 
   async resendVerificationEmail(dto: ResendEmailDto) {
@@ -90,12 +89,8 @@ export class AuthService {
       select: { id: true, email: true, name: true, isEmailVerified: true },
     });
 
-    if (!user) {
-      return { message: 'No account with that email exists.' };
-    }
-
-    if (user.isEmailVerified) {
-      return { message: 'Email already verified' };
+    if (!user || user.isEmailVerified) {
+      return new ServiceMessage('If that account needs verification, a new email has been sent.');
     }
 
     const verificationToken = crypto.randomUUID();
@@ -118,7 +113,7 @@ export class AuthService {
       verificationUrl,
     });
 
-    return { message: 'If that account needs verification, a new email has been sent.' };
+    return new ServiceMessage('If that account needs verification, a new email has been sent.');
   }
 
   async verifyEmail(dto: VerifyEmailDto) {
@@ -142,7 +137,7 @@ export class AuthService {
       data: { isEmailVerified: true },
     });
 
-    return { message: 'Email verified successfully' };
+    return new ServiceMessage('Email verified successfully');
   }
 
   async login(dto: LoginDto) {
@@ -248,7 +243,7 @@ export class AuthService {
     });
 
     if (!user || user.deletedAt) {
-      return { message: 'If that account exists, a reset link has been sent' };
+      return new ServiceMessage('If that account exists, a reset link has been sent');
     }
 
     if (!user.isEmailVerified) {
@@ -270,7 +265,7 @@ export class AuthService {
       resetUrl,
     });
 
-    return { message: 'If that account exists, a reset link has been sent' };
+    return new ServiceMessage('If that account exists, a reset link has been sent');
   }
 
   async resetPassword(dto: ResetPassword) {
@@ -290,8 +285,6 @@ export class AuthService {
     }
 
     await this.redis.del(`refresh:${userId}`);
-
-    return { message: 'Password reset successfully' };
   }
 
   async logout(payload: JwtPayload & { exp: number }) {
@@ -302,7 +295,5 @@ export class AuthService {
     }
 
     await this.redis.del(`refresh:${payload.sub}`);
-
-    return { message: 'You are logged out successfully' };
   }
 }

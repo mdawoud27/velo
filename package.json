@@ -1,6 +1,6 @@
 {
   "name": "velo",
-  "version": "0.2.30",
+  "version": "0.2.44",
   "description": "",
   "author": "",
   "private": true,
@@ -36,6 +36,7 @@
     "@nestjs/mapped-types": "^2.1.1",
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/swagger": "^11.4.4",
     "@nestjs/terminus": "^11.1.1",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
@@ -48,6 +49,7 @@
     "dotenv": "^17.4.2",
     "express-session": "^1.19.0",
     "handlebars": "^4.7.9",
+    "helmet": "^8.2.0",
     "ioredis": "^5.11.1",
     "nestjs-pino": "^4.6.1",
     "nodemailer": "^9.0.1",

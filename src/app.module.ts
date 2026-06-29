@@ -9,10 +9,12 @@ import { MailModule } from './mail/mail.module';
 import { AuthModule } from './auth/auth.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { BanGuard, JwtAuthGuard } from './auth/guards';
 import { OAuthModule } from './auth/oauth/oauth.module';
 import { UsersModule } from './users/users.module';
+import { ResponseInterceptor } from './common/interceptors';
+import { HttpExceptionFilter, PrismaExceptionFilter } from './common/filters';
 
 @Module({
   imports: [
@@ -32,6 +34,9 @@ import { UsersModule } from './users/users.module';
     AppService,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: BanGuard },
+    { provide: APP_INTERCEPTOR, useClass: ResponseInterceptor },
+    { provide: APP_FILTER, useClass: HttpExceptionFilter },
+    { provide: APP_FILTER, useClass: PrismaExceptionFilter },
   ],
 })
 export class AppModule {}
