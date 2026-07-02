@@ -20,6 +20,14 @@ export interface PasswordResetPayload {
   resetUrl: string;
 }
 
+export interface InvitationPayload {
+  to: string;
+  orgName: string;
+  role: string;
+  inviterName: string;
+  invitationUrl: string;
+}
+
 const EMAIL_JOB_OPTIONS: JobsOptions = {
   attempts: 3,
   backoff: { type: 'exponential', delay: 5000 },
@@ -41,5 +49,9 @@ export class EmailQueueService {
 
   addPasswordResetEmail(payload: PasswordResetPayload) {
     return this.queue.add(EmailJobType.PASSWORD_RESET, payload, EMAIL_JOB_OPTIONS);
+  }
+
+  addInvitationEmail(payload: InvitationPayload) {
+    return this.queue.add(EmailJobType.INVITATION, payload, EMAIL_JOB_OPTIONS);
   }
 }
