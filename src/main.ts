@@ -69,18 +69,29 @@ async function bootstrap() {
       transform: true,
       forbidNonWhitelisted: true,
       exceptionFactory: (errors) => {
-        const structured = errors.flatMap((error) =>
-          Object.values(error.constraints ?? {}).map((message) => ({
-            field: error.property,
-            message,
-          })),
-        );
+        const flatten = (
+          errs: typeof errors,
+          parentField = '',
+        ): { field: string; message: string }[] =>
+          errs.flatMap((error) => {
+            const field = parentField ? `${parentField}.${error.property}` : error.property;
+
+            const messages = Object.values(error.constraints ?? {}).map((message) => ({
+              field,
+              message,
+            }));
+
+            const nested = error.children?.length ? flatten(error.children, field) : [];
+
+            return [...messages, ...nested];
+          });
+
         throw new UnprocessableEntityException({
           success: false,
           error: {
             code: 'VALIDATION_ERROR',
             message: 'Validation failed',
-            errors: structured,
+            errors: flatten(errors),
           },
         });
       },

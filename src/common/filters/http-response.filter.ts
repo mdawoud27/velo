@@ -15,7 +15,8 @@ export class HttpResponseFilter implements ExceptionFilter {
     if (
       typeof exceptionResponse === 'object' &&
       exceptionResponse !== null &&
-      'error' in exceptionResponse
+      'error' in exceptionResponse &&
+      typeof (exceptionResponse as Record<string, unknown>).error === 'object'
     ) {
       return response
         .status(status)
