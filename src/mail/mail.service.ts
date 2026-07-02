@@ -31,4 +31,23 @@ export class MailService {
       context: { name, resetUrl },
     });
   }
+  async sendInvitationEmail(
+    to: string,
+    orgName: string,
+    role: string,
+    inviterName: string,
+    invitationUrl: string,
+  ): Promise<void> {
+    await this.mailer.sendMail({
+      to,
+      subject: `You're invited to join ${orgName}`,
+      template: 'invitation',
+      context: {
+        orgName,
+        role,
+        inviterName,
+        invitationUrl,
+      },
+    });
+  }
 }
