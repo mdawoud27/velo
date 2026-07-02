@@ -17,6 +17,6 @@ export class OrganizationsController {
   @ApiDataResponse(OrgDto, 'Organization created successfully.')
   @ApiErrorResponses(401, 404, 409)
   async createOrganization(@Body() dto: CreateOrganizationDto, @CurrentUser('sub') userId: string) {
-    return this.orgService.createOrgainzation(dto, userId);
+    return this.orgService.createOrganization(dto, userId);
   }
 }

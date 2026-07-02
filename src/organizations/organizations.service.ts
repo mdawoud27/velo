@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrganizationDto } from './dtos/create-org.dto';
-import { ResourceNotFoundException } from 'src/common/exceptions';
-import { User } from '@prisma/client';
+import { BannedUserException, ResourceNotFoundException } from 'src/common/exceptions';
+import { Prisma, User } from '@prisma/client';
 import { OrgEntity } from './entities';
 
 export enum OrgRole {
@@ -15,28 +15,26 @@ export enum OrgRole {
 export class OrganizationsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async createOrgainzation(dto: CreateOrganizationDto, userId: string) {
-    await this.findActiveUser(userId);
-
+  async createOrganization(dto: CreateOrganizationDto, userId: string) {
     return this.prisma.$transaction(async (tx) => {
+      await this.findActiveUser(userId, tx);
+
       const org = await tx.organization.create({ data: dto });
       await tx.orgMember.create({ data: { orgId: org.id, userId, role: OrgRole.OWNER } });
       return new OrgEntity(org);
     });
   }
 
-  private async findActiveUser(userId: string): Promise<User> {
-    const user = await this.prisma.user.findFirst({
-      where: {
-        id: userId,
-        deletedAt: null,
-        bannedAt: null,
-      },
+  private async findActiveUser(userId: string, tx?: Prisma.TransactionClient): Promise<User> {
+    const client = tx ?? this.prisma;
+
+    const user = await client.user.findUnique({
+      where: { id: userId },
     });
 
-    if (!user) {
-      throw new ResourceNotFoundException('User', userId);
-    }
+    if (!user) throw new ResourceNotFoundException('User', userId);
+    if (user.bannedAt) throw new BannedUserException();
+    if (user.deletedAt) throw new ResourceNotFoundException('User', userId);
 
     return user;
   }

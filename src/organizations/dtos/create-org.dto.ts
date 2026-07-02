@@ -1,11 +1,6 @@
+import { Plan } from '@prisma/client';
 import { Transform } from 'class-transformer';
 import { IsEnum, IsNotEmpty, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
-
-export enum Plan {
-  FREE = 'FREE',
-  PRO = 'PRO',
-  BUSINESS = 'BUSINESS',
-}
 
 export class CreateOrganizationDto {
   @IsString()
