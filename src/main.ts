@@ -2,7 +2,11 @@ import { NestFactory, Reflector } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { Logger } from 'nestjs-pino';
-import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
+import {
+  ClassSerializerInterceptor,
+  UnprocessableEntityException,
+  ValidationPipe,
+} from '@nestjs/common';
 import session from 'express-session';
 import helmet from 'helmet';
 import { requestIdMiddleware } from './common/middlewares';
@@ -64,6 +68,22 @@ async function bootstrap() {
       whitelist: true,
       transform: true,
       forbidNonWhitelisted: true,
+      exceptionFactory: (errors) => {
+        const structured = errors.flatMap((error) =>
+          Object.values(error.constraints ?? {}).map((message) => ({
+            field: error.property,
+            message,
+          })),
+        );
+        throw new UnprocessableEntityException({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Validation failed',
+            errors: structured,
+          },
+        });
+      },
     }),
   );
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
