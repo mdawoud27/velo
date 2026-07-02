@@ -85,6 +85,7 @@ async function bootstrap() {
     .addTag('Home', 'API root and health check')
     .addTag('Auth', 'Authentication and account management')
     .addTag('Users', 'User profile management')
+    .addTag('Organizations', 'Organization management')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

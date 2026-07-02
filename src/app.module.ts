@@ -15,6 +15,7 @@ import { OAuthModule } from './auth/oauth/oauth.module';
 import { UsersModule } from './users/users.module';
 import { ResponseInterceptor } from './common/interceptors';
 import { HttpExceptionFilter, PrismaExceptionFilter } from './common/filters';
+import { OrganizationsModule } from './organizations/organizations.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { HttpExceptionFilter, PrismaExceptionFilter } from './common/filters';
     AuthModule,
     OAuthModule,
     UsersModule,
+    OrganizationsModule,
   ],
   controllers: [AppController],
   providers: [
