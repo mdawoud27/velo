@@ -14,7 +14,8 @@ import { BanGuard, JwtAuthGuard } from './auth/guards';
 import { OAuthModule } from './auth/oauth/oauth.module';
 import { UsersModule } from './users/users.module';
 import { ResponseInterceptor } from './common/interceptors';
-import { HttpExceptionFilter, PrismaExceptionFilter } from './common/filters';
+import { HttpResponseFilter, PrismaExceptionFilter } from './common/filters';
+import { OrganizationsModule } from './organizations/organizations.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { HttpExceptionFilter, PrismaExceptionFilter } from './common/filters';
     AuthModule,
     OAuthModule,
     UsersModule,
+    OrganizationsModule,
   ],
   controllers: [AppController],
   providers: [
@@ -35,7 +37,7 @@ import { HttpExceptionFilter, PrismaExceptionFilter } from './common/filters';
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: BanGuard },
     { provide: APP_INTERCEPTOR, useClass: ResponseInterceptor },
-    { provide: APP_FILTER, useClass: HttpExceptionFilter },
+    { provide: APP_FILTER, useClass: HttpResponseFilter },
     { provide: APP_FILTER, useClass: PrismaExceptionFilter },
   ],
 })
