@@ -37,6 +37,7 @@ export class MailService {
     role: string,
     inviterName: string,
     invitationUrl: string,
+    declineInvitationUrl: string,
   ): Promise<void> {
     await this.mailer.sendMail({
       to,
@@ -47,6 +48,7 @@ export class MailService {
         role,
         inviterName,
         invitationUrl,
+        declineInvitationUrl,
       },
     });
   }

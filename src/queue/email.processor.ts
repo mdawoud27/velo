@@ -50,6 +50,7 @@ export class EmailProcessor extends WorkerHost {
           job.data.role,
           job.data.inviterName,
           job.data.invitationUrl,
+          job.data.declineInvitationUrl,
         );
         break;
 

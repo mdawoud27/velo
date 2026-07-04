@@ -26,6 +26,7 @@ export interface InvitationPayload {
   role: string;
   inviterName: string;
   invitationUrl: string;
+  declineInvitationUrl: string;
 }
 
 const EMAIL_JOB_OPTIONS: JobsOptions = {
