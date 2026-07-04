@@ -9,7 +9,7 @@ import {
 } from 'src/common/exceptions';
 import { Plan, Prisma, User } from '@prisma/client';
 import { OrgEntity } from './entities';
-import { AcceptInviteDto, InviteDto } from './dtos';
+import { AcceptInviteDto, DeclineInviteDto, InviteDto } from './dtos';
 import { EmailQueueService } from 'src/queue/email-queue.service';
 import { ConfigService } from '@nestjs/config';
 
@@ -125,6 +125,7 @@ export class OrganizationsService {
       role: dto.role ?? OrgRole.MEMBER,
       inviterName: actor.name,
       invitationUrl: `${this.config.getOrThrow('FRONTEND_URL')}/accept-invite?token=${token}`,
+      declineInvitationUrl: `${this.config.getOrThrow('FRONTEND_URL')}/decline-invite?token=${token}`,
     });
   }
 
@@ -175,6 +176,30 @@ export class OrganizationsService {
         where: { id: invite.id },
       });
     });
+  }
+
+  async declineInvitation(dto: DeclineInviteDto, userId: string): Promise<void> {
+    const invite = await this.prisma.orgInvitation.findUnique({
+      where: { token: dto.token },
+      include: { org: { select: { plan: true, deletedAt: true } } },
+    });
+    if (!invite) throw new ResourceNotFoundException('Invitation', dto.token);
+
+    if (invite.org.deletedAt) {
+      throw new DomainException(
+        HttpStatus.GONE,
+        'ORG_INACTIVE',
+        'This organization is no longer active.',
+      );
+    }
+
+    const user = await this.findActiveUser(userId);
+
+    if (user.email != invite.email) {
+      throw new DomainException(HttpStatus.FORBIDDEN, 'EMAIL_MISMATCH', 'Email does not match');
+    }
+
+    await this.prisma.orgInvitation.delete({ where: { token: dto.token } });
   }
 
   private async findActiveUser(userId: string, tx?: Prisma.TransactionClient): Promise<User> {

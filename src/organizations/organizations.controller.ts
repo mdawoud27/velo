@@ -41,4 +41,13 @@ export class OrganizationsController {
   async acceptInvitation(@Body() dto: AcceptInviteDto, @CurrentUser('sub') userId: string) {
     return this.orgService.acceptInvitation(dto, userId);
   }
+
+  @Post(':orgId/decline')
+  @ResponseMessage('Invitation declined successfully.')
+  @ApiOperation({ summary: 'Decline an invitation to the organization.' })
+  @ApiDataResponse(OrgDto, 'Invitation declined successfully.')
+  @ApiErrorResponses(401, 404, 409)
+  async declineInvitation(@Body() dto: AcceptInviteDto, @CurrentUser('sub') userId: string) {
+    return this.orgService.declineInvitation(dto, userId);
+  }
 }
