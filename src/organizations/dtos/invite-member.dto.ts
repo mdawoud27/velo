@@ -1,8 +1,8 @@
 import { OrgRole } from '@prisma/client';
-import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsEmail, IsEnum, IsNotEmpty, IsOptional } from 'class-validator';
 
 export class InviteDto {
-  @IsString()
+  @IsEmail()
   @IsNotEmpty()
   email: string;
 

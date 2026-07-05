@@ -13,6 +13,7 @@ import { AcceptInviteDto, DeclineInviteDto, InviteDto } from './dtos';
 import { EmailQueueService } from 'src/queue/email-queue.service';
 import { ConfigService } from '@nestjs/config';
 import { buildPaginationMeta } from 'src/common/utils';
+import { PaginationDto } from 'src/common/dtos';
 
 export enum OrgRole {
   OWNER = 'OWNER',
@@ -39,59 +40,13 @@ export class OrganizationsService {
   }
 
   async inviteMember(orgId: string, dto: InviteDto, actorId: string) {
-    const org = await this.prisma.organization.findUniqueOrThrow({
-      where: { id: orgId },
-    });
-
+    const org = await this.prisma.organization.findUniqueOrThrow({ where: { id: orgId } });
     const actor = await this.findActiveUser(actorId, this.prisma);
-
-    const actorMembership = await this.prisma.orgMember.findFirst({
-      where: {
-        userId: actorId,
-        orgId,
-        role: { in: [OrgRole.OWNER, OrgRole.ADMIN] },
-      },
-    });
-
-    if (!actorMembership) {
-      throw new ForbiddenException(
-        'You do not have permission to invite members to this organization.',
-      );
-    }
-
-    const existingUser = await this.prisma.user.findUnique({
-      where: {
-        email: dto.email,
-      },
-    });
-
-    if (!existingUser) {
-      throw new ResourceNotFoundException('User', dto.email);
-    }
-
-    await this.findActiveUser(existingUser.id, this.prisma);
-
-    if (existingUser) {
-      const alreadyMember = await this.prisma.orgMember.findUnique({
-        where: {
-          userId_orgId: {
-            userId: existingUser.id,
-            orgId,
-          },
-        },
-      });
-
-      if (alreadyMember) {
-        throw new ConflictException('User is already a member of this organization.');
-      }
-    }
+    await this.assertActorCanManageMembers(orgId, actorId);
+    await this.assertNotAlreadyMember(orgId, dto.email);
 
     const existingInvitation = await this.prisma.orgInvitation.findFirst({
-      where: {
-        orgId,
-        email: dto.email,
-        expiresAt: { gt: new Date() },
-      },
+      where: { orgId, email: dto.email, expiresAt: { gt: new Date() } },
     });
     if (existingInvitation) {
       throw new ConflictException('A pending invitation already exists for this email');
@@ -99,11 +54,8 @@ export class OrganizationsService {
 
     const memberCount = await this.prisma.orgMember.count({ where: { orgId } });
     const limits: Record<Plan, number> = { FREE: 3, PRO: 20, BUSINESS: Infinity };
-
     if (memberCount >= limits[org.plan]) {
-      throw new PlanLimitException(
-        `${org.plan} plan allows up to ${limits[org.plan]} members. Upgrade to invite more.`,
-      );
+      throw new PlanLimitException(`${org.plan} plan is full. Upgrade to invite more.`);
     }
 
     const token = crypto.randomUUID();
@@ -125,114 +77,57 @@ export class OrganizationsService {
       orgName: org.name,
       role: dto.role ?? OrgRole.MEMBER,
       inviterName: actor.name,
-      invitationUrl: `${this.config.getOrThrow('FRONTEND_URL')}/accept-invite?token=${token}`,
-      declineInvitationUrl: `${this.config.getOrThrow('FRONTEND_URL')}/decline-invite?token=${token}`,
+      invitationUrl: `${this.config.getOrThrow('CLIENT_URL')}/accept-invite?token=${token}`,
+      declineInvitationUrl: `${this.config.getOrThrow('CLIENT_URL')}/decline-invite?token=${token}`,
     });
   }
 
   async resendInvite(orgId: string, dto: InviteDto, actorId: string) {
-    const org = await this.prisma.organization.findUniqueOrThrow({
-      where: { id: orgId },
-    });
-
+    const org = await this.prisma.organization.findUniqueOrThrow({ where: { id: orgId } });
     const actor = await this.findActiveUser(actorId, this.prisma);
-
-    const actorMembership = await this.prisma.orgMember.findFirst({
-      where: {
-        userId: actorId,
-        orgId,
-        role: { in: [OrgRole.OWNER, OrgRole.ADMIN] },
-      },
-    });
-
-    if (!actorMembership) {
-      throw new ForbiddenException(
-        'You do not have permission to invite members to this organization.',
-      );
-    }
-
-    const existingUser = await this.prisma.user.findUnique({
-      where: {
-        email: dto.email,
-      },
-    });
-
-    if (!existingUser) {
-      throw new ResourceNotFoundException('User', dto.email);
-    }
-
-    await this.findActiveUser(existingUser.id, this.prisma);
-
-    if (existingUser) {
-      const alreadyMember = await this.prisma.orgMember.findUnique({
-        where: {
-          userId_orgId: {
-            userId: existingUser.id,
-            orgId,
-          },
-        },
-      });
-
-      if (alreadyMember) {
-        throw new ConflictException('User is already a member of this organization.');
-      }
-    }
+    await this.assertActorCanManageMembers(orgId, actorId);
 
     const existingInvitation = await this.prisma.orgInvitation.findFirst({
-      where: {
-        orgId,
-        email: dto.email,
-        expiresAt: { gt: new Date() },
-      },
+      where: { orgId, email: dto.email },
+      orderBy: { createdAt: 'desc' },
     });
-    if (existingInvitation) {
-      throw new ConflictException('A pending invitation already exists for this email');
-    }
-
-    const memberCount = await this.prisma.orgMember.count({ where: { orgId } });
-    const limits: Record<Plan, number> = { FREE: 3, PRO: 20, BUSINESS: Infinity };
-
-    if (memberCount >= limits[org.plan]) {
-      throw new PlanLimitException(
-        `${org.plan} plan allows up to ${limits[org.plan]} members. Upgrade to invite more.`,
-      );
+    if (!existingInvitation) {
+      throw new ResourceNotFoundException('Invitation', dto.email);
     }
 
     const token = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
 
-    await this.prisma.orgInvitation.create({
-      data: {
-        orgId,
-        email: dto.email,
-        token,
-        role: dto.role ?? OrgRole.MEMBER,
-        invitedById: actorId,
-        expiresAt,
-      },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.orgInvitation.delete({ where: { id: existingInvitation.id } });
+      await tx.orgInvitation.create({
+        data: {
+          orgId,
+          email: dto.email,
+          token,
+          role: existingInvitation.role,
+          invitedById: actorId,
+          expiresAt,
+        },
+      });
     });
 
     await this.emailQueue.addInvitationEmail({
       to: dto.email,
       orgName: org.name,
-      role: dto.role ?? OrgRole.MEMBER,
+      role: existingInvitation.role,
       inviterName: actor.name,
-      invitationUrl: `${this.config.getOrThrow('FRONTEND_URL')}/accept-invite?token=${token}`,
-      declineInvitationUrl: `${this.config.getOrThrow('FRONTEND_URL')}/decline-invite?token=${token}`,
+      invitationUrl: `${this.config.getOrThrow('CLIENT_URL')}/accept-invite?token=${token}`,
+      declineInvitationUrl: `${this.config.getOrThrow('CLIENT_URL')}/decline-invite?token=${token}`,
     });
   }
 
   async acceptInvitation(orgId: string, dto: AcceptInviteDto, userId: string) {
-    await this.prisma.organization.findUniqueOrThrow({
-      where: { id: orgId },
-    });
-
     const invite = await this.prisma.orgInvitation.findUnique({
       where: { token: dto.token },
       include: { org: { select: { plan: true, deletedAt: true } } },
     });
     if (!invite) throw new ResourceNotFoundException('Invitation', dto.token);
-
     if (invite.org.deletedAt) {
       throw new DomainException(
         HttpStatus.GONE,
@@ -240,38 +135,30 @@ export class OrganizationsService {
         'This organization is no longer active.',
       );
     }
-
     if (invite.expiresAt < new Date()) {
       throw new DomainException(HttpStatus.GONE, 'INVITE_EXPIRED', 'This invitation has expired.');
     }
 
     const user = await this.findActiveUser(userId);
 
-    if (user.email != invite.email) {
+    if (user.email !== invite.email) {
       throw new DomainException(HttpStatus.FORBIDDEN, 'EMAIL_MISMATCH', 'Email does not match');
     }
 
-    const memberCount = await this.prisma.orgMember.count({ where: { orgId: invite.orgId } });
-    const limits: Record<Plan, number> = { FREE: 3, PRO: 20, BUSINESS: Infinity };
-
-    if (memberCount >= limits[invite.org.plan]) {
-      throw new PlanLimitException(
-        `${invite.org.plan} plan allows up to ${limits[invite.org.plan]} members. Upgrade to invite more.`,
-      );
-    }
-
     await this.prisma.$transaction(async (tx) => {
-      await tx.orgMember.create({
-        data: {
-          orgId: invite.orgId,
-          userId,
-          role: invite.role,
-        },
-      });
+      const memberCount = await tx.orgMember.count({ where: { orgId: invite.orgId } });
+      const limits: Record<Plan, number> = { FREE: 3, PRO: 20, BUSINESS: Infinity };
 
-      await tx.orgInvitation.delete({
-        where: { id: invite.id },
+      if (memberCount >= limits[invite.org.plan]) {
+        throw new PlanLimitException(
+          `${invite.org.plan} plan is full. Upgrade to add more members.`,
+        );
+      }
+
+      await tx.orgMember.create({
+        data: { orgId: invite.orgId, userId, role: invite.role },
       });
+      await tx.orgInvitation.delete({ where: { id: invite.id } });
     });
   }
 
@@ -296,14 +183,14 @@ export class OrganizationsService {
 
     const user = await this.findActiveUser(userId);
 
-    if (user.email != invite.email) {
+    if (user.email !== invite.email) {
       throw new DomainException(HttpStatus.FORBIDDEN, 'EMAIL_MISMATCH', 'Email does not match');
     }
 
     await this.prisma.orgInvitation.delete({ where: { token: dto.token } });
   }
 
-  async listInvitations(orgId: string, userId: string) {
+  async listInvitations(orgId: string, userId: string, dto: PaginationDto) {
     const membership = await this.prisma.orgMember.findUnique({
       where: {
         userId_orgId: {
@@ -319,36 +206,56 @@ export class OrganizationsService {
     if (membership?.role !== OrgRole.OWNER && membership?.role !== OrgRole.ADMIN)
       throw new ForbiddenException('You are not authorized to perform this action');
 
-    const invitations = await this.prisma.orgInvitation.findMany({
-      where: {
-        orgId,
-      },
-      select: {
-        id: true,
-        email: true,
-        role: true,
-        expiresAt: true,
-        org: { select: { id: true, name: true } },
-        invitedBy: { select: { id: true, name: true, email: true } },
-      },
-    });
+    const [invitations, total] = await this.prisma.$transaction([
+      this.prisma.orgInvitation.findMany({
+        where: { orgId },
+        select: {
+          id: true,
+          email: true,
+          role: true,
+          expiresAt: true,
+          org: { select: { id: true, name: true } },
+          invitedBy: { select: { id: true, name: true, email: true } },
+        },
+        skip: (dto.page - 1) * dto.limit,
+        take: dto.limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.orgInvitation.count({ where: { orgId } }),
+    ]);
 
-    const meta = buildPaginationMeta(invitations.length, 1, 10);
-    return { meta, data: invitations };
+    return { meta: buildPaginationMeta(total, dto.page, dto.limit), data: invitations };
   }
 
   private async findActiveUser(userId: string, tx?: Prisma.TransactionClient): Promise<User> {
     const client = tx ?? this.prisma;
-
-    const user = await client.user.findUnique({
-      where: { id: userId },
-      include: { memberships: true },
-    });
-
+    const user = await client.user.findUnique({ where: { id: userId } });
     if (!user) throw new ResourceNotFoundException('User', userId);
     if (user.bannedAt) throw new BannedUserException();
     if (user.deletedAt) throw new ResourceNotFoundException('User', userId);
-
     return user;
+  }
+
+  private async assertActorCanManageMembers(orgId: string, actorId: string): Promise<void> {
+    const actorMembership = await this.prisma.orgMember.findFirst({
+      where: { userId: actorId, orgId, role: { in: [OrgRole.OWNER, OrgRole.ADMIN] } },
+    });
+    if (!actorMembership) {
+      throw new ForbiddenException('You do not have permission to manage members.');
+    }
+  }
+
+  private async assertNotAlreadyMember(orgId: string, email: string): Promise<void> {
+    const existingUser = await this.prisma.user.findUnique({ where: { email } });
+    if (!existingUser) throw new ResourceNotFoundException('User', email);
+
+    await this.findActiveUser(existingUser.id, this.prisma);
+
+    const alreadyMember = await this.prisma.orgMember.findUnique({
+      where: { userId_orgId: { userId: existingUser.id, orgId } },
+    });
+    if (alreadyMember) {
+      throw new ConflictException('User is already a member of this organization.');
+    }
   }
 }
