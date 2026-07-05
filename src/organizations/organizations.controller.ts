@@ -1,9 +1,20 @@
-import { Body, Controller, Param, ParseUUIDPipe, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { OrganizationsService } from './organizations.service';
-import { AcceptInviteDto, CreateOrganizationDto, InviteDto, OrgDto } from './dtos';
+import {
+  AcceptInviteDto,
+  CreateOrganizationDto,
+  DeclineInviteDto,
+  InviteDto,
+  OrgDto,
+} from './dtos';
 import { CurrentUser } from 'src/auth/decorators';
-import { ApiDataResponse, ApiErrorResponses, ResponseMessage } from 'src/common/decorators';
+import {
+  ApiDataResponse,
+  ApiErrorResponses,
+  ApiPaginatedDataResponse,
+  ResponseMessage,
+} from 'src/common/decorators';
 
 @ApiTags('Organizations')
 @ApiBearerAuth()
@@ -38,8 +49,12 @@ export class OrganizationsController {
   @ApiOperation({ summary: 'Accept an invitation to the organization.' })
   @ApiDataResponse(OrgDto, 'Invitation accepted successfully.')
   @ApiErrorResponses(401, 404, 409)
-  async acceptInvitation(@Body() dto: AcceptInviteDto, @CurrentUser('sub') userId: string) {
-    return this.orgService.acceptInvitation(dto, userId);
+  async acceptInvitation(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Body() dto: AcceptInviteDto,
+    @CurrentUser('sub') userId: string,
+  ) {
+    return this.orgService.acceptInvitation(orgId, dto, userId);
   }
 
   @Post(':orgId/decline')
@@ -47,7 +62,23 @@ export class OrganizationsController {
   @ApiOperation({ summary: 'Decline an invitation to the organization.' })
   @ApiDataResponse(OrgDto, 'Invitation declined successfully.')
   @ApiErrorResponses(401, 404, 409)
-  async declineInvitation(@Body() dto: AcceptInviteDto, @CurrentUser('sub') userId: string) {
-    return this.orgService.declineInvitation(dto, userId);
+  async declineInvitation(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Body() dto: DeclineInviteDto,
+    @CurrentUser('sub') userId: string,
+  ) {
+    return this.orgService.declineInvitation(orgId, dto, userId);
+  }
+
+  @Get(':orgId/invitations')
+  @ResponseMessage('Invitations listed successfully.')
+  @ApiOperation({ summary: 'List invitations to the organization.' })
+  @ApiPaginatedDataResponse(OrgDto, 'Invitations listed successfully.')
+  @ApiErrorResponses(401, 404, 409)
+  async listInvitations(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @CurrentUser('sub') userId: string,
+  ) {
+    return this.orgService.listInvitations(orgId, userId);
   }
 }

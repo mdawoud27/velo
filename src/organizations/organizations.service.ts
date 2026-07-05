@@ -12,6 +12,7 @@ import { OrgEntity } from './entities';
 import { AcceptInviteDto, DeclineInviteDto, InviteDto } from './dtos';
 import { EmailQueueService } from 'src/queue/email-queue.service';
 import { ConfigService } from '@nestjs/config';
+import { buildPaginationMeta } from 'src/common/utils';
 
 export enum OrgRole {
   OWNER = 'OWNER',
@@ -129,7 +130,11 @@ export class OrganizationsService {
     });
   }
 
-  async acceptInvitation(dto: AcceptInviteDto, userId: string) {
+  async acceptInvitation(orgId: string, dto: AcceptInviteDto, userId: string) {
+    await this.prisma.organization.findUniqueOrThrow({
+      where: { id: orgId },
+    });
+
     const invite = await this.prisma.orgInvitation.findUnique({
       where: { token: dto.token },
       include: { org: { select: { plan: true, deletedAt: true } } },
@@ -178,7 +183,11 @@ export class OrganizationsService {
     });
   }
 
-  async declineInvitation(dto: DeclineInviteDto, userId: string): Promise<void> {
+  async declineInvitation(orgId: string, dto: DeclineInviteDto, userId: string): Promise<void> {
+    await this.prisma.organization.findUniqueOrThrow({
+      where: { id: orgId },
+    });
+
     const invite = await this.prisma.orgInvitation.findUnique({
       where: { token: dto.token },
       include: { org: { select: { plan: true, deletedAt: true } } },
@@ -202,11 +211,46 @@ export class OrganizationsService {
     await this.prisma.orgInvitation.delete({ where: { token: dto.token } });
   }
 
+  async listInvitations(orgId: string, userId: string) {
+    const membership = await this.prisma.orgMember.findUnique({
+      where: {
+        userId_orgId: {
+          orgId,
+          userId,
+        },
+      },
+      select: {
+        role: true,
+      },
+    });
+
+    if (membership?.role !== OrgRole.OWNER && membership?.role !== OrgRole.ADMIN)
+      throw new ForbiddenException('You are not authorized to perform this action');
+
+    const invitations = await this.prisma.orgInvitation.findMany({
+      where: {
+        orgId,
+      },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        expiresAt: true,
+        org: { select: { id: true, name: true } },
+        invitedBy: { select: { id: true, name: true, email: true } },
+      },
+    });
+
+    const meta = buildPaginationMeta(invitations.length, 1, 10);
+    return { meta, data: invitations };
+  }
+
   private async findActiveUser(userId: string, tx?: Prisma.TransactionClient): Promise<User> {
     const client = tx ?? this.prisma;
 
     const user = await client.user.findUnique({
       where: { id: userId },
+      include: { memberships: true },
     });
 
     if (!user) throw new ResourceNotFoundException('User', userId);
