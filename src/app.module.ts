@@ -10,12 +10,13 @@ import { AuthModule } from './auth/auth.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
-import { BanGuard, JwtAuthGuard } from './auth/guards';
+import { BanGuard, JwtAuthGuard, RolesGuard } from './auth/guards';
 import { OAuthModule } from './auth/oauth/oauth.module';
 import { UsersModule } from './users/users.module';
 import { ResponseInterceptor } from './common/interceptors';
 import { HttpResponseFilter, PrismaExceptionFilter } from './common/filters';
 import { OrganizationsModule } from './organizations/organizations.module';
+import { TeamsModule } from './teams/teams.module';
 
 @Module({
   imports: [
@@ -30,12 +31,14 @@ import { OrganizationsModule } from './organizations/organizations.module';
     OAuthModule,
     UsersModule,
     OrganizationsModule,
+    TeamsModule,
   ],
   controllers: [AppController],
   providers: [
     AppService,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: BanGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_INTERCEPTOR, useClass: ResponseInterceptor },
     { provide: APP_FILTER, useClass: HttpResponseFilter },
     { provide: APP_FILTER, useClass: PrismaExceptionFilter },
