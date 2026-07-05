@@ -44,6 +44,19 @@ export class OrganizationsController {
     return this.orgService.inviteMember(orgId, dto, userId);
   }
 
+  @Post(':orgId/resend')
+  @ResponseMessage('Invitation resent successfully.')
+  @ApiOperation({ summary: 'Resend an invitation to the organization.' })
+  @ApiDataResponse(OrgDto, 'Invitation resent successfully.')
+  @ApiErrorResponses(401, 404, 409)
+  async resendInvite(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Body() dto: InviteDto,
+    @CurrentUser('sub') userId: string,
+  ) {
+    return this.orgService.resendInvite(orgId, dto, userId);
+  }
+
   @Post(':orgId/accept')
   @ResponseMessage('Invitation accepted successfully.')
   @ApiOperation({ summary: 'Accept an invitation to the organization.' })
