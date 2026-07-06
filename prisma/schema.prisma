@@ -109,8 +109,8 @@ model Team {
   members  TeamMember[]
   projects Project[]
 
-  @@index([orgId])
   @@index([deletedAt])
+  @@unique([orgId, name])
 }
 
 model TeamMember {
