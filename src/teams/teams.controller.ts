@@ -30,7 +30,6 @@ import {
   ResponseMessage,
 } from 'src/common/decorators';
 import { PaginationDto } from 'src/common/dtos';
-import type { JwtPayload } from 'src/auth/interfaces';
 import { OrgRole } from '@prisma/client';
 
 @ApiTags('Teams')
@@ -40,7 +39,6 @@ export class TeamsController {
   constructor(private readonly teamsService: TeamsService) {}
 
   @Post()
-  @Roles(OrgRole.OWNER, OrgRole.ADMIN)
   @ResponseMessage('Team created successfully.')
   @ApiOperation({ summary: 'Create a new team' })
   @ApiDataResponse(TeamDto, 'Team created successfully.')
@@ -48,9 +46,9 @@ export class TeamsController {
   async createTeam(
     @Param('orgId', ParseUUIDPipe) orgId: string,
     @Body() dto: CreateTeamDto,
-    @CurrentUser('sub') userId: string,
+    @CurrentUser('sub') actorId: string,
   ) {
-    return this.teamsService.createTeam(orgId, dto, userId);
+    return this.teamsService.createTeam(orgId, dto, actorId);
   }
 
   @Get()
@@ -61,9 +59,9 @@ export class TeamsController {
   async listTeams(
     @Param('orgId', ParseUUIDPipe) orgId: string,
     @Query() dto: PaginationDto,
-    @CurrentUser('sub') userId: string,
+    @CurrentUser('sub') actorId: string,
   ) {
-    return this.teamsService.listTeams(orgId, dto, userId);
+    return this.teamsService.listTeams(orgId, dto, actorId);
   }
 
   @Get(':id')
@@ -74,9 +72,9 @@ export class TeamsController {
   async getTeam(
     @Param('orgId', ParseUUIDPipe) orgId: string,
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser('sub') userId: string,
+    @CurrentUser('sub') actorId: string,
   ) {
-    return this.teamsService.getTeam(id, orgId, userId);
+    return this.teamsService.getTeam(id, orgId, actorId);
   }
 
   @Patch(':id')
@@ -89,9 +87,9 @@ export class TeamsController {
     @Param('orgId', ParseUUIDPipe) orgId: string,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateTeamDto,
-    @CurrentUser('sub') userId: string,
+    @CurrentUser('sub') actorId: string,
   ) {
-    return this.teamsService.updateTeam(id, orgId, dto, userId);
+    return this.teamsService.updateTeam(id, orgId, dto, actorId);
   }
 
   @Delete(':id')
@@ -104,9 +102,9 @@ export class TeamsController {
   async deleteTeam(
     @Param('orgId', ParseUUIDPipe) orgId: string,
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser('sub') userId: string,
+    @CurrentUser('sub') actorId: string,
   ) {
-    return this.teamsService.softDeleteTeam(id, orgId, userId);
+    return this.teamsService.softDeleteTeam(id, orgId, actorId);
   }
 
   @Post(':id/members')
@@ -119,9 +117,9 @@ export class TeamsController {
     @Param('orgId', ParseUUIDPipe) orgId: string,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: AddTeamMemberDto,
-    @CurrentUser('sub') userId: string,
+    @CurrentUser('sub') actorId: string,
   ) {
-    return this.teamsService.addMember(id, orgId, dto, userId);
+    return this.teamsService.addMember(id, orgId, dto, actorId);
   }
 
   @Get(':id/members')
@@ -133,9 +131,9 @@ export class TeamsController {
     @Param('orgId', ParseUUIDPipe) orgId: string,
     @Param('id', ParseUUIDPipe) id: string,
     @Query() dto: PaginationDto,
-    @CurrentUser('sub') userId: string,
+    @CurrentUser('sub') actorId: string,
   ) {
-    return this.teamsService.listMembers(id, orgId, dto, userId);
+    return this.teamsService.listMembers(id, orgId, dto, actorId);
   }
 
   @Patch(':id/members/:userId')
@@ -149,9 +147,9 @@ export class TeamsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Param('userId', ParseUUIDPipe) userId: string,
     @Body() dto: UpdateTeamMemberRoleDto,
-    @CurrentUser() user: JwtPayload,
+    @CurrentUser('sub') actorId: string,
   ) {
-    return this.teamsService.updateMemberRole(id, orgId, userId, dto, user.sub);
+    return this.teamsService.updateMemberRole(id, orgId, userId, dto, actorId);
   }
 
   @Delete(':id/members/:userId')
@@ -165,8 +163,8 @@ export class TeamsController {
     @Param('orgId', ParseUUIDPipe) orgId: string,
     @Param('id', ParseUUIDPipe) id: string,
     @Param('userId', ParseUUIDPipe) userId: string,
-    @CurrentUser() user: JwtPayload,
+    @CurrentUser('sub') actorId: string,
   ) {
-    return this.teamsService.removeMember(id, orgId, userId, user.sub);
+    return this.teamsService.removeMember(id, orgId, userId, actorId);
   }
 }

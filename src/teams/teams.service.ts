@@ -1,14 +1,9 @@
-import {
-  BadRequestException,
-  ConflictException,
-  ForbiddenException,
-  Injectable,
-} from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateTeamDto, UpdateTeamDto, AddTeamMemberDto, UpdateTeamMemberRoleDto } from './dtos';
 import { BannedUserException, ResourceNotFoundException } from 'src/common/exceptions';
 import { OrgRole, TeamRole, User } from '@prisma/client';
-import { TeamEntity, TeamMemberEntity } from './entities';
+import { TeamEntity, TeamMemberEntity, TeamMemberWithUserEntity } from './entities';
 import { buildPaginationMeta } from 'src/common/utils';
 import { PaginationDto } from 'src/common/dtos';
 
@@ -18,12 +13,6 @@ export class TeamsService {
 
   async createTeam(orgId: string, dto: CreateTeamDto, actorId: string) {
     await this.assertActorCanManageTeams(orgId, actorId);
-
-    const existingTeam = await this.prisma.team.findFirst({
-      where: { orgId, name: dto.name, deletedAt: null },
-    });
-
-    if (existingTeam) throw new ConflictException('Team already exists');
 
     const team = await this.prisma.team.create({
       data: {
@@ -36,17 +25,12 @@ export class TeamsService {
 
   async getTeam(teamId: string, orgId: string, actorId: string) {
     await this.assertActorIsOrgMember(orgId, actorId);
-
-    const team = await this.prisma.team.findFirst({
-      where: { id: teamId, orgId, deletedAt: null },
-    });
-    if (!team) throw new ResourceNotFoundException('Team', teamId);
-    return new TeamEntity(team);
+    return new TeamEntity(await this.getTeamOrThrow(teamId, orgId));
   }
 
   async updateTeam(teamId: string, orgId: string, dto: UpdateTeamDto, actorId: string) {
     await this.assertActorCanManageTeams(orgId, actorId);
-    await this.getTeam(teamId, orgId, actorId);
+    await this.getTeamOrThrow(teamId, orgId);
 
     const team = await this.prisma.team.update({
       where: { id: teamId },
@@ -57,7 +41,7 @@ export class TeamsService {
 
   async softDeleteTeam(teamId: string, orgId: string, actorId: string) {
     await this.assertActorCanManageTeams(orgId, actorId);
-    await this.getTeam(teamId, orgId, actorId);
+    await this.getTeamOrThrow(teamId, orgId);
 
     await this.prisma.team.update({
       where: { id: teamId },
@@ -86,13 +70,12 @@ export class TeamsService {
 
   async addMember(teamId: string, orgId: string, dto: AddTeamMemberDto, actorId: string) {
     await this.assertActorCanManageTeams(orgId, actorId);
-    const team = await this.getTeam(teamId, orgId, actorId);
+    await this.getTeamOrThrow(teamId, orgId);
 
     await this.findActiveUser(dto.userId);
 
-    // Ensure the target user is part of the org
     const orgMember = await this.prisma.orgMember.findUnique({
-      where: { userId_orgId: { userId: dto.userId, orgId: team.orgId } },
+      where: { userId_orgId: { userId: dto.userId, orgId } },
     });
 
     if (!orgMember) {
@@ -126,7 +109,7 @@ export class TeamsService {
     actorId: string,
   ) {
     await this.assertActorCanManageTeams(orgId, actorId);
-    await this.getTeam(teamId, orgId, actorId);
+    await this.getTeamOrThrow(teamId, orgId);
 
     await this.findActiveUser(userId);
 
@@ -148,7 +131,7 @@ export class TeamsService {
 
   async removeMember(teamId: string, orgId: string, userId: string, actorId: string) {
     await this.assertActorCanManageTeams(orgId, actorId);
-    await this.getTeam(teamId, orgId, actorId);
+    await this.getTeamOrThrow(teamId, orgId);
 
     const existingMember = await this.prisma.teamMember.findUnique({
       where: { userId_teamId: { userId, teamId } },
@@ -165,11 +148,12 @@ export class TeamsService {
 
   async listMembers(teamId: string, orgId: string, dto: PaginationDto, actorId: string) {
     await this.assertActorIsOrgMember(orgId, actorId);
-    await this.getTeam(teamId, orgId, actorId);
+    await this.getTeamOrThrow(teamId, orgId);
 
     const [members, total] = await this.prisma.$transaction([
       this.prisma.teamMember.findMany({
         where: { teamId },
+        include: { user: { select: { id: true, name: true, email: true, avatarUrl: true } } },
         skip: (dto.page - 1) * dto.limit,
         take: dto.limit,
         orderBy: { role: 'asc' },
@@ -179,14 +163,13 @@ export class TeamsService {
 
     return {
       meta: buildPaginationMeta(total, dto.page, dto.limit),
-      data: members.map((member) => new TeamMemberEntity(member)),
+      data: members.map((member) => new TeamMemberWithUserEntity(member)),
     };
   }
 
   private async findActiveUser(userId: string): Promise<User> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new ResourceNotFoundException('User', userId);
-    if (!user.isEmailVerified) throw new BadRequestException('User email not verified');
     if (user.bannedAt) throw new BannedUserException();
     if (user.deletedAt) throw new ResourceNotFoundException('User', userId);
     return user;
@@ -227,5 +210,13 @@ export class TeamsService {
         'You do not have permission to manage teams in this organization',
       );
     }
+  }
+
+  private async getTeamOrThrow(teamId: string, orgId: string) {
+    const team = await this.prisma.team.findFirst({
+      where: { id: teamId, orgId, deletedAt: null },
+    });
+    if (!team) throw new ResourceNotFoundException('Team', teamId);
+    return team;
   }
 }
