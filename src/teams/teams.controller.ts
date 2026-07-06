@@ -31,6 +31,7 @@ import {
 } from 'src/common/decorators';
 import { PaginationDto } from 'src/common/dtos';
 import { OrgRole } from '@prisma/client';
+import { TeamMemberWithUserEntity } from './entities';
 
 @ApiTags('Teams')
 @ApiBearerAuth()
@@ -125,7 +126,7 @@ export class TeamsController {
   @Get(':id/members')
   @ResponseMessage('Team members listed successfully.')
   @ApiOperation({ summary: 'List team members' })
-  @ApiPaginatedDataResponse(TeamMemberDto, 'Team members listed successfully.')
+  @ApiPaginatedDataResponse(TeamMemberWithUserEntity, 'Team members listed successfully.')
   @ApiErrorResponses(401, 403, 404)
   async listMembers(
     @Param('orgId', ParseUUIDPipe) orgId: string,
