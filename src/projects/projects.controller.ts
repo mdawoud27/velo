@@ -24,6 +24,7 @@ import {
   CreateProjectDto,
   ListProjectsDto,
   ProjectDto,
+  ProjectMemberDto,
   UpdateProjectDto,
   UpdateProjectStatusDto,
 } from './dtos';
@@ -120,5 +121,20 @@ export class ProjectsController {
     @CurrentUser('sub') actorId: string,
   ) {
     return this.projectsService.softDeleteProject(id, teamId, orgId, actorId);
+  }
+
+  @Post(':id/members')
+  @ResponseMessage('Project member added successfully.')
+  @ApiOperation({ summary: 'Add a team member to the project' })
+  @ApiDataResponse(ProjectMemberDto, 'Project member added successfully.')
+  @ApiErrorResponses(401, 403, 404, 409)
+  async addMember(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Param('teamId', ParseUUIDPipe) teamId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ProjectMemberDto,
+    @CurrentUser('sub') actorId: string,
+  ) {
+    return this.projectsService.addMember(id, teamId, orgId, dto, actorId);
   }
 }

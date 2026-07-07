@@ -5,10 +5,11 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import {
   CreateProjectDto,
   ListProjectsDto,
+  ProjectMemberDto,
   UpdateProjectDto,
   UpdateProjectStatusDto,
 } from './dtos';
-import { ProjectEntity } from './entities';
+import { ProjectEntity, ProjectMemberEntity } from './entities';
 import { buildPaginationMeta } from 'src/common/utils';
 
 @Injectable()
@@ -118,6 +119,38 @@ export class ProjectsService {
       where: { id: projectId },
       data: { deletedAt: new Date() },
     });
+  }
+
+  async addMember(
+    projectId: string,
+    teamId: string,
+    orgId: string,
+    dto: ProjectMemberDto,
+    actorId: string,
+  ) {
+    await this.assertActorCanManageProjects(orgId, teamId, actorId);
+    await this.getProjectOrThrow(projectId, teamId);
+    await this.findActiveUser(dto.userId);
+
+    const teamMembership = await this.prisma.teamMember.findUnique({
+      where: { userId_teamId: { userId: dto.userId, teamId } },
+    });
+    if (!teamMembership) {
+      throw new ForbiddenException('User must be a member of the team to join this project');
+    }
+
+    const existingMember = await this.prisma.projectMember.findUnique({
+      where: { userId_projectId: { userId: dto.userId, projectId } },
+    });
+    if (existingMember) {
+      throw new ConflictException('User is already a member of this project');
+    }
+
+    const member = await this.prisma.projectMember.create({
+      data: { userId: dto.userId, projectId },
+    });
+
+    return new ProjectMemberEntity(member);
   }
 
   private async findActiveUser(userId: string): Promise<User> {
