@@ -2,7 +2,7 @@ import { ForbiddenException, Injectable } from '@nestjs/common';
 import { OrgRole, Prisma, TeamRole, User } from '@prisma/client';
 import { BannedUserException, ResourceNotFoundException } from 'src/common/exceptions';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { CreateProjectDto, ListProjectsDto } from './dtos';
+import { CreateProjectDto, ListProjectsDto, UpdateProjectDto } from './dtos';
 import { ProjectEntity } from './entities';
 import { buildPaginationMeta } from 'src/common/utils';
 
@@ -54,6 +54,27 @@ export class ProjectsService {
   async getProject(projectId: string, teamId: string, orgId: string, actorId: string) {
     await this.assertActorIsOrgMember(orgId, actorId);
     return new ProjectEntity(await this.getProjectOrThrow(projectId, teamId));
+  }
+
+  async updateProject(
+    projectId: string,
+    teamId: string,
+    orgId: string,
+    dto: UpdateProjectDto,
+    actorId: string,
+  ) {
+    await this.assertActorCanManageProjects(orgId, teamId, actorId);
+    await this.getProjectOrThrow(projectId, teamId);
+
+    const project = await this.prisma.project.update({
+      where: { id: projectId },
+      data: {
+        ...dto,
+        deadline: dto.deadline ? new Date(dto.deadline) : undefined,
+      },
+    });
+
+    return new ProjectEntity(project);
   }
 
   private async findActiveUser(userId: string): Promise<User> {

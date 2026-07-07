@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from 'src/auth/decorators';
 import {
@@ -7,7 +7,7 @@ import {
   ApiPaginatedDataResponse,
   ResponseMessage,
 } from 'src/common/decorators';
-import { CreateProjectDto, ListProjectsDto, ProjectDto } from './dtos';
+import { CreateProjectDto, ListProjectsDto, ProjectDto, UpdateProjectDto } from './dtos';
 import { ProjectsService } from './projects.service';
 
 @ApiTags('Projects')
@@ -56,5 +56,20 @@ export class ProjectsController {
     @CurrentUser('sub') actorId: string,
   ) {
     return this.projectsService.getProject(id, teamId, orgId, actorId);
+  }
+
+  @Patch(':id')
+  @ResponseMessage('Project updated successfully.')
+  @ApiOperation({ summary: 'Update project details' })
+  @ApiDataResponse(ProjectDto, 'Project updated successfully.')
+  @ApiErrorResponses(401, 403, 404)
+  async updateProject(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Param('teamId', ParseUUIDPipe) teamId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateProjectDto,
+    @CurrentUser('sub') actorId: string,
+  ) {
+    return this.projectsService.updateProject(id, teamId, orgId, dto, actorId);
   }
 }
