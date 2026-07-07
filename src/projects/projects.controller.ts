@@ -1,9 +1,22 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from 'src/auth/decorators';
 import {
   ApiDataResponse,
   ApiErrorResponses,
+  ApiMessageResponse,
   ApiPaginatedDataResponse,
   ResponseMessage,
 } from 'src/common/decorators';
@@ -92,5 +105,20 @@ export class ProjectsController {
     @CurrentUser('sub') actorId: string,
   ) {
     return this.projectsService.updateProjectStatus(id, teamId, orgId, dto, actorId);
+  }
+
+  @Delete(':id')
+  @ResponseMessage('Project deleted successfully.')
+  @ApiOperation({ summary: 'Delete an archived project' })
+  @ApiMessageResponse('Project deleted successfully.')
+  @HttpCode(HttpStatus.OK)
+  @ApiErrorResponses(401, 403, 404, 409)
+  async deleteProject(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Param('teamId', ParseUUIDPipe) teamId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('sub') actorId: string,
+  ) {
+    return this.projectsService.softDeleteProject(id, teamId, orgId, actorId);
   }
 }

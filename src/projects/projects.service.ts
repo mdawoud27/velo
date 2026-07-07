@@ -1,5 +1,5 @@
 import { ConflictException, ForbiddenException, Injectable } from '@nestjs/common';
-import { OrgRole, Prisma, TeamRole, User } from '@prisma/client';
+import { OrgRole, Prisma, ProjectStatus, TeamRole, User } from '@prisma/client';
 import { BannedUserException, ResourceNotFoundException } from 'src/common/exceptions';
 import { PrismaService } from 'src/prisma/prisma.service';
 import {
@@ -102,6 +102,22 @@ export class ProjectsService {
     });
 
     return new ProjectEntity(updated);
+  }
+
+  async softDeleteProject(projectId: string, teamId: string, orgId: string, actorId: string) {
+    await this.assertActorCanManageProjects(orgId, teamId, actorId);
+    const project = await this.getProjectOrThrow(projectId, teamId);
+
+    if (project.status !== ProjectStatus.ARCHIVED) {
+      throw new ConflictException(
+        'Only archived projects can be deleted. Archive the project first.',
+      );
+    }
+
+    await this.prisma.project.update({
+      where: { id: projectId },
+      data: { deletedAt: new Date() },
+    });
   }
 
   private async findActiveUser(userId: string): Promise<User> {
