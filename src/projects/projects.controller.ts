@@ -7,7 +7,13 @@ import {
   ApiPaginatedDataResponse,
   ResponseMessage,
 } from 'src/common/decorators';
-import { CreateProjectDto, ListProjectsDto, ProjectDto, UpdateProjectDto } from './dtos';
+import {
+  CreateProjectDto,
+  ListProjectsDto,
+  ProjectDto,
+  UpdateProjectDto,
+  UpdateProjectStatusDto,
+} from './dtos';
 import { ProjectsService } from './projects.service';
 
 @ApiTags('Projects')
@@ -71,5 +77,20 @@ export class ProjectsController {
     @CurrentUser('sub') actorId: string,
   ) {
     return this.projectsService.updateProject(id, teamId, orgId, dto, actorId);
+  }
+
+  @Patch(':id/status')
+  @ResponseMessage('Project status updated successfully.')
+  @ApiOperation({ summary: 'Archive or reactivate a project' })
+  @ApiDataResponse(ProjectDto, 'Project status updated successfully.')
+  @ApiErrorResponses(401, 403, 404, 409)
+  async updateProjectStatus(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Param('teamId', ParseUUIDPipe) teamId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateProjectStatusDto,
+    @CurrentUser('sub') actorId: string,
+  ) {
+    return this.projectsService.updateProjectStatus(id, teamId, orgId, dto, actorId);
   }
 }

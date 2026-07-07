@@ -1,8 +1,13 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable } from '@nestjs/common';
 import { OrgRole, Prisma, TeamRole, User } from '@prisma/client';
 import { BannedUserException, ResourceNotFoundException } from 'src/common/exceptions';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { CreateProjectDto, ListProjectsDto, UpdateProjectDto } from './dtos';
+import {
+  CreateProjectDto,
+  ListProjectsDto,
+  UpdateProjectDto,
+  UpdateProjectStatusDto,
+} from './dtos';
 import { ProjectEntity } from './entities';
 import { buildPaginationMeta } from 'src/common/utils';
 
@@ -75,6 +80,28 @@ export class ProjectsService {
     });
 
     return new ProjectEntity(project);
+  }
+
+  async updateProjectStatus(
+    projectId: string,
+    teamId: string,
+    orgId: string,
+    dto: UpdateProjectStatusDto,
+    actorId: string,
+  ) {
+    await this.assertActorCanManageProjects(orgId, teamId, actorId);
+    const project = await this.getProjectOrThrow(projectId, teamId);
+
+    if (project.status === dto.status) {
+      throw new ConflictException(`Project is already ${dto.status.toLowerCase()}`);
+    }
+
+    const updated = await this.prisma.project.update({
+      where: { id: projectId },
+      data: { status: dto.status },
+    });
+
+    return new ProjectEntity(updated);
   }
 
   private async findActiveUser(userId: string): Promise<User> {
