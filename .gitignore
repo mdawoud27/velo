@@ -67,5 +67,6 @@ docs/github_flow-docs.md
 about-v.md
 nest-review
 src/scripts/**
+feedback/**
 
 /generated/prisma
