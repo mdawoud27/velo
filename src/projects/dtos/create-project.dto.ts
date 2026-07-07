@@ -1,3 +1,4 @@
+import { Transform } from 'class-transformer';
 import {
   IsDateString,
   IsNotEmpty,
@@ -8,12 +9,18 @@ import {
 } from 'class-validator';
 
 export class CreateProjectDto {
+  @Transform(({ value }: { value: unknown }): unknown => {
+    return typeof value === 'string' ? value.trim() : value;
+  })
   @IsString()
   @MinLength(2)
   @MaxLength(100)
   @IsNotEmpty()
   name: string;
 
+  @Transform(({ value }: { value: unknown }): unknown => {
+    return typeof value === 'string' ? value.trim() : value;
+  })
   @IsString()
   @IsOptional()
   @MaxLength(1000)
