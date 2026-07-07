@@ -43,4 +43,18 @@ export class ProjectsController {
   ) {
     return this.projectsService.listProjects(orgId, teamId, dto, actorId);
   }
+
+  @Get(':id')
+  @ResponseMessage('Project fetched successfully.')
+  @ApiOperation({ summary: 'Get project details' })
+  @ApiDataResponse(ProjectDto, 'Project fetched successfully.')
+  @ApiErrorResponses(401, 403, 404)
+  async getProject(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Param('teamId', ParseUUIDPipe) teamId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('sub') actorId: string,
+  ) {
+    return this.projectsService.getProject(id, teamId, orgId, actorId);
+  }
 }

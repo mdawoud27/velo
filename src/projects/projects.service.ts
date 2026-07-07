@@ -51,6 +51,11 @@ export class ProjectsService {
     };
   }
 
+  async getProject(projectId: string, teamId: string, orgId: string, actorId: string) {
+    await this.assertActorIsOrgMember(orgId, actorId);
+    return new ProjectEntity(await this.getProjectOrThrow(projectId, teamId));
+  }
+
   private async findActiveUser(userId: string): Promise<User> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new ResourceNotFoundException('User', userId);
@@ -114,5 +119,13 @@ export class ProjectsService {
     if (!membership) {
       throw new ForbiddenException('You are not a member of this organization');
     }
+  }
+
+  private async getProjectOrThrow(projectId: string, teamId: string) {
+    const project = await this.prisma.project.findFirst({
+      where: { id: projectId, teamId, deletedAt: null },
+    });
+    if (!project) throw new ResourceNotFoundException('Project', projectId);
+    return project;
   }
 }
