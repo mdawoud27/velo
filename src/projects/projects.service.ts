@@ -60,7 +60,7 @@ export class ProjectsService {
 
   async getProject(projectId: string, teamId: string, orgId: string, actorId: string) {
     await this.assertActorIsOrgMember(orgId, actorId);
-    return new ProjectEntity(await this.getProjectOrThrow(projectId, teamId));
+    return new ProjectEntity(await this.getProjectOrThrow(projectId, teamId, orgId));
   }
 
   async updateProject(
@@ -71,13 +71,13 @@ export class ProjectsService {
     actorId: string,
   ) {
     await this.assertActorCanManageProjects(orgId, teamId, actorId);
-    await this.getProjectOrThrow(projectId, teamId);
+    await this.getProjectOrThrow(projectId, teamId, orgId);
 
     const project = await this.prisma.project.update({
       where: { id: projectId },
       data: {
         ...dto,
-        deadline: dto.deadline ? new Date(dto.deadline) : undefined,
+        deadline: dto.deadline === null ? null : dto.deadline ? new Date(dto.deadline) : undefined,
       },
     });
 
@@ -92,7 +92,7 @@ export class ProjectsService {
     actorId: string,
   ) {
     await this.assertActorCanManageProjects(orgId, teamId, actorId);
-    const project = await this.getProjectOrThrow(projectId, teamId);
+    const project = await this.getProjectOrThrow(projectId, teamId, orgId);
 
     if (project.status === dto.status) {
       throw new ConflictException(`Project is already ${dto.status.toLowerCase()}`);
@@ -108,7 +108,7 @@ export class ProjectsService {
 
   async softDeleteProject(projectId: string, teamId: string, orgId: string, actorId: string) {
     await this.assertActorCanManageProjects(orgId, teamId, actorId);
-    const project = await this.getProjectOrThrow(projectId, teamId);
+    const project = await this.getProjectOrThrow(projectId, teamId, orgId);
 
     if (project.status !== ProjectStatus.ARCHIVED) {
       throw new ConflictException(
@@ -130,7 +130,7 @@ export class ProjectsService {
     actorId: string,
   ) {
     await this.assertActorCanManageProjects(orgId, teamId, actorId);
-    await this.getProjectOrThrow(projectId, teamId);
+    await this.getProjectOrThrow(projectId, teamId, orgId);
     await this.findActiveUser(dto.userId);
 
     const teamMembership = await this.prisma.teamMember.findUnique({
@@ -162,7 +162,7 @@ export class ProjectsService {
     actorId: string,
   ) {
     await this.assertActorIsOrgMember(orgId, actorId);
-    await this.getProjectOrThrow(projectId, teamId);
+    await this.getProjectOrThrow(projectId, teamId, orgId);
 
     const [members, total] = await this.prisma.$transaction([
       this.prisma.projectMember.findMany({
@@ -189,7 +189,7 @@ export class ProjectsService {
     actorId: string,
   ) {
     await this.assertActorCanManageProjects(orgId, teamId, actorId);
-    await this.getProjectOrThrow(projectId, teamId);
+    await this.getProjectOrThrow(projectId, teamId, orgId);
 
     const existingMember = await this.prisma.projectMember.findUnique({
       where: { userId_projectId: { userId, projectId } },
@@ -268,9 +268,14 @@ export class ProjectsService {
     }
   }
 
-  private async getProjectOrThrow(projectId: string, teamId: string) {
+  private async getProjectOrThrow(projectId: string, teamId: string, orgId: string) {
     const project = await this.prisma.project.findFirst({
-      where: { id: projectId, teamId, deletedAt: null },
+      where: {
+        id: projectId,
+        teamId,
+        deletedAt: null,
+        team: { orgId, deletedAt: null },
+      },
     });
     if (!project) throw new ResourceNotFoundException('Project', projectId);
     return project;
