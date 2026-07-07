@@ -181,6 +181,28 @@ export class ProjectsService {
     };
   }
 
+  async removeMember(
+    projectId: string,
+    teamId: string,
+    orgId: string,
+    userId: string,
+    actorId: string,
+  ) {
+    await this.assertActorCanManageProjects(orgId, teamId, actorId);
+    await this.getProjectOrThrow(projectId, teamId);
+
+    const existingMember = await this.prisma.projectMember.findUnique({
+      where: { userId_projectId: { userId, projectId } },
+    });
+    if (!existingMember) {
+      throw new ResourceNotFoundException('ProjectMember', userId);
+    }
+
+    await this.prisma.projectMember.delete({
+      where: { userId_projectId: { userId, projectId } },
+    });
+  }
+
   private async findActiveUser(userId: string): Promise<User> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new ResourceNotFoundException('User', userId);
