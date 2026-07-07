@@ -9,8 +9,9 @@ import {
   UpdateProjectDto,
   UpdateProjectStatusDto,
 } from './dtos';
-import { ProjectEntity, ProjectMemberEntity } from './entities';
+import { ProjectEntity, ProjectMemberEntity, ProjectMemberWithUserEntity } from './entities';
 import { buildPaginationMeta } from 'src/common/utils';
+import { PaginationDto } from 'src/common/dtos';
 
 @Injectable()
 export class ProjectsService {
@@ -151,6 +152,33 @@ export class ProjectsService {
     });
 
     return new ProjectMemberEntity(member);
+  }
+
+  async listMembers(
+    projectId: string,
+    teamId: string,
+    orgId: string,
+    dto: PaginationDto,
+    actorId: string,
+  ) {
+    await this.assertActorIsOrgMember(orgId, actorId);
+    await this.getProjectOrThrow(projectId, teamId);
+
+    const [members, total] = await this.prisma.$transaction([
+      this.prisma.projectMember.findMany({
+        where: { projectId },
+        include: { user: { select: { id: true, name: true, email: true, avatarUrl: true } } },
+        skip: (dto.page - 1) * dto.limit,
+        take: dto.limit,
+        orderBy: { id: 'asc' },
+      }),
+      this.prisma.projectMember.count({ where: { projectId } }),
+    ]);
+
+    return {
+      meta: buildPaginationMeta(total, dto.page, dto.limit),
+      data: members.map((member) => new ProjectMemberWithUserEntity(member)),
+    };
   }
 
   private async findActiveUser(userId: string): Promise<User> {

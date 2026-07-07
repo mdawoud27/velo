@@ -29,6 +29,8 @@ import {
   UpdateProjectStatusDto,
 } from './dtos';
 import { ProjectsService } from './projects.service';
+import { ProjectMemberWithUserEntity } from './entities';
+import { PaginationDto } from 'src/common/dtos';
 
 @ApiTags('Projects')
 @ApiBearerAuth()
@@ -136,5 +138,20 @@ export class ProjectsController {
     @CurrentUser('sub') actorId: string,
   ) {
     return this.projectsService.addMember(id, teamId, orgId, dto, actorId);
+  }
+
+  @Get(':id/members')
+  @ResponseMessage('Project members listed successfully.')
+  @ApiOperation({ summary: 'List project members' })
+  @ApiPaginatedDataResponse(ProjectMemberWithUserEntity, 'Project members listed successfully.')
+  @ApiErrorResponses(401, 403, 404)
+  async listMembers(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Param('teamId', ParseUUIDPipe) teamId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() dto: PaginationDto,
+    @CurrentUser('sub') actorId: string,
+  ) {
+    return this.projectsService.listMembers(id, teamId, orgId, dto, actorId);
   }
 }
