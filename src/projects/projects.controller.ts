@@ -1,8 +1,13 @@
-import { Body, Controller, Param, ParseUUIDPipe, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from 'src/auth/decorators';
-import { ApiDataResponse, ApiErrorResponses, ResponseMessage } from 'src/common/decorators';
-import { CreateProjectDto, ProjectDto } from './dtos';
+import {
+  ApiDataResponse,
+  ApiErrorResponses,
+  ApiPaginatedDataResponse,
+  ResponseMessage,
+} from 'src/common/decorators';
+import { CreateProjectDto, ListProjectsDto, ProjectDto } from './dtos';
 import { ProjectsService } from './projects.service';
 
 @ApiTags('Projects')
@@ -23,5 +28,19 @@ export class ProjectsController {
     @CurrentUser('sub') actorId: string,
   ) {
     return this.projectsService.createProject(orgId, teamId, dto, actorId);
+  }
+
+  @Get()
+  @ResponseMessage('Projects listed successfully.')
+  @ApiOperation({ summary: 'List all projects in a team' })
+  @ApiPaginatedDataResponse(ProjectDto, 'Projects listed successfully.')
+  @ApiErrorResponses(401, 403, 404)
+  async listProjects(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Param('teamId', ParseUUIDPipe) teamId: string,
+    @Query() dto: ListProjectsDto,
+    @CurrentUser('sub') actorId: string,
+  ) {
+    return this.projectsService.listProjects(orgId, teamId, dto, actorId);
   }
 }

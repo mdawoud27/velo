@@ -1,9 +1,10 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
-import { OrgRole, TeamRole, User } from '@prisma/client';
+import { OrgRole, Prisma, TeamRole, User } from '@prisma/client';
 import { BannedUserException, ResourceNotFoundException } from 'src/common/exceptions';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { CreateProjectDto } from './dtos';
+import { CreateProjectDto, ListProjectsDto } from './dtos';
 import { ProjectEntity } from './entities';
+import { buildPaginationMeta } from 'src/common/utils';
 
 @Injectable()
 export class ProjectsService {
@@ -22,6 +23,32 @@ export class ProjectsService {
     });
 
     return new ProjectEntity(project);
+  }
+
+  async listProjects(orgId: string, teamId: string, dto: ListProjectsDto, actorId: string) {
+    await this.assertActorIsOrgMember(orgId, actorId);
+    await this.getTeamOrThrow(teamId, orgId);
+
+    const where: Prisma.ProjectWhereInput = {
+      teamId,
+      deletedAt: null,
+      ...(dto.status && { status: dto.status }),
+    };
+
+    const [projects, total] = await this.prisma.$transaction([
+      this.prisma.project.findMany({
+        where,
+        skip: (dto.page - 1) * dto.limit,
+        take: dto.limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.project.count({ where }),
+    ]);
+
+    return {
+      meta: buildPaginationMeta(total, dto.page, dto.limit),
+      data: projects.map((project) => new ProjectEntity(project)),
+    };
   }
 
   private async findActiveUser(userId: string): Promise<User> {
@@ -75,5 +102,17 @@ export class ProjectsService {
     });
     if (!team) throw new ResourceNotFoundException('Team', teamId);
     return team;
+  }
+
+  private async assertActorIsOrgMember(orgId: string, actorId: string): Promise<void> {
+    await this.findActiveOrg(orgId);
+    await this.findActiveUser(actorId);
+
+    const membership = await this.prisma.orgMember.findUnique({
+      where: { userId_orgId: { userId: actorId, orgId } },
+    });
+    if (!membership) {
+      throw new ForbiddenException('You are not a member of this organization');
+    }
   }
 }
