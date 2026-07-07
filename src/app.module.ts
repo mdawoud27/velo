@@ -17,6 +17,7 @@ import { ResponseInterceptor } from './common/interceptors';
 import { HttpResponseFilter, PrismaExceptionFilter } from './common/filters';
 import { OrganizationsModule } from './organizations/organizations.module';
 import { TeamsModule } from './teams/teams.module';
+import { ProjectsModule } from './projects/projects.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { TeamsModule } from './teams/teams.module';
     UsersModule,
     OrganizationsModule,
     TeamsModule,
+    ProjectsModule,
   ],
   controllers: [AppController],
   providers: [
