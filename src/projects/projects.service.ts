@@ -21,6 +21,17 @@ export class ProjectsService {
     await this.assertActorCanManageProjects(orgId, teamId, actorId);
     await this.getTeamOrThrow(teamId, orgId);
 
+    const existingProject = await this.prisma.project.findFirst({
+      where: {
+        teamId,
+        name: dto.name,
+        deletedAt: null,
+      },
+    });
+    if (existingProject) {
+      throw new ConflictException('Project already exists');
+    }
+
     const project = await this.prisma.project.create({
       data: {
         ...dto,
@@ -185,21 +196,21 @@ export class ProjectsService {
     projectId: string,
     teamId: string,
     orgId: string,
-    userId: string,
+    dto: ProjectMemberDto,
     actorId: string,
   ) {
     await this.assertActorCanManageProjects(orgId, teamId, actorId);
     await this.getProjectOrThrow(projectId, teamId, orgId);
 
     const existingMember = await this.prisma.projectMember.findUnique({
-      where: { userId_projectId: { userId, projectId } },
+      where: { userId_projectId: { userId: dto.userId, projectId } },
     });
     if (!existingMember) {
-      throw new ResourceNotFoundException('ProjectMember', userId);
+      throw new ResourceNotFoundException('ProjectMember', dto.userId);
     }
 
     await this.prisma.projectMember.delete({
-      where: { userId_projectId: { userId, projectId } },
+      where: { userId_projectId: { userId: dto.userId, projectId } },
     });
   }
 

@@ -155,7 +155,7 @@ export class ProjectsController {
     return this.projectsService.listMembers(id, teamId, orgId, dto, actorId);
   }
 
-  @Delete(':id/members/:userId')
+  @Delete(':id/members')
   @ResponseMessage('Project member removed successfully.')
   @ApiOperation({ summary: 'Remove a member from the project' })
   @ApiMessageResponse('Project member removed successfully.')
@@ -165,9 +165,9 @@ export class ProjectsController {
     @Param('orgId', ParseUUIDPipe) orgId: string,
     @Param('teamId', ParseUUIDPipe) teamId: string,
     @Param('id', ParseUUIDPipe) id: string,
-    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body() dto: ProjectMemberDto,
     @CurrentUser('sub') actorId: string,
   ) {
-    return this.projectsService.removeMember(id, teamId, orgId, userId, actorId);
+    return this.projectsService.removeMember(id, teamId, orgId, dto, actorId);
   }
 }
