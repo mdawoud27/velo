@@ -32,23 +32,21 @@ export class OrganizationsService {
   ) {}
 
   async createOrganization(dto: CreateOrganizationDto, userId: string) {
-    return this.prisma.$transaction(async (tx) => {
+    const org = await this.prisma.$transaction(async (tx) => {
       await this.findActiveUser(userId, tx);
-
       const org = await tx.organization.create({ data: dto });
       await tx.orgMember.create({ data: { orgId: org.id, userId, role: OrgRole.OWNER } });
-      this.activity.log({
-        action: 'org.created',
-        entityType: 'Organization',
-        entityId: org.id,
-        actorId: userId,
-        orgId: org.id,
-      });
-
       return new OrgEntity(org);
     });
+    this.activity.log({
+      action: 'org.created',
+      entityType: 'Organization',
+      entityId: org.id,
+      actorId: userId,
+      orgId: org.id,
+    });
+    return new OrgEntity(org);
   }
-
   async inviteMember(orgId: string, dto: InviteDto, actorId: string) {
     const org = await this.prisma.organization.findUniqueOrThrow({ where: { id: orgId } });
     const actor = await this.findActiveUser(actorId, this.prisma);
@@ -97,7 +95,7 @@ export class OrganizationsService {
       entityId: orgId,
       actorId,
       orgId,
-      metadata: { email: dto.email, role: dto.role },
+      metadata: { role: dto.role ?? OrgRole.MEMBER },
     });
   }
 
@@ -146,7 +144,7 @@ export class OrganizationsService {
       entityId: orgId,
       actorId,
       orgId,
-      metadata: { email: dto.email, role: dto.role },
+      metadata: { role: existingInvitation.role },
     });
   }
 

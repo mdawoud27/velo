@@ -289,7 +289,7 @@ export class AuthService {
     });
 
     this.activity.log({
-      action: 'auth.password.reset',
+      action: 'auth.password.reset.requested',
       entityType: 'User',
       entityId: user.id.toString(),
       actorId: user.id.toString(),
@@ -317,7 +317,7 @@ export class AuthService {
     await this.redis.del(`refresh:${userId}`);
 
     this.activity.log({
-      action: 'auth.password.reset',
+      action: 'auth.password.reset.completed',
       entityType: 'User',
       entityId: userId,
       actorId: userId,

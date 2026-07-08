@@ -136,7 +136,7 @@ export class TeamsService {
       entityId: teamId,
       actorId,
       orgId,
-      metadata: { userId: dto.userId, role: dto.role },
+      metadata: { userId: dto.userId, role: dto.role ?? TeamRole.MEMBER },
     });
 
     return new TeamMemberEntity(member);
