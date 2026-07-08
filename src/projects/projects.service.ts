@@ -12,6 +12,7 @@ import {
 import { ProjectEntity, ProjectMemberEntity, ProjectMemberWithUserEntity } from './entities';
 import { buildPaginationMeta } from 'src/common/utils';
 import { PaginationDto } from 'src/common/dtos';
+import { assertProjectWritable } from 'src/common/helpers/project-guard.helper';
 
 @Injectable()
 export class ProjectsService {
@@ -83,6 +84,7 @@ export class ProjectsService {
   ) {
     await this.assertActorCanManageProjects(orgId, teamId, actorId);
     await this.getProjectOrThrow(projectId, teamId, orgId);
+    await assertProjectWritable(this.prisma, projectId);
 
     const project = await this.prisma.project.update({
       where: { id: projectId },
@@ -103,6 +105,8 @@ export class ProjectsService {
     actorId: string,
   ) {
     await this.assertActorCanManageProjects(orgId, teamId, actorId);
+    await assertProjectWritable(this.prisma, projectId);
+
     const project = await this.getProjectOrThrow(projectId, teamId, orgId);
 
     if (project.status === dto.status) {
@@ -119,6 +123,8 @@ export class ProjectsService {
 
   async softDeleteProject(projectId: string, teamId: string, orgId: string, actorId: string) {
     await this.assertActorCanManageProjects(orgId, teamId, actorId);
+    await assertProjectWritable(this.prisma, projectId);
+
     const project = await this.getProjectOrThrow(projectId, teamId, orgId);
 
     if (project.status !== ProjectStatus.ARCHIVED) {
@@ -141,6 +147,8 @@ export class ProjectsService {
     actorId: string,
   ) {
     await this.assertActorCanManageProjects(orgId, teamId, actorId);
+    await assertProjectWritable(this.prisma, projectId);
+
     await this.getProjectOrThrow(projectId, teamId, orgId);
     await this.findActiveUser(dto.userId);
 
@@ -200,6 +208,8 @@ export class ProjectsService {
     actorId: string,
   ) {
     await this.assertActorCanManageProjects(orgId, teamId, actorId);
+    await assertProjectWritable(this.prisma, projectId);
+
     await this.getProjectOrThrow(projectId, teamId, orgId);
 
     const existingMember = await this.prisma.projectMember.findUnique({
