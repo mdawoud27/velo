@@ -26,6 +26,7 @@ export class ActivityService {
       .catch((err: unknown) =>
         this.logger.error('Activity log failed:', err instanceof Error ? err : undefined, {
           service: 'ActivityService',
+          ...(err instanceof Error ? {} : { err }),
         }),
       );
   }
