@@ -18,6 +18,7 @@ import { HttpResponseFilter, PrismaExceptionFilter } from './common/filters';
 import { OrganizationsModule } from './organizations/organizations.module';
 import { TeamsModule } from './teams/teams.module';
 import { ProjectsModule } from './projects/projects.module';
+import { ActivityModule } from './activity/activity.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { ProjectsModule } from './projects/projects.module';
     OrganizationsModule,
     TeamsModule,
     ProjectsModule,
+    ActivityModule,
   ],
   controllers: [AppController],
   providers: [

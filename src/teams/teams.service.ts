@@ -6,10 +6,14 @@ import { OrgRole, TeamRole, User } from '@prisma/client';
 import { TeamEntity, TeamMemberEntity, TeamMemberWithUserEntity } from './entities';
 import { buildPaginationMeta } from 'src/common/utils';
 import { PaginationDto } from 'src/common/dtos';
+import { ActivityService } from 'src/activity/activity.service';
 
 @Injectable()
 export class TeamsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly activity: ActivityService,
+  ) {}
 
   async createTeam(orgId: string, dto: CreateTeamDto, actorId: string) {
     await this.assertActorCanManageTeams(orgId, actorId);
@@ -20,6 +24,16 @@ export class TeamsService {
         orgId,
       },
     });
+
+    this.activity.log({
+      action: 'team.created',
+      entityType: 'Team',
+      entityId: team.id,
+      actorId,
+      orgId,
+      metadata: { name: team.name },
+    });
+
     return new TeamEntity(team);
   }
 
@@ -36,6 +50,16 @@ export class TeamsService {
       where: { id: teamId },
       data: dto,
     });
+
+    this.activity.log({
+      action: 'team.updated',
+      entityType: 'Team',
+      entityId: teamId,
+      actorId,
+      orgId,
+      metadata: { fields: Object.keys(dto) },
+    });
+
     return new TeamEntity(team);
   }
 
@@ -46,6 +70,14 @@ export class TeamsService {
     await this.prisma.team.update({
       where: { id: teamId },
       data: { deletedAt: new Date() },
+    });
+
+    this.activity.log({
+      action: 'team.deleted',
+      entityType: 'Team',
+      entityId: teamId,
+      actorId,
+      orgId,
     });
   }
 
@@ -98,6 +130,15 @@ export class TeamsService {
       },
     });
 
+    this.activity.log({
+      action: 'team.member.added',
+      entityType: 'Team',
+      entityId: teamId,
+      actorId,
+      orgId,
+      metadata: { userId: dto.userId, role: dto.role ?? TeamRole.MEMBER },
+    });
+
     return new TeamMemberEntity(member);
   }
 
@@ -126,6 +167,15 @@ export class TeamsService {
       data: { role: dto.role },
     });
 
+    this.activity.log({
+      action: 'team.member.role_updated',
+      entityType: 'Team',
+      entityId: teamId,
+      actorId,
+      orgId,
+      metadata: { userId, role: dto.role },
+    });
+
     return new TeamMemberEntity(member);
   }
 
@@ -143,6 +193,15 @@ export class TeamsService {
 
     await this.prisma.teamMember.delete({
       where: { userId_teamId: { userId, teamId } },
+    });
+
+    this.activity.log({
+      action: 'team.member.removed',
+      entityType: 'Team',
+      entityId: teamId,
+      actorId,
+      orgId,
+      metadata: { userId },
     });
   }
 

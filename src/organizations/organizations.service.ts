@@ -14,6 +14,7 @@ import { EmailQueueService } from 'src/queue/email-queue.service';
 import { ConfigService } from '@nestjs/config';
 import { buildPaginationMeta } from 'src/common/utils';
 import { PaginationDto } from 'src/common/dtos';
+import { ActivityService } from 'src/activity/activity.service';
 
 export enum OrgRole {
   OWNER = 'OWNER',
@@ -27,18 +28,25 @@ export class OrganizationsService {
     private readonly prisma: PrismaService,
     private readonly emailQueue: EmailQueueService,
     private readonly config: ConfigService,
+    private readonly activity: ActivityService,
   ) {}
 
   async createOrganization(dto: CreateOrganizationDto, userId: string) {
-    return this.prisma.$transaction(async (tx) => {
+    const org = await this.prisma.$transaction(async (tx) => {
       await this.findActiveUser(userId, tx);
-
       const org = await tx.organization.create({ data: dto });
       await tx.orgMember.create({ data: { orgId: org.id, userId, role: OrgRole.OWNER } });
       return new OrgEntity(org);
     });
+    this.activity.log({
+      action: 'org.created',
+      entityType: 'Organization',
+      entityId: org.id,
+      actorId: userId,
+      orgId: org.id,
+    });
+    return new OrgEntity(org);
   }
-
   async inviteMember(orgId: string, dto: InviteDto, actorId: string) {
     const org = await this.prisma.organization.findUniqueOrThrow({ where: { id: orgId } });
     const actor = await this.findActiveUser(actorId, this.prisma);
@@ -80,6 +88,15 @@ export class OrganizationsService {
       invitationUrl: `${this.config.getOrThrow('CLIENT_URL')}/accept-invite?token=${token}`,
       declineInvitationUrl: `${this.config.getOrThrow('CLIENT_URL')}/decline-invite?token=${token}`,
     });
+
+    this.activity.log({
+      action: 'org.member.invited',
+      entityType: 'Organization',
+      entityId: orgId,
+      actorId,
+      orgId,
+      metadata: { role: dto.role ?? OrgRole.MEMBER },
+    });
   }
 
   async resendInvite(orgId: string, dto: InviteDto, actorId: string) {
@@ -119,6 +136,15 @@ export class OrganizationsService {
       inviterName: actor.name,
       invitationUrl: `${this.config.getOrThrow('CLIENT_URL')}/accept-invite?token=${token}`,
       declineInvitationUrl: `${this.config.getOrThrow('CLIENT_URL')}/decline-invite?token=${token}`,
+    });
+
+    this.activity.log({
+      action: 'org.member.invited',
+      entityType: 'Organization',
+      entityId: orgId,
+      actorId,
+      orgId,
+      metadata: { role: existingInvitation.role },
     });
   }
 
@@ -160,6 +186,15 @@ export class OrganizationsService {
       });
       await tx.orgInvitation.delete({ where: { id: invite.id } });
     });
+
+    this.activity.log({
+      action: 'org.member.joined',
+      entityType: 'Organization',
+      entityId: invite.orgId,
+      actorId: userId,
+      orgId: invite.orgId,
+      metadata: { role: invite.role },
+    });
   }
 
   async declineInvitation(orgId: string, dto: DeclineInviteDto, userId: string): Promise<void> {
@@ -188,6 +223,14 @@ export class OrganizationsService {
     }
 
     await this.prisma.orgInvitation.delete({ where: { token: dto.token } });
+
+    this.activity.log({
+      action: 'org.invitation.declined',
+      entityType: 'Organization',
+      entityId: orgId,
+      actorId: userId,
+      orgId,
+    });
   }
 
   async listInvitations(orgId: string, userId: string, dto: PaginationDto) {
