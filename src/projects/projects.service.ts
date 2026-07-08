@@ -13,10 +13,14 @@ import { ProjectEntity, ProjectMemberEntity, ProjectMemberWithUserEntity } from 
 import { buildPaginationMeta } from 'src/common/utils';
 import { PaginationDto } from 'src/common/dtos';
 import { assertProjectWritable } from 'src/common/helpers/project-guard.helper';
+import { ActivityService } from 'src/activity/activity.service';
 
 @Injectable()
 export class ProjectsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly activity: ActivityService,
+  ) {}
 
   async createProject(orgId: string, teamId: string, dto: CreateProjectDto, actorId: string) {
     await this.assertActorCanManageProjects(orgId, teamId, actorId);
@@ -39,6 +43,15 @@ export class ProjectsService {
         deadline: dto.deadline ? new Date(dto.deadline) : undefined,
         teamId,
       },
+    });
+
+    this.activity.log({
+      action: 'project.created',
+      entityType: 'project',
+      entityId: project.id,
+      actorId,
+      orgId,
+      projectId: project.id,
     });
 
     return new ProjectEntity(project);
@@ -94,6 +107,16 @@ export class ProjectsService {
       },
     });
 
+    this.activity.log({
+      action: 'project.updated',
+      entityType: 'project',
+      entityId: project.id,
+      actorId,
+      orgId,
+      projectId: project.id,
+      metadata: { fields: Object.keys(dto) },
+    });
+
     return new ProjectEntity(project);
   }
 
@@ -118,6 +141,20 @@ export class ProjectsService {
       data: { status: dto.status },
     });
 
+    this.activity.log({
+      action: 'project.updated',
+      entityType: 'project',
+      entityId: updated.id,
+      actorId,
+      orgId,
+      projectId: updated.id,
+      metadata: {
+        field: 'status',
+        from: project.status,
+        to: updated.status,
+      },
+    });
+
     return new ProjectEntity(updated);
   }
 
@@ -136,6 +173,15 @@ export class ProjectsService {
     await this.prisma.project.update({
       where: { id: projectId },
       data: { deletedAt: new Date() },
+    });
+
+    this.activity.log({
+      action: 'project.deleted',
+      entityType: 'project',
+      entityId: project.id,
+      actorId,
+      orgId,
+      projectId: project.id,
     });
   }
 
@@ -168,6 +214,18 @@ export class ProjectsService {
 
     const member = await this.prisma.projectMember.create({
       data: { userId: dto.userId, projectId },
+    });
+
+    this.activity.log({
+      action: 'project.member.added',
+      entityType: 'projectMember',
+      entityId: member.id,
+      actorId,
+      orgId,
+      projectId,
+      metadata: {
+        userId: dto.userId,
+      },
     });
 
     return new ProjectMemberEntity(member);
@@ -221,6 +279,18 @@ export class ProjectsService {
 
     await this.prisma.projectMember.delete({
       where: { userId_projectId: { userId: dto.userId, projectId } },
+    });
+
+    this.activity.log({
+      action: 'project.member.removed',
+      entityType: 'projectMember',
+      entityId: existingMember.id,
+      actorId,
+      orgId,
+      projectId,
+      metadata: {
+        userId: dto.userId,
+      },
     });
   }
 
