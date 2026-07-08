@@ -11,4 +11,5 @@ export type ErrorCode =
   | 'EMAIL_NOT_VERIFIED'
   | 'INVITE_EXPIRED'
   | 'EMAIL_MISMATCH'
-  | 'ORG_INACTIVE';
+  | 'ORG_INACTIVE'
+  | 'PROJECT_ARCHIVED';
