@@ -73,7 +73,7 @@ export class OrganizationsController {
   @ResponseMessage('Invitation accepted successfully.')
   @ApiOperation({ summary: 'Accept an invitation to the organization.' })
   @ApiMessageResponse('Invitation accepted successfully.')
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @HttpCode(HttpStatus.OK)
   @ApiErrorResponses(401, 404, 409)
   async acceptInvitation(
     @Param('orgId', ParseUUIDPipe) orgId: string,
@@ -87,7 +87,7 @@ export class OrganizationsController {
   @ResponseMessage('Invitation declined successfully.')
   @ApiOperation({ summary: 'Decline an invitation to the organization.' })
   @ApiMessageResponse('Invitation declined successfully.', 204)
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @HttpCode(HttpStatus.OK)
   @ApiErrorResponses(401, 404, 409)
   async declineInvitation(
     @Param('orgId', ParseUUIDPipe) orgId: string,

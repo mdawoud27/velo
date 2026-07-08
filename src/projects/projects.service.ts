@@ -12,6 +12,7 @@ import {
 import { ProjectEntity, ProjectMemberEntity, ProjectMemberWithUserEntity } from './entities';
 import { buildPaginationMeta } from 'src/common/utils';
 import { PaginationDto } from 'src/common/dtos';
+import { assertProjectWritable } from 'src/common/helpers/project-guard.helper';
 
 @Injectable()
 export class ProjectsService {
@@ -20,6 +21,17 @@ export class ProjectsService {
   async createProject(orgId: string, teamId: string, dto: CreateProjectDto, actorId: string) {
     await this.assertActorCanManageProjects(orgId, teamId, actorId);
     await this.getTeamOrThrow(teamId, orgId);
+
+    const existingProject = await this.prisma.project.findFirst({
+      where: {
+        teamId,
+        name: dto.name,
+        deletedAt: null,
+      },
+    });
+    if (existingProject) {
+      throw new ConflictException('Project already exists');
+    }
 
     const project = await this.prisma.project.create({
       data: {
@@ -72,6 +84,7 @@ export class ProjectsService {
   ) {
     await this.assertActorCanManageProjects(orgId, teamId, actorId);
     await this.getProjectOrThrow(projectId, teamId, orgId);
+    await assertProjectWritable(this.prisma, projectId);
 
     const project = await this.prisma.project.update({
       where: { id: projectId },
@@ -92,6 +105,8 @@ export class ProjectsService {
     actorId: string,
   ) {
     await this.assertActorCanManageProjects(orgId, teamId, actorId);
+    await assertProjectWritable(this.prisma, projectId);
+
     const project = await this.getProjectOrThrow(projectId, teamId, orgId);
 
     if (project.status === dto.status) {
@@ -108,6 +123,8 @@ export class ProjectsService {
 
   async softDeleteProject(projectId: string, teamId: string, orgId: string, actorId: string) {
     await this.assertActorCanManageProjects(orgId, teamId, actorId);
+    await assertProjectWritable(this.prisma, projectId);
+
     const project = await this.getProjectOrThrow(projectId, teamId, orgId);
 
     if (project.status !== ProjectStatus.ARCHIVED) {
@@ -130,6 +147,8 @@ export class ProjectsService {
     actorId: string,
   ) {
     await this.assertActorCanManageProjects(orgId, teamId, actorId);
+    await assertProjectWritable(this.prisma, projectId);
+
     await this.getProjectOrThrow(projectId, teamId, orgId);
     await this.findActiveUser(dto.userId);
 
@@ -185,21 +204,23 @@ export class ProjectsService {
     projectId: string,
     teamId: string,
     orgId: string,
-    userId: string,
+    dto: ProjectMemberDto,
     actorId: string,
   ) {
     await this.assertActorCanManageProjects(orgId, teamId, actorId);
+    await assertProjectWritable(this.prisma, projectId);
+
     await this.getProjectOrThrow(projectId, teamId, orgId);
 
     const existingMember = await this.prisma.projectMember.findUnique({
-      where: { userId_projectId: { userId, projectId } },
+      where: { userId_projectId: { userId: dto.userId, projectId } },
     });
     if (!existingMember) {
-      throw new ResourceNotFoundException('ProjectMember', userId);
+      throw new ResourceNotFoundException('ProjectMember', dto.userId);
     }
 
     await this.prisma.projectMember.delete({
-      where: { userId_projectId: { userId, projectId } },
+      where: { userId_projectId: { userId: dto.userId, projectId } },
     });
   }
 
