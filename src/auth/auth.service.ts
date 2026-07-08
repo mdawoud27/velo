@@ -28,6 +28,7 @@ import { JwtPayload } from './interfaces';
 import { UserEntity } from '../users/entities';
 import { TokensService } from './tokens.service';
 import { ServiceMessage } from 'src/common/classes';
+import { ActivityService } from 'src/activity/activity.service';
 
 @Injectable()
 export class AuthService {
@@ -39,6 +40,7 @@ export class AuthService {
     private readonly logger: LoggerService,
     private readonly jwtService: JwtService,
     private readonly tokensService: TokensService,
+    private readonly activity: ActivityService,
   ) {}
 
   async register(dto: RegistrationDto) {
@@ -78,6 +80,13 @@ export class AuthService {
       to: newUser.email,
       name: newUser.name ?? '',
       verificationUrl,
+    });
+
+    this.activity.log({
+      action: 'auth.registered',
+      entityType: 'User',
+      entityId: newUser.id,
+      actorId: newUser.id,
     });
   }
 
@@ -135,6 +144,13 @@ export class AuthService {
     await this.prisma.user.update({
       where: { id: userId },
       data: { isEmailVerified: true },
+    });
+
+    this.activity.log({
+      action: 'auth.email.verified',
+      entityType: 'User',
+      entityId: userId,
+      actorId: userId,
     });
 
     return new ServiceMessage('Email verified successfully');
@@ -232,6 +248,13 @@ export class AuthService {
       select: { orgId: true, role: true },
     });
 
+    this.activity.log({
+      action: 'auth.session.renewed',
+      entityType: 'User',
+      entityId: userId,
+      actorId: userId,
+    });
+
     return this.tokensService.generateTokens(user, orgMember ?? undefined);
   }
 
@@ -265,6 +288,13 @@ export class AuthService {
       resetUrl,
     });
 
+    this.activity.log({
+      action: 'auth.password.reset',
+      entityType: 'User',
+      entityId: user.id.toString(),
+      actorId: user.id.toString(),
+    });
+
     return new ServiceMessage('If that account exists, a reset link has been sent');
   }
 
@@ -285,6 +315,13 @@ export class AuthService {
     }
 
     await this.redis.del(`refresh:${userId}`);
+
+    this.activity.log({
+      action: 'auth.password.reset',
+      entityType: 'User',
+      entityId: userId,
+      actorId: userId,
+    });
   }
 
   async logout(payload: JwtPayload & { exp: number }) {
@@ -295,5 +332,12 @@ export class AuthService {
     }
 
     await this.redis.del(`refresh:${payload.sub}`);
+
+    this.activity.log({
+      action: 'auth.logout',
+      entityType: 'User',
+      entityId: payload.sub,
+      actorId: payload.sub,
+    });
   }
 }
