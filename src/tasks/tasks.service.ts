@@ -1,7 +1,13 @@
 import { ConflictException, ForbiddenException, Injectable } from '@nestjs/common';
 import { ActivityService } from 'src/activity/activity.service';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { CreateTaskDto, FilterTasksDto, UpdateTaskDto, UpdateTaskStatusDto } from './dtos';
+import {
+  CreateTaskDto,
+  FilterTasksDto,
+  TaskTagsDto,
+  UpdateTaskDto,
+  UpdateTaskStatusDto,
+} from './dtos';
 import { TaskEntity, TaskWithUsersEntity } from './entities';
 import { OrgRole, Prisma, Task, TaskStatus, TeamRole, User } from '@prisma/client';
 import {
@@ -244,6 +250,45 @@ export class TasksService {
       orgId,
       projectId,
     });
+  }
+
+  async addTags(
+    taskId: string,
+    projectId: string,
+    teamId: string,
+    orgId: string,
+    dto: TaskTagsDto,
+    actorId: string,
+  ): Promise<TaskEntity> {
+    await this.assertActorCanManageTasks(orgId, teamId, projectId, actorId);
+    await this.getProjectOrThrow(projectId, teamId, orgId);
+    await assertProjectWritable(this.prisma, projectId);
+
+    const task = await this.getTaskOrThrow(taskId, projectId);
+
+    const incoming = [...new Set(dto.tags)];
+    const newTags = incoming.filter((t) => !task.tags.includes(t));
+
+    if (newTags.length === 0) {
+      return new TaskEntity(task);
+    }
+
+    const updated = await this.prisma.task.update({
+      where: { id: taskId },
+      data: { tags: { push: newTags } },
+    });
+
+    this.activity.log({
+      action: 'task.tags.added',
+      entityType: 'task',
+      entityId: taskId,
+      actorId,
+      orgId,
+      projectId,
+      metadata: { tags: newTags },
+    });
+
+    return new TaskEntity(updated);
   }
 
   private async assertUserIsProjectMember(userId: string, projectId: string): Promise<void> {

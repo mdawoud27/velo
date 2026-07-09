@@ -20,7 +20,14 @@ import {
   ApiPaginatedDataResponse,
   ResponseMessage,
 } from 'src/common/decorators';
-import { CreateTaskDto, FilterTasksDto, TaskDto, UpdateTaskDto, UpdateTaskStatusDto } from './dtos';
+import {
+  CreateTaskDto,
+  FilterTasksDto,
+  TaskDto,
+  TaskTagsDto,
+  UpdateTaskDto,
+  UpdateTaskStatusDto,
+} from './dtos';
 import { CurrentUser } from 'src/auth/decorators';
 
 @ApiTags('Tasks')
@@ -120,5 +127,21 @@ export class TasksController {
     @CurrentUser('sub') actorId: string,
   ) {
     return this.tasksService.softDeleteTask(id, projectId, teamId, orgId, actorId);
+  }
+
+  @Patch(':id/tags')
+  @ResponseMessage('Tags added successfully.')
+  @ApiOperation({ summary: 'Add one or more tags to a task' })
+  @ApiDataResponse(TaskDto, 'Tags added successfully.')
+  @ApiErrorResponses(401, 403, 404, 409)
+  async addTags(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Param('teamId', ParseUUIDPipe) teamId: string,
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: TaskTagsDto,
+    @CurrentUser('sub') actorId: string,
+  ) {
+    return this.tasksService.addTags(id, projectId, teamId, orgId, dto, actorId);
   }
 }
