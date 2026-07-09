@@ -11,20 +11,7 @@ import {
 } from 'src/common/exceptions';
 import { assertProjectWritable } from 'src/common/helpers/project-guard.helper';
 import { buildPaginationMeta } from 'src/common/utils';
-
-const USER_SUMMARY_SELECT = {
-  id: true,
-  name: true,
-  email: true,
-  avatarUrl: true,
-} as const;
-
-const STATUS_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
-  TODO: [TaskStatus.IN_PROGRESS],
-  IN_PROGRESS: [TaskStatus.TODO, TaskStatus.IN_REVIEW],
-  IN_REVIEW: [TaskStatus.IN_PROGRESS, TaskStatus.DONE],
-  DONE: [TaskStatus.IN_PROGRESS],
-};
+import { STATUS_TRANSITIONS, USER_SUMMARY_SELECT } from './constants';
 
 @Injectable()
 export class TasksService {
