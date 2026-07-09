@@ -416,28 +416,45 @@ export class TasksService {
     }
   }
 
-  private async checkAndCompleteParent(parentId: string): Promise<void> {
-    const siblings = await this.prisma.task.findMany({
+  private async checkAndCompleteParent(parentId: string, actorId = 'system'): Promise<void> {
+    await this.prisma.$transaction((tx) => this.tryAutoCompleteParent(tx, parentId, actorId));
+  }
+
+  private async tryAutoCompleteParent(
+    tx: Prisma.TransactionClient,
+    parentId: string,
+    actorId: string,
+  ): Promise<void> {
+    const parent = await tx.task.findUnique({ where: { id: parentId } });
+    if (!parent || parent.deletedAt) return;
+
+    if (!VALID_TRANSITIONS[parent.status]?.includes(TaskStatus.DONE)) return;
+
+    const siblings = await tx.task.findMany({
       where: { parentTaskId: parentId, deletedAt: null },
       select: { status: true },
     });
-
     const allDone = siblings.length > 0 && siblings.every((s) => s.status === TaskStatus.DONE);
     if (!allDone) return;
 
-    const parent = await this.prisma.task.update({
+    const updated = await tx.task.update({
       where: { id: parentId },
-      data: { status: TaskStatus.DONE },
+      data: { status: TaskStatus.DONE, updatedAt: new Date() },
     });
 
     this.activity.log({
       action: 'task.status.auto-completed',
       entityType: 'Task',
       entityId: parentId,
-      actorId: 'system',
-      projectId: parent.projectId,
-      metadata: { reason: 'all_subtasks_done' },
+      actorId,
+      projectId: updated.projectId,
+      metadata: { reason: 'all_subtasks_done', from: parent.status, to: updated.status },
     });
+
+    // Cascade upward: completing this parent might complete its own parent
+    if (updated.parentTaskId) {
+      await this.tryAutoCompleteParent(tx, updated.parentTaskId, actorId);
+    }
   }
 
   private async transitionStatus(
