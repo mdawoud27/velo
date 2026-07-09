@@ -23,6 +23,7 @@ import {
 import {
   CreateTaskDto,
   FilterTasksDto,
+  SearchTasksDto,
   TaskDto,
   TaskTagsDto,
   UpdateTaskDto,
@@ -69,6 +70,21 @@ export class TasksController {
      * GET /organizations/:orgId/teams/:teamId/projects/:projectId/tasks?untaggedOnly=true
      */
     return this.tasksService.listTasks(orgId, teamId, projectId, dto, actorId);
+  }
+
+  @Get('search')
+  @ResponseMessage('Search results fetched successfully.')
+  @ApiOperation({ summary: 'Full-text search tasks by title/description' })
+  @ApiPaginatedDataResponse(TaskDto, 'Search results fetched successfully.')
+  @ApiErrorResponses(401, 403, 404)
+  async searchTasks(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Param('teamId', ParseUUIDPipe) teamId: string,
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Query() dto: SearchTasksDto,
+    @CurrentUser('sub') actorId: string,
+  ) {
+    return this.tasksService.searchTasks(orgId, teamId, projectId, dto, actorId);
   }
 
   @Get(':id')
