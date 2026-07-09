@@ -1,11 +1,19 @@
 import { ConflictException, ForbiddenException, Injectable } from '@nestjs/common';
 import { ActivityService } from 'src/activity/activity.service';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { CreateTaskDto } from './dtos';
-import { TaskEntity } from './entities';
-import { OrgRole, TeamRole, User } from '@prisma/client';
+import { CreateTaskDto, FilterTasksDto } from './dtos';
+import { TaskEntity, TaskWithUsersEntity } from './entities';
+import { OrgRole, Prisma, TeamRole, User } from '@prisma/client';
 import { BannedUserException, ResourceNotFoundException } from 'src/common/exceptions';
 import { assertProjectWritable } from 'src/common/helpers/project-guard.helper';
+import { buildPaginationMeta } from 'src/common/utils';
+
+const USER_SUMMARY_SELECT = {
+  id: true,
+  name: true,
+  email: true,
+  avatarUrl: true,
+} as const;
 
 @Injectable()
 export class TasksService {
@@ -54,6 +62,60 @@ export class TasksService {
     return new TaskEntity(task);
   }
 
+  async listTasks(
+    orgId: string,
+    teamId: string,
+    projectId: string,
+    dto: FilterTasksDto,
+    actorId: string,
+  ) {
+    await this.assertActorIsOrgMember(orgId, actorId);
+    await this.getProjectOrThrow(projectId, teamId, orgId);
+
+    const where: Prisma.TaskWhereInput = {
+      projectId,
+      deletedAt: null,
+      ...(dto.status && { status: dto.status }),
+      ...(dto.priority && { priority: dto.priority }),
+      ...(dto.assigneeId && { assigneeId: dto.assigneeId }),
+      ...(dto.creatorId && { creatorId: dto.creatorId }),
+      ...(dto.tags?.length && { tags: { hasSome: dto.tags } }),
+      ...(dto.search && {
+        title: { contains: dto.search, mode: 'insensitive' },
+      }),
+      ...((dto.dueBefore || dto.dueAfter) && {
+        dueDate: {
+          ...(dto.dueBefore && { lte: new Date(dto.dueBefore) }),
+          ...(dto.dueAfter && { gte: new Date(dto.dueAfter) }),
+        },
+      }),
+      ...(dto.parentTaskId
+        ? { parentTaskId: dto.parentTaskId }
+        : dto.topLevelOnly
+          ? { parentTaskId: null }
+          : {}),
+    };
+
+    const [tasks, total] = await this.prisma.$transaction([
+      this.prisma.task.findMany({
+        where,
+        include: {
+          assignee: { select: USER_SUMMARY_SELECT },
+          creator: { select: USER_SUMMARY_SELECT },
+        },
+        skip: (dto.page - 1) * dto.limit,
+        take: dto.limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.task.count({ where }),
+    ]);
+
+    return {
+      meta: buildPaginationMeta(total, dto.page, dto.limit),
+      data: tasks.map((task) => new TaskWithUsersEntity(task)),
+    };
+  }
+
   private async assertUserIsProjectMember(userId: string, projectId: string): Promise<void> {
     await this.findActiveUser(userId);
 
@@ -62,6 +124,18 @@ export class TasksService {
     });
     if (!membership) {
       throw new ForbiddenException('Assignee must be a member of this project');
+    }
+  }
+
+  private async assertActorIsOrgMember(orgId: string, actorId: string): Promise<void> {
+    await this.findActiveOrg(orgId);
+    await this.findActiveUser(actorId);
+
+    const membership = await this.prisma.orgMember.findUnique({
+      where: { userId_orgId: { userId: actorId, orgId } },
+    });
+    if (!membership) {
+      throw new ForbiddenException('You are not a member of this organization');
     }
   }
 
