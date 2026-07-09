@@ -312,19 +312,32 @@ export class TasksService {
     await this.getProjectOrThrow(projectId, teamId, orgId);
     await assertProjectWritable(this.prisma, projectId);
 
-    const task = await this.getTaskOrThrow(taskId, projectId);
+    const result = await this.prisma.$transaction(
+      async (tx) => {
+        const task = await tx.task.findFirstOrThrow({
+          where: { id: taskId, projectId, deletedAt: null },
+        });
 
-    const toRemove = new Set(dto.tags);
-    const remaining = task.tags.filter((t) => !toRemove.has(t));
+        const toRemove = new Set(dto.tags);
+        const remaining = task.tags.filter((t) => !toRemove.has(t));
 
-    if (remaining.length === task.tags.length) {
-      return new TaskEntity(task); // none of the given tags existed
+        if (remaining.length === task.tags.length) {
+          return { task, updated: null as null | Task };
+        }
+
+        const updated = await tx.task.update({
+          where: { id: taskId },
+          data: { tags: remaining },
+        });
+
+        return { task, updated };
+      },
+      { isolationLevel: 'Serializable' },
+    );
+
+    if (!result.updated) {
+      return new TaskEntity(result.task);
     }
-
-    const updated = await this.prisma.task.update({
-      where: { id: taskId },
-      data: { tags: remaining },
-    });
 
     this.activity.log({
       action: 'task.tags.removed',
@@ -333,10 +346,10 @@ export class TasksService {
       actorId,
       orgId,
       projectId,
-      metadata: { tags: dto.tags.filter((t) => task.tags.includes(t)) },
+      metadata: { tags: dto.tags.filter((t) => result.task.tags.includes(t)) },
     });
 
-    return new TaskEntity(updated);
+    return new TaskEntity(result.updated);
   }
 
   private async assertUserIsProjectMember(userId: string, projectId: string): Promise<void> {

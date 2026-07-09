@@ -61,6 +61,11 @@ export class FilterTasksDto extends PaginationDto {
   @IsEnum(TagsMatchMode)
   tagsMode?: TagsMatchMode;
 
+  @Transform(({ value }: { value: unknown }): unknown => {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'string') return value.toLowerCase() === 'true';
+    return value;
+  })
   @IsOptional()
   @IsBoolean()
   untaggedOnly?: boolean;

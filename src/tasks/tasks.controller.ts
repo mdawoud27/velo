@@ -155,7 +155,7 @@ export class TasksController {
   @ApiOperation({ summary: 'Remove one or more tags from a task' })
   @ApiDataResponse(TaskDto, 'Tags removed successfully.')
   @HttpCode(HttpStatus.OK)
-  @ApiErrorResponses(401, 403, 404)
+  @ApiErrorResponses(401, 403, 404, 409)
   async removeTags(
     @Param('orgId', ParseUUIDPipe) orgId: string,
     @Param('teamId', ParseUUIDPipe) teamId: string,
