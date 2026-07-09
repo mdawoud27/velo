@@ -12,6 +12,11 @@ import {
 } from 'class-validator';
 import { PaginationDto } from 'src/common/dtos';
 
+export enum TagsMatchMode {
+  ANY = 'any', // hasSome
+  ALL = 'all', // hasEvery
+}
+
 export class FilterTasksDto extends PaginationDto {
   @IsEnum(TaskStatus)
   @IsOptional()
@@ -51,6 +56,14 @@ export class FilterTasksDto extends PaginationDto {
   @IsString({ each: true })
   @IsOptional()
   tags?: string[];
+
+  @IsOptional()
+  @IsEnum(TagsMatchMode)
+  tagsMode?: TagsMatchMode;
+
+  @IsOptional()
+  @IsBoolean()
+  untaggedOnly?: boolean;
 
   @IsDateString()
   @IsOptional()

@@ -63,6 +63,11 @@ export class TasksController {
     @Query() dto: FilterTasksDto,
     @CurrentUser('sub') actorId: string,
   ) {
+    /**
+     * GET /organizations/:orgId/teams/:teamId/projects/:projectId/tasks?tags=bug,frontend&tagsMode=any
+     * GET /organizations/:orgId/teams/:teamId/projects/:projectId/tasks?tags=bug,urgent&tagsMode=all
+     * GET /organizations/:orgId/teams/:teamId/projects/:projectId/tasks?untaggedOnly=true
+     */
     return this.tasksService.listTasks(orgId, teamId, projectId, dto, actorId);
   }
 

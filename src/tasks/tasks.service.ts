@@ -4,6 +4,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import {
   CreateTaskDto,
   FilterTasksDto,
+  TagsMatchMode,
   TaskTagsDto,
   UpdateTaskDto,
   UpdateTaskStatusDto,
@@ -78,6 +79,14 @@ export class TasksService {
     await this.assertActorIsOrgMember(orgId, actorId);
     await this.getProjectOrThrow(projectId, teamId, orgId);
 
+    const tagsFilter = dto.untaggedOnly
+      ? { isEmpty: true }
+      : dto.tags?.length
+        ? dto.tagsMode === TagsMatchMode.ALL
+          ? { hasEvery: dto.tags }
+          : { hasSome: dto.tags } // default: ANY
+        : undefined;
+
     const where: Prisma.TaskWhereInput = {
       projectId,
       deletedAt: null,
@@ -85,7 +94,7 @@ export class TasksService {
       ...(dto.priority && { priority: dto.priority }),
       ...(dto.assigneeId && { assigneeId: dto.assigneeId }),
       ...(dto.creatorId && { creatorId: dto.creatorId }),
-      ...(dto.tags?.length && { tags: { hasSome: dto.tags } }),
+      ...(tagsFilter && { tags: tagsFilter }),
       ...(dto.search && {
         title: { contains: dto.search, mode: 'insensitive' },
       }),
