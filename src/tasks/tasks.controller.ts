@@ -20,7 +20,7 @@ import {
   ApiPaginatedDataResponse,
   ResponseMessage,
 } from 'src/common/decorators';
-import { CreateTaskDto, FilterTasksDto, TaskDto, UpdateTaskDto } from './dtos';
+import { CreateTaskDto, FilterTasksDto, TaskDto, UpdateTaskDto, UpdateTaskStatusDto } from './dtos';
 import { CurrentUser } from 'src/auth/decorators';
 
 @ApiTags('Tasks')
@@ -88,6 +88,22 @@ export class TasksController {
     @CurrentUser('sub') actorId: string,
   ) {
     return this.tasksService.updateTask(id, projectId, teamId, orgId, dto, actorId);
+  }
+
+  @Patch(':id/status')
+  @ResponseMessage('Task status updated successfully.')
+  @ApiOperation({ summary: 'Update a task status' })
+  @ApiDataResponse(TaskDto, 'Task status updated successfully.')
+  @ApiErrorResponses(401, 403, 404, 409, 422)
+  async updateStatus(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Param('teamId', ParseUUIDPipe) teamId: string,
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateTaskStatusDto,
+    @CurrentUser('sub') actorId: string,
+  ) {
+    return this.tasksService.updateStatus(id, projectId, teamId, orgId, dto, actorId);
   }
 
   @Delete(':id')
