@@ -191,6 +191,42 @@ export class TasksService {
     return new TaskEntity(updated);
   }
 
+  async softDeleteTask(
+    taskId: string,
+    projectId: string,
+    teamId: string,
+    orgId: string,
+    actorId: string,
+  ) {
+    await this.assertActorCanManageTasks(orgId, teamId, projectId, actorId);
+    await this.getProjectOrThrow(projectId, teamId, orgId);
+    await assertProjectWritable(this.prisma, projectId);
+    await this.getTaskOrThrow(taskId, projectId);
+
+    const activeSubtasks = await this.prisma.task.count({
+      where: { parentTaskId: taskId, deletedAt: null },
+    });
+    if (activeSubtasks > 0) {
+      throw new ConflictException(
+        'This task still has subtasks. Delete or reassign them before deleting this task.',
+      );
+    }
+
+    await this.prisma.task.update({
+      where: { id: taskId },
+      data: { deletedAt: new Date() },
+    });
+
+    this.activity.log({
+      action: 'task.deleted',
+      entityType: 'task',
+      entityId: taskId,
+      actorId,
+      orgId,
+      projectId,
+    });
+  }
+
   private async assertUserIsProjectMember(userId: string, projectId: string): Promise<void> {
     await this.findActiveUser(userId);
 

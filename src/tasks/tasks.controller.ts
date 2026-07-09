@@ -1,9 +1,22 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { TasksService } from './tasks.service';
 import {
   ApiDataResponse,
   ApiErrorResponses,
+  ApiMessageResponse,
   ApiPaginatedDataResponse,
   ResponseMessage,
 } from 'src/common/decorators';
@@ -75,5 +88,21 @@ export class TasksController {
     @CurrentUser('sub') actorId: string,
   ) {
     return this.tasksService.updateTask(id, projectId, teamId, orgId, dto, actorId);
+  }
+
+  @Delete(':id')
+  @ResponseMessage('Task deleted successfully.')
+  @ApiOperation({ summary: 'Delete a task' })
+  @ApiMessageResponse('Task deleted successfully.')
+  @HttpCode(HttpStatus.OK)
+  @ApiErrorResponses(401, 403, 404, 409)
+  async deleteTask(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Param('teamId', ParseUUIDPipe) teamId: string,
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('sub') actorId: string,
+  ) {
+    return this.tasksService.softDeleteTask(id, projectId, teamId, orgId, actorId);
   }
 }
