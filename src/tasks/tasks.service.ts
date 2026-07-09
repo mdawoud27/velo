@@ -1,7 +1,14 @@
 import { ConflictException, ForbiddenException, Injectable } from '@nestjs/common';
 import { ActivityService } from 'src/activity/activity.service';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { CreateTaskDto, FilterTasksDto, UpdateTaskDto, UpdateTaskStatusDto } from './dtos';
+import {
+  CreateTaskDto,
+  FilterTasksDto,
+  TagsMatchMode,
+  TaskTagsDto,
+  UpdateTaskDto,
+  UpdateTaskStatusDto,
+} from './dtos';
 import { TaskEntity, TaskWithUsersEntity } from './entities';
 import { OrgRole, Prisma, Task, TaskStatus, TeamRole, User } from '@prisma/client';
 import {
@@ -72,6 +79,14 @@ export class TasksService {
     await this.assertActorIsOrgMember(orgId, actorId);
     await this.getProjectOrThrow(projectId, teamId, orgId);
 
+    const tagsFilter = dto.untaggedOnly
+      ? { isEmpty: true }
+      : dto.tags?.length
+        ? dto.tagsMode === TagsMatchMode.ALL
+          ? { hasEvery: dto.tags }
+          : { hasSome: dto.tags } // default: ANY
+        : undefined;
+
     const where: Prisma.TaskWhereInput = {
       projectId,
       deletedAt: null,
@@ -79,7 +94,7 @@ export class TasksService {
       ...(dto.priority && { priority: dto.priority }),
       ...(dto.assigneeId && { assigneeId: dto.assigneeId }),
       ...(dto.creatorId && { creatorId: dto.creatorId }),
-      ...(dto.tags?.length && { tags: { hasSome: dto.tags } }),
+      ...(tagsFilter && { tags: tagsFilter }),
       ...(dto.search && {
         title: { contains: dto.search, mode: 'insensitive' },
       }),
@@ -244,6 +259,97 @@ export class TasksService {
       orgId,
       projectId,
     });
+  }
+
+  async addTags(
+    taskId: string,
+    projectId: string,
+    teamId: string,
+    orgId: string,
+    dto: TaskTagsDto,
+    actorId: string,
+  ): Promise<TaskEntity> {
+    await this.assertActorCanManageTasks(orgId, teamId, projectId, actorId);
+    await this.getProjectOrThrow(projectId, teamId, orgId);
+    await assertProjectWritable(this.prisma, projectId);
+
+    const task = await this.getTaskOrThrow(taskId, projectId);
+
+    const incoming = [...new Set(dto.tags)];
+    const newTags = incoming.filter((t) => !task.tags.includes(t));
+
+    if (newTags.length === 0) {
+      return new TaskEntity(task);
+    }
+
+    const updated = await this.prisma.task.update({
+      where: { id: taskId },
+      data: { tags: { push: newTags } },
+    });
+
+    this.activity.log({
+      action: 'task.tags.added',
+      entityType: 'task',
+      entityId: taskId,
+      actorId,
+      orgId,
+      projectId,
+      metadata: { tags: newTags },
+    });
+
+    return new TaskEntity(updated);
+  }
+
+  async removeTags(
+    taskId: string,
+    projectId: string,
+    teamId: string,
+    orgId: string,
+    dto: TaskTagsDto,
+    actorId: string,
+  ): Promise<TaskEntity> {
+    await this.assertActorCanManageTasks(orgId, teamId, projectId, actorId);
+    await this.getProjectOrThrow(projectId, teamId, orgId);
+    await assertProjectWritable(this.prisma, projectId);
+
+    const result = await this.prisma.$transaction(
+      async (tx) => {
+        const task = await tx.task.findFirstOrThrow({
+          where: { id: taskId, projectId, deletedAt: null },
+        });
+
+        const toRemove = new Set(dto.tags);
+        const remaining = task.tags.filter((t) => !toRemove.has(t));
+
+        if (remaining.length === task.tags.length) {
+          return { task, updated: null as null | Task };
+        }
+
+        const updated = await tx.task.update({
+          where: { id: taskId },
+          data: { tags: remaining },
+        });
+
+        return { task, updated };
+      },
+      { isolationLevel: 'Serializable' },
+    );
+
+    if (!result.updated) {
+      return new TaskEntity(result.task);
+    }
+
+    this.activity.log({
+      action: 'task.tags.removed',
+      entityType: 'task',
+      entityId: taskId,
+      actorId,
+      orgId,
+      projectId,
+      metadata: { tags: dto.tags.filter((t) => result.task.tags.includes(t)) },
+    });
+
+    return new TaskEntity(result.updated);
   }
 
   private async assertUserIsProjectMember(userId: string, projectId: string): Promise<void> {
