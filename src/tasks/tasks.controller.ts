@@ -45,4 +45,19 @@ export class TasksController {
   ) {
     return this.tasksService.listTasks(orgId, teamId, projectId, dto, actorId);
   }
+
+  @Get(':id')
+  @ResponseMessage('Task fetched successfully.')
+  @ApiOperation({ summary: 'Get task details' })
+  @ApiDataResponse(TaskDto, 'Task fetched successfully.')
+  @ApiErrorResponses(401, 403, 404)
+  async getTask(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Param('teamId', ParseUUIDPipe) teamId: string,
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('sub') actorId: string,
+  ) {
+    return this.tasksService.getTask(id, projectId, teamId, orgId, actorId);
+  }
 }

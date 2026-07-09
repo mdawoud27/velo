@@ -116,6 +116,22 @@ export class TasksService {
     };
   }
 
+  async getTask(taskId: string, projectId: string, teamId: string, orgId: string, actorId: string) {
+    await this.assertActorIsOrgMember(orgId, actorId);
+    await this.getProjectOrThrow(projectId, teamId, orgId);
+
+    const task = await this.prisma.task.findFirst({
+      where: { id: taskId, projectId, deletedAt: null },
+      include: {
+        assignee: { select: USER_SUMMARY_SELECT },
+        creator: { select: USER_SUMMARY_SELECT },
+      },
+    });
+    if (!task) throw new ResourceNotFoundException('Task', taskId);
+
+    return new TaskWithUsersEntity(task);
+  }
+
   private async assertUserIsProjectMember(userId: string, projectId: string): Promise<void> {
     await this.findActiveUser(userId);
 
