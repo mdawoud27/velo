@@ -10,23 +10,24 @@ import {
   IsUUID,
   MaxLength,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 
 export class UpdateTaskDto {
   @Transform(({ value }: { value: unknown }): unknown =>
     typeof value === 'string' ? value.trim() : value,
   )
+  @ValidateIf((_, value) => value !== undefined)
   @IsString()
   @MinLength(2)
   @MaxLength(200)
-  @IsOptional()
   title?: string;
 
   @Transform(({ value }: { value: unknown }): unknown =>
     typeof value === 'string' ? value.trim() : value,
   )
+  @ValidateIf((_, value) => value !== undefined)
   @IsString()
-  @IsOptional()
   @MaxLength(2000)
   description?: string;
 

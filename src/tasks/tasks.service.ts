@@ -31,16 +31,7 @@ export class TasksService {
     await this.getProjectOrThrow(projectId, teamId, orgId);
     await assertProjectWritable(this.prisma, projectId);
 
-    const existingTask = await this.prisma.task.findFirst({
-      where: {
-        title: dto.title,
-        projectId,
-        deletedAt: null,
-      },
-    });
-    if (existingTask) {
-      throw new ConflictException('Task with this title already exists.');
-    }
+    await this.assertTaskTitleAvailable(projectId, dto.title);
 
     if (dto.assigneeId) {
       await this.assertUserIsProjectMember(dto.assigneeId, projectId);
@@ -154,6 +145,10 @@ export class TasksService {
     await assertProjectWritable(this.prisma, projectId);
 
     const task = await this.getTaskOrThrow(taskId, projectId);
+
+    if (dto.title && dto.title !== task.title) {
+      await this.assertTaskTitleAvailable(projectId, dto.title, task.id);
+    }
 
     if (dto.status && dto.status !== task.status) {
       this.assertValidTransition(task.status, dto.status);
@@ -325,11 +320,39 @@ export class TasksService {
 
     const parent = await this.prisma.task.findFirst({
       where: { id: parentTaskId, projectId, deletedAt: null },
+      select: { id: true, parentTaskId: true },
     });
-    if (!parent) throw new ResourceNotFoundException('Task', parentTaskId);
 
-    if (excludeTaskId && parent.parentTaskId === excludeTaskId) {
-      throw new ConflictException('That task is already a subtask of this task');
+    if (!parent) {
+      throw new ResourceNotFoundException('Task', parentTaskId);
+    }
+
+    if (excludeTaskId) {
+      let current = parent;
+      const visited = new Set<string>();
+
+      while (current.parentTaskId) {
+        if (current.parentTaskId === excludeTaskId) {
+          throw new ConflictException('That would create a circular task hierarchy');
+        }
+
+        if (visited.has(current.parentTaskId)) {
+          throw new ConflictException('Circular task hierarchy detected');
+        }
+
+        visited.add(current.parentTaskId);
+
+        const next = await this.prisma.task.findFirst({
+          where: { id: current.parentTaskId, projectId, deletedAt: null },
+          select: { id: true, parentTaskId: true },
+        });
+
+        if (!next) {
+          break;
+        }
+
+        current = next;
+      }
     }
 
     return parent;
@@ -347,5 +370,23 @@ export class TasksService {
     });
     if (!task) throw new ResourceNotFoundException('Task', taskId);
     return task;
+  }
+
+  private async assertTaskTitleAvailable(projectId: string, title: string, excludeTaskId?: string) {
+    const existing = await this.prisma.task.findFirst({
+      where: {
+        projectId,
+        title,
+        ...(excludeTaskId && {
+          id: {
+            not: excludeTaskId,
+          },
+        }),
+      },
+    });
+
+    if (existing) {
+      throw new ConflictException('A task with this title already exists.');
+    }
   }
 }

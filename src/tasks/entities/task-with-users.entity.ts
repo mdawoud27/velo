@@ -1,12 +1,10 @@
 import { Priority, Task, TaskStatus, User } from '@prisma/client';
-
+import { Exclude } from 'class-transformer';
 type TaskUserSummary = Pick<User, 'id' | 'name' | 'email' | 'avatarUrl'>;
-
 type TaskWithUsers = Task & {
   assignee: TaskUserSummary | null;
   creator: TaskUserSummary;
 };
-
 export class TaskWithUsersEntity {
   id: string;
   title: string;
@@ -21,10 +19,9 @@ export class TaskWithUsersEntity {
   parentTaskId: string | null;
   createdAt: Date;
   updatedAt: Date;
-
+  @Exclude() deletedAt: Date | null;
   assignee: TaskUserSummary | null;
   creator: TaskUserSummary;
-
   constructor(task: TaskWithUsers) {
     Object.assign(this, task);
   }

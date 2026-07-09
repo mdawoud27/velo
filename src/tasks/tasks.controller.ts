@@ -33,7 +33,7 @@ export class TasksController {
   @ResponseMessage('Task created successfully.')
   @ApiOperation({ summary: 'Create a new task' })
   @ApiDataResponse(TaskDto, 'Task created successfully.')
-  @ApiErrorResponses(401, 403, 404)
+  @ApiErrorResponses(401, 403, 404, 409)
   async createTask(
     @Param('orgId', ParseUUIDPipe) orgId: string,
     @Param('teamId', ParseUUIDPipe) teamId: string,
