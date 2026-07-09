@@ -118,6 +118,8 @@ async function bootstrap() {
     .addTag('Users', 'User profile management')
     .addTag('Organizations', 'Organization management')
     .addTag('Teams', 'Team management')
+    .addTag('Projects', 'Project management')
+    .addTag('Tasks', 'Task management')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

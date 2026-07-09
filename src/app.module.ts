@@ -19,6 +19,7 @@ import { OrganizationsModule } from './organizations/organizations.module';
 import { TeamsModule } from './teams/teams.module';
 import { ProjectsModule } from './projects/projects.module';
 import { ActivityModule } from './activity/activity.module';
+import { TasksModule } from './tasks/tasks.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { ActivityModule } from './activity/activity.module';
     TeamsModule,
     ProjectsModule,
     ActivityModule,
+    TasksModule,
   ],
   controllers: [AppController],
   providers: [
