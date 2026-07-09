@@ -31,6 +31,17 @@ export class TasksService {
     await this.getProjectOrThrow(projectId, teamId, orgId);
     await assertProjectWritable(this.prisma, projectId);
 
+    const existingTask = await this.prisma.task.findFirst({
+      where: {
+        title: dto.title,
+        projectId,
+        deletedAt: null,
+      },
+    });
+    if (existingTask) {
+      throw new ConflictException('Task with this title already exists.');
+    }
+
     if (dto.assigneeId) {
       await this.assertUserIsProjectMember(dto.assigneeId, projectId);
     }
