@@ -1,7 +1,7 @@
 import { ConflictException, ForbiddenException, Injectable } from '@nestjs/common';
 import { ActivityService } from 'src/activity/activity.service';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { CreateTaskDto, FilterTasksDto, UpdateTaskDto } from './dtos';
+import { CreateTaskDto, FilterTasksDto, UpdateTaskDto, UpdateTaskStatusDto } from './dtos';
 import { TaskEntity, TaskWithUsersEntity } from './entities';
 import { OrgRole, Prisma, Task, TaskStatus, TeamRole, User } from '@prisma/client';
 import {
@@ -149,10 +149,6 @@ export class TasksService {
     if (dto.title && dto.title !== task.title) {
       await this.assertTaskTitleAvailable(projectId, dto.title, task.id);
     }
-
-    if (dto.status && dto.status !== task.status) {
-      this.assertValidTransition(task.status, dto.status);
-    }
     if (dto.assigneeId) {
       await this.assertUserIsProjectMember(dto.assigneeId, projectId);
     }
@@ -160,57 +156,58 @@ export class TasksService {
       await this.getValidParentOrThrow(dto.parentTaskId, projectId, taskId);
     }
 
+    const newStatus = dto.status && dto.status !== task.status ? dto.status : undefined;
+    const { ...rest } = dto;
+    delete rest.status;
+
+    if (newStatus) {
+      this.assertValidTransition(task.status, newStatus);
+    }
+
     const updated = await this.prisma.task.update({
       where: { id: taskId },
       data: {
-        ...dto,
+        ...rest,
         dueDate: dto.dueDate === null ? null : dto.dueDate ? new Date(dto.dueDate) : undefined,
       },
     });
 
-    this.activity.log({
-      action: 'task.updated',
-      entityType: 'task',
-      entityId: updated.id,
-      actorId,
-      orgId,
-      projectId,
-      metadata:
-        dto.status && dto.status !== task.status
-          ? { field: 'status', from: task.status, to: updated.status }
-          : { fields: Object.keys(dto) },
-    });
+    if (Object.keys(rest).length > 0) {
+      this.activity.log({
+        action: 'task.updated',
+        entityType: 'task',
+        entityId: updated.id,
+        actorId,
+        orgId,
+        projectId,
+        metadata: { fields: Object.keys(rest) },
+      });
+    }
+
+    if (newStatus) {
+      const final = await this.transitionStatus(updated, newStatus, actorId);
+      return new TaskEntity(final);
+    }
 
     return new TaskEntity(updated);
   }
 
-  async updateStatus(id: string, newStatus: TaskStatus, userId: string): Promise<Task> {
-    const task = await this.prisma.task.findUniqueOrThrow({ where: { id } });
+  async updateStatus(
+    taskId: string,
+    projectId: string,
+    teamId: string,
+    orgId: string,
+    dto: UpdateTaskStatusDto,
+    actorId: string,
+  ): Promise<Task> {
+    await this.assertActorCanManageTasks(orgId, teamId, projectId, actorId);
+    await this.getProjectOrThrow(projectId, teamId, orgId);
+    await assertProjectWritable(this.prisma, projectId);
 
-    this.assertValidTransition(task.status, newStatus);
+    const task = await this.getTaskOrThrow(taskId, projectId);
 
-    const updated = await this.prisma.task.update({
-      where: { id },
-      data: {
-        status: newStatus,
-        updatedAt: new Date(),
-      },
-    });
-
-    this.activity.log({
-      action: 'task.status.changed',
-      entityType: 'Task',
-      entityId: id,
-      actorId: userId,
-      projectId: task.projectId,
-      metadata: { from: task.status, to: newStatus },
-    });
-
-    if (newStatus === TaskStatus.DONE && task.parentTaskId) {
-      await this.checkAndCompleteParent(task.parentTaskId);
-    }
-
-    return updated;
+    const updated = await this.transitionStatus(task, dto.status, actorId);
+    return new TaskEntity(updated);
   }
 
   async softDeleteTask(
@@ -441,5 +438,33 @@ export class TasksService {
       projectId: parent.projectId,
       metadata: { reason: 'all_subtasks_done' },
     });
+  }
+
+  private async transitionStatus(
+    task: Task,
+    newStatus: TaskStatus,
+    actorId: string,
+  ): Promise<Task> {
+    this.assertValidTransition(task.status, newStatus);
+
+    const updated = await this.prisma.task.update({
+      where: { id: task.id },
+      data: { status: newStatus, updatedAt: new Date() },
+    });
+
+    this.activity.log({
+      action: 'task.status.changed',
+      entityType: 'Task',
+      entityId: updated.id,
+      actorId,
+      projectId: task.projectId,
+      metadata: { from: task.status, to: updated.status },
+    });
+
+    if (newStatus === TaskStatus.DONE && task.parentTaskId) {
+      await this.checkAndCompleteParent(task.parentTaskId);
+    }
+
+    return updated;
   }
 }
