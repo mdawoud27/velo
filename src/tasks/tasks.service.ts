@@ -291,6 +291,45 @@ export class TasksService {
     return new TaskEntity(updated);
   }
 
+  async removeTags(
+    taskId: string,
+    projectId: string,
+    teamId: string,
+    orgId: string,
+    dto: TaskTagsDto,
+    actorId: string,
+  ): Promise<TaskEntity> {
+    await this.assertActorCanManageTasks(orgId, teamId, projectId, actorId);
+    await this.getProjectOrThrow(projectId, teamId, orgId);
+    await assertProjectWritable(this.prisma, projectId);
+
+    const task = await this.getTaskOrThrow(taskId, projectId);
+
+    const toRemove = new Set(dto.tags);
+    const remaining = task.tags.filter((t) => !toRemove.has(t));
+
+    if (remaining.length === task.tags.length) {
+      return new TaskEntity(task); // none of the given tags existed
+    }
+
+    const updated = await this.prisma.task.update({
+      where: { id: taskId },
+      data: { tags: remaining },
+    });
+
+    this.activity.log({
+      action: 'task.tags.removed',
+      entityType: 'task',
+      entityId: taskId,
+      actorId,
+      orgId,
+      projectId,
+      metadata: { tags: dto.tags.filter((t) => task.tags.includes(t)) },
+    });
+
+    return new TaskEntity(updated);
+  }
+
   private async assertUserIsProjectMember(userId: string, projectId: string): Promise<void> {
     await this.findActiveUser(userId);
 

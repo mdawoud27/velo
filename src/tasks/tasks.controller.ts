@@ -144,4 +144,21 @@ export class TasksController {
   ) {
     return this.tasksService.addTags(id, projectId, teamId, orgId, dto, actorId);
   }
+
+  @Delete(':id/tags')
+  @ResponseMessage('Tags removed successfully.')
+  @ApiOperation({ summary: 'Remove one or more tags from a task' })
+  @ApiDataResponse(TaskDto, 'Tags removed successfully.')
+  @HttpCode(HttpStatus.OK)
+  @ApiErrorResponses(401, 403, 404)
+  async removeTags(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Param('teamId', ParseUUIDPipe) teamId: string,
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: TaskTagsDto,
+    @CurrentUser('sub') actorId: string,
+  ) {
+    return this.tasksService.removeTags(id, projectId, teamId, orgId, dto, actorId);
+  }
 }
