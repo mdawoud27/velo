@@ -21,7 +21,7 @@ export const ApiMessageResponse = (description?: string, status = 200) =>
   ApiResponse({ status, description, type: MessageResponseDto });
 
 /** Drop-in bundle for common error status codes */
-export const ApiErrorResponses = (...statuses: (400 | 401 | 403 | 404 | 409)[]) =>
+export const ApiErrorResponses = (...statuses: (400 | 401 | 403 | 404 | 409 | 422)[]) =>
   applyDecorators(
     ...statuses.map((status) => {
       if (status === 400) {
