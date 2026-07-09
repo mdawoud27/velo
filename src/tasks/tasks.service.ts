@@ -1,10 +1,14 @@
 import { ConflictException, ForbiddenException, Injectable } from '@nestjs/common';
 import { ActivityService } from 'src/activity/activity.service';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { CreateTaskDto, FilterTasksDto } from './dtos';
+import { CreateTaskDto, FilterTasksDto, UpdateTaskDto } from './dtos';
 import { TaskEntity, TaskWithUsersEntity } from './entities';
-import { OrgRole, Prisma, TeamRole, User } from '@prisma/client';
-import { BannedUserException, ResourceNotFoundException } from 'src/common/exceptions';
+import { OrgRole, Prisma, Task, TaskStatus, TeamRole, User } from '@prisma/client';
+import {
+  BannedUserException,
+  InvalidTaskTransitionException,
+  ResourceNotFoundException,
+} from 'src/common/exceptions';
 import { assertProjectWritable } from 'src/common/helpers/project-guard.helper';
 import { buildPaginationMeta } from 'src/common/utils';
 
@@ -14,6 +18,13 @@ const USER_SUMMARY_SELECT = {
   email: true,
   avatarUrl: true,
 } as const;
+
+const STATUS_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
+  TODO: [TaskStatus.IN_PROGRESS],
+  IN_PROGRESS: [TaskStatus.TODO, TaskStatus.IN_REVIEW],
+  IN_REVIEW: [TaskStatus.IN_PROGRESS, TaskStatus.DONE],
+  DONE: [TaskStatus.IN_PROGRESS],
+};
 
 @Injectable()
 export class TasksService {
@@ -132,6 +143,54 @@ export class TasksService {
     return new TaskWithUsersEntity(task);
   }
 
+  async updateTask(
+    taskId: string,
+    projectId: string,
+    teamId: string,
+    orgId: string,
+    dto: UpdateTaskDto,
+    actorId: string,
+  ) {
+    await this.assertActorCanManageTasks(orgId, teamId, projectId, actorId);
+    await this.getProjectOrThrow(projectId, teamId, orgId);
+    await assertProjectWritable(this.prisma, projectId);
+
+    const task = await this.getTaskOrThrow(taskId, projectId);
+
+    if (dto.status && dto.status !== task.status) {
+      this.assertValidTransition(task.status, dto.status);
+    }
+    if (dto.assigneeId) {
+      await this.assertUserIsProjectMember(dto.assigneeId, projectId);
+    }
+    if (dto.parentTaskId) {
+      await this.getValidParentOrThrow(dto.parentTaskId, projectId, taskId);
+    }
+
+    const updated = await this.prisma.task.update({
+      where: { id: taskId },
+      data: {
+        ...dto,
+        dueDate: dto.dueDate === null ? null : dto.dueDate ? new Date(dto.dueDate) : undefined,
+      },
+    });
+
+    this.activity.log({
+      action: 'task.updated',
+      entityType: 'task',
+      entityId: updated.id,
+      actorId,
+      orgId,
+      projectId,
+      metadata:
+        dto.status && dto.status !== task.status
+          ? { field: 'status', from: task.status, to: updated.status }
+          : { fields: Object.keys(dto) },
+    });
+
+    return new TaskEntity(updated);
+  }
+
   private async assertUserIsProjectMember(userId: string, projectId: string): Promise<void> {
     await this.findActiveUser(userId);
 
@@ -240,5 +299,19 @@ export class TasksService {
     }
 
     return parent;
+  }
+
+  private assertValidTransition(from: TaskStatus, to: TaskStatus): void {
+    if (!STATUS_TRANSITIONS[from].includes(to)) {
+      throw new InvalidTaskTransitionException(from, to);
+    }
+  }
+
+  private async getTaskOrThrow(taskId: string, projectId: string): Promise<Task> {
+    const task = await this.prisma.task.findFirst({
+      where: { id: taskId, projectId, deletedAt: null },
+    });
+    if (!task) throw new ResourceNotFoundException('Task', taskId);
+    return task;
   }
 }

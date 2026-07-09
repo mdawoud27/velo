@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { TasksService } from './tasks.service';
 import {
@@ -7,7 +7,7 @@ import {
   ApiPaginatedDataResponse,
   ResponseMessage,
 } from 'src/common/decorators';
-import { CreateTaskDto, FilterTasksDto, TaskDto } from './dtos';
+import { CreateTaskDto, FilterTasksDto, TaskDto, UpdateTaskDto } from './dtos';
 import { CurrentUser } from 'src/auth/decorators';
 
 @ApiTags('Tasks')
@@ -59,5 +59,21 @@ export class TasksController {
     @CurrentUser('sub') actorId: string,
   ) {
     return this.tasksService.getTask(id, projectId, teamId, orgId, actorId);
+  }
+
+  @Patch(':id')
+  @ResponseMessage('Task updated successfully.')
+  @ApiOperation({ summary: 'Update a task (fields, assignee, or status)' })
+  @ApiDataResponse(TaskDto, 'Task updated successfully.')
+  @ApiErrorResponses(401, 403, 404, 409, 422)
+  async updateTask(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Param('teamId', ParseUUIDPipe) teamId: string,
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateTaskDto,
+    @CurrentUser('sub') actorId: string,
+  ) {
+    return this.tasksService.updateTask(id, projectId, teamId, orgId, dto, actorId);
   }
 }
