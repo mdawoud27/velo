@@ -4,6 +4,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import {
   CreateTaskDto,
   FilterTasksDto,
+  SearchTasksDto,
   TagsMatchMode,
   TaskTagsDto,
   UpdateTaskDto,
@@ -350,6 +351,50 @@ export class TasksService {
     });
 
     return new TaskEntity(result.updated);
+  }
+
+  async searchTasks(
+    orgId: string,
+    teamId: string,
+    projectId: string,
+    dto: SearchTasksDto,
+    actorId: string,
+  ) {
+    await this.assertActorIsOrgMember(orgId, actorId);
+    await this.getProjectOrThrow(projectId, teamId, orgId);
+
+    const limit = dto.limit;
+    const offset = (dto.page - 1) * dto.limit;
+
+    const tasks = await this.prisma.$queryRaw<Array<Task & { rank: number }>>`
+    SELECT *,
+      ts_rank(
+        to_tsvector('english', "title" || ' ' || COALESCE("description", '')),
+        plainto_tsquery('english', ${dto.query})
+      ) AS rank
+    FROM "Task"
+    WHERE "projectId" = ${projectId}
+      AND "deletedAt" IS NULL
+      AND to_tsvector('english', "title" || ' ' || COALESCE("description", ''))
+          @@ plainto_tsquery('english', ${dto.query})
+    ORDER BY rank DESC, "createdAt" DESC
+    LIMIT ${limit} OFFSET ${offset}
+  `;
+
+    const countResult = await this.prisma.$queryRaw<[{ count: bigint }]>`
+    SELECT COUNT(*)::bigint FROM "Task"
+    WHERE "projectId" = ${projectId}
+      AND "deletedAt" IS NULL
+      AND to_tsvector('english', "title" || ' ' || COALESCE("description", ''))
+          @@ plainto_tsquery('english', ${dto.query})
+  `;
+
+    const total = Number(countResult[0].count);
+
+    return {
+      meta: buildPaginationMeta(total, dto.page, dto.limit),
+      data: tasks.map((task) => new TaskEntity(task)),
+    };
   }
 
   private async assertUserIsProjectMember(userId: string, projectId: string): Promise<void> {
