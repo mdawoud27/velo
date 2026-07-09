@@ -11,7 +11,7 @@ import {
 } from 'src/common/exceptions';
 import { assertProjectWritable } from 'src/common/helpers/project-guard.helper';
 import { buildPaginationMeta } from 'src/common/utils';
-import { STATUS_TRANSITIONS, USER_SUMMARY_SELECT } from './constants';
+import { VALID_TRANSITIONS, USER_SUMMARY_SELECT } from './constants';
 
 @Injectable()
 export class TasksService {
@@ -182,6 +182,35 @@ export class TasksService {
     });
 
     return new TaskEntity(updated);
+  }
+
+  async updateStatus(id: string, newStatus: TaskStatus, userId: string): Promise<Task> {
+    const task = await this.prisma.task.findUniqueOrThrow({ where: { id } });
+
+    this.assertValidTransition(task.status, newStatus);
+
+    const updated = await this.prisma.task.update({
+      where: { id },
+      data: {
+        status: newStatus,
+        updatedAt: new Date(),
+      },
+    });
+
+    this.activity.log({
+      action: 'task.status.changed',
+      entityType: 'Task',
+      entityId: id,
+      actorId: userId,
+      projectId: task.projectId,
+      metadata: { from: task.status, to: newStatus },
+    });
+
+    if (newStatus === TaskStatus.DONE && task.parentTaskId) {
+      await this.checkAndCompleteParent(task.parentTaskId);
+    }
+
+    return updated;
   }
 
   async softDeleteTask(
@@ -359,7 +388,7 @@ export class TasksService {
   }
 
   private assertValidTransition(from: TaskStatus, to: TaskStatus): void {
-    if (!STATUS_TRANSITIONS[from].includes(to)) {
+    if (!VALID_TRANSITIONS[from].includes(to)) {
       throw new InvalidTaskTransitionException(from, to);
     }
   }
@@ -388,5 +417,29 @@ export class TasksService {
     if (existing) {
       throw new ConflictException('A task with this title already exists.');
     }
+  }
+
+  private async checkAndCompleteParent(parentId: string): Promise<void> {
+    const siblings = await this.prisma.task.findMany({
+      where: { parentTaskId: parentId, deletedAt: null },
+      select: { status: true },
+    });
+
+    const allDone = siblings.length > 0 && siblings.every((s) => s.status === TaskStatus.DONE);
+    if (!allDone) return;
+
+    const parent = await this.prisma.task.update({
+      where: { id: parentId },
+      data: { status: TaskStatus.DONE },
+    });
+
+    this.activity.log({
+      action: 'task.status.auto-completed',
+      entityType: 'Task',
+      entityId: parentId,
+      actorId: 'system',
+      projectId: parent.projectId,
+      metadata: { reason: 'all_subtasks_done' },
+    });
   }
 }
