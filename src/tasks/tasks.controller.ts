@@ -30,6 +30,8 @@ import {
   UpdateTaskStatusDto,
 } from './dtos';
 import { CurrentUser } from 'src/auth/decorators';
+import { Cache } from 'src/cache/decorators';
+import { CacheTags, requireParam } from 'src/cache/utils';
 
 @ApiTags('Tasks')
 @ApiBearerAuth()
@@ -53,6 +55,7 @@ export class TasksController {
   }
 
   @Get()
+  @Cache(20, (req) => [CacheTags.project(requireParam(req, 'projectId'))])
   @ResponseMessage('Tasks listed successfully.')
   @ApiOperation({ summary: 'List and filter tasks in a project' })
   @ApiPaginatedDataResponse(TaskDto, 'Tasks listed successfully.')
@@ -88,6 +91,7 @@ export class TasksController {
   }
 
   @Get(':id')
+  @Cache(60, (req) => [CacheTags.task(requireParam(req, 'id'))])
   @ResponseMessage('Task fetched successfully.')
   @ApiOperation({ summary: 'Get task details' })
   @ApiDataResponse(TaskDto, 'Task fetched successfully.')

@@ -20,12 +20,14 @@ import {
 import { assertProjectWritable } from 'src/common/helpers/project-guard.helper';
 import { buildPaginationMeta } from 'src/common/utils';
 import { VALID_TRANSITIONS, USER_SUMMARY_SELECT } from './constants';
+import { CacheService } from 'src/cache/cache.service';
 
 @Injectable()
 export class TasksService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly activity: ActivityService,
+    private readonly cache: CacheService,
   ) {}
 
   async createTask(
@@ -66,6 +68,8 @@ export class TasksService {
       projectId,
       metadata: { title: task.title },
     });
+
+    void this.cache.invalidateProjectCache(projectId).catch(() => {});
 
     return new TaskEntity(task);
   }
@@ -198,12 +202,15 @@ export class TasksService {
         projectId,
         metadata: { fields: Object.keys(rest) },
       });
+      void this.cache.invalidateProjectCache(projectId).catch(() => {});
     }
 
     if (newStatus) {
       const final = await this.transitionStatus(updated, newStatus, actorId);
+      void this.cache.invalidateTaskCache(taskId).catch(() => {});
       return new TaskEntity(final);
     }
+    void this.cache.invalidateTaskCache(taskId).catch(() => {});
 
     return new TaskEntity(updated);
   }
@@ -260,6 +267,11 @@ export class TasksService {
       orgId,
       projectId,
     });
+
+    await Promise.all([
+      this.cache.invalidateTaskCache(taskId),
+      this.cache.invalidateProjectCache(projectId),
+    ]);
   }
 
   async addTags(
@@ -297,6 +309,9 @@ export class TasksService {
       projectId,
       metadata: { tags: newTags },
     });
+
+    void this.cache.invalidateTaskCache(taskId).catch(() => {});
+    void this.cache.invalidateProjectCache(projectId).catch(() => {});
 
     return new TaskEntity(updated);
   }
@@ -349,6 +364,9 @@ export class TasksService {
       projectId,
       metadata: { tags: dto.tags.filter((t) => result.task.tags.includes(t)) },
     });
+
+    void this.cache.invalidateTaskCache(taskId).catch(() => {});
+    void this.cache.invalidateProjectCache(projectId).catch(() => {});
 
     return new TaskEntity(result.updated);
   }
@@ -569,6 +587,7 @@ export class TasksService {
 
   private async checkAndCompleteParent(parentId: string, actorId = 'system'): Promise<void> {
     await this.prisma.$transaction((tx) => this.tryAutoCompleteParent(tx, parentId, actorId));
+    void this.cache.invalidateTaskCache(parentId).catch(() => {});
   }
 
   private async tryAutoCompleteParent(
@@ -628,6 +647,9 @@ export class TasksService {
       projectId: task.projectId,
       metadata: { from: task.status, to: updated.status },
     });
+
+    void this.cache.invalidateTaskCache(updated.id).catch(() => {});
+    void this.cache.invalidateProjectCache(updated.projectId).catch(() => {});
 
     if (newStatus === TaskStatus.DONE && task.parentTaskId) {
       await this.checkAndCompleteParent(task.parentTaskId);
