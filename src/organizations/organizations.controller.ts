@@ -27,6 +27,8 @@ import {
   ResponseMessage,
 } from 'src/common/decorators';
 import { PaginationDto } from 'src/common/dtos';
+import { Cache } from 'src/cache/decorators';
+import { CacheTags, requireParam } from 'src/cache/utils';
 
 @ApiTags('Organizations')
 @ApiBearerAuth()
@@ -98,6 +100,7 @@ export class OrganizationsController {
   }
 
   @Get(':orgId/invitations')
+  @Cache(15, (req) => [CacheTags.org(requireParam(req, 'orgId'))])
   @ResponseMessage('Invitations listed successfully.')
   @ApiOperation({ summary: 'List invitations to the organization.' })
   @ApiPaginatedDataResponse(OrgDto, 'Invitations listed successfully.')
