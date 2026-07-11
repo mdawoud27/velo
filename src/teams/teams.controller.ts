@@ -33,7 +33,9 @@ import { PaginationDto } from 'src/common/dtos';
 import { OrgRole } from '@prisma/client';
 import { TeamMemberWithUserEntity } from './entities';
 import { Cache } from 'src/cache/decorators';
-import { CacheTags, requireParam } from 'src/cache/utils';
+import { requireParam } from 'src/cache/utils';
+import { CacheTags } from 'src/cache/cache.tags';
+import { Idempotent } from 'src/idempotency/decorators';
 
 @ApiTags('Teams')
 @ApiBearerAuth()
@@ -42,6 +44,7 @@ export class TeamsController {
   constructor(private readonly teamsService: TeamsService) {}
 
   @Post()
+  @Idempotent(60 * 60 * 24)
   @ResponseMessage('Team created successfully.')
   @ApiOperation({ summary: 'Create a new team' })
   @ApiDataResponse(TeamDto, 'Team created successfully.')

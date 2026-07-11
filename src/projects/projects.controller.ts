@@ -32,7 +32,9 @@ import { ProjectsService } from './projects.service';
 import { ProjectMemberWithUserEntity } from './entities';
 import { PaginationDto } from 'src/common/dtos';
 import { Cache } from 'src/cache/decorators';
-import { CacheTags, requireParam } from 'src/cache/utils';
+import { requireParam } from 'src/cache/utils';
+import { CacheTags } from 'src/cache/cache.tags';
+import { Idempotent } from 'src/idempotency/decorators';
 
 @ApiTags('Projects')
 @ApiBearerAuth()
@@ -41,6 +43,7 @@ export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
 
   @Post()
+  @Idempotent(60 * 60 * 24)
   @ResponseMessage('Project created successfully.')
   @ApiOperation({ summary: 'Create a new project' })
   @ApiDataResponse(ProjectDto, 'Project created successfully.')
@@ -145,7 +148,7 @@ export class ProjectsController {
   }
 
   @Get(':id/members')
-  @Cache(30, (req) => [`project:${requireParam(req, 'id')}`])
+  @Cache(30, (req) => [CacheTags.project(requireParam(req, 'id'))])
   @ResponseMessage('Project members listed successfully.')
   @ApiOperation({ summary: 'List project members' })
   @ApiPaginatedDataResponse(ProjectMemberWithUserEntity, 'Project members listed successfully.')

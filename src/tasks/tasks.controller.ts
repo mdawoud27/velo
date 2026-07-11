@@ -31,7 +31,9 @@ import {
 } from './dtos';
 import { CurrentUser } from 'src/auth/decorators';
 import { Cache } from 'src/cache/decorators';
-import { CacheTags, requireParam } from 'src/cache/utils';
+import { requireParam } from 'src/cache/utils';
+import { Idempotent } from 'src/idempotency/decorators';
+import { CacheTags } from 'src/cache/cache.tags';
 
 @ApiTags('Tasks')
 @ApiBearerAuth()
@@ -40,6 +42,7 @@ export class TasksController {
   constructor(private readonly tasksService: TasksService) {}
 
   @Post()
+  @Idempotent(60 * 60 * 24)
   @ResponseMessage('Task created successfully.')
   @ApiOperation({ summary: 'Create a new task' })
   @ApiDataResponse(TaskDto, 'Task created successfully.')
