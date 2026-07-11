@@ -32,6 +32,10 @@ import {
 import { PaginationDto } from 'src/common/dtos';
 import { OrgRole } from '@prisma/client';
 import { TeamMemberWithUserEntity } from './entities';
+import { Cache } from 'src/cache/decorators';
+import { requireParam } from 'src/cache/utils';
+import { CacheTags } from 'src/cache/cache.tags';
+import { Idempotent } from 'src/idempotency/decorators';
 
 @ApiTags('Teams')
 @ApiBearerAuth()
@@ -40,6 +44,7 @@ export class TeamsController {
   constructor(private readonly teamsService: TeamsService) {}
 
   @Post()
+  @Idempotent(60 * 60 * 24)
   @ResponseMessage('Team created successfully.')
   @ApiOperation({ summary: 'Create a new team' })
   @ApiDataResponse(TeamDto, 'Team created successfully.')
@@ -53,6 +58,7 @@ export class TeamsController {
   }
 
   @Get()
+  @Cache(30, (req) => [CacheTags.org(requireParam(req, 'orgId'))])
   @ResponseMessage('Teams listed successfully.')
   @ApiOperation({ summary: 'List all teams in organization' })
   @ApiPaginatedDataResponse(TeamDto, 'Teams listed successfully.')
@@ -66,6 +72,7 @@ export class TeamsController {
   }
 
   @Get(':id')
+  @Cache(60, (req) => [CacheTags.team(requireParam(req, 'id'))])
   @ResponseMessage('Team fetched successfully.')
   @ApiOperation({ summary: 'Get team details' })
   @ApiDataResponse(TeamDto, 'Team fetched successfully.')
@@ -124,6 +131,7 @@ export class TeamsController {
   }
 
   @Get(':id/members')
+  @Cache(30, (req) => [CacheTags.team(requireParam(req, 'id'))])
   @ResponseMessage('Team members listed successfully.')
   @ApiOperation({ summary: 'List team members' })
   @ApiPaginatedDataResponse(TeamMemberWithUserEntity, 'Team members listed successfully.')

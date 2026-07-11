@@ -14,12 +14,14 @@ import { buildPaginationMeta } from 'src/common/utils';
 import { PaginationDto } from 'src/common/dtos';
 import { assertProjectWritable } from 'src/common/helpers/project-guard.helper';
 import { ActivityService } from 'src/activity/activity.service';
+import { CacheService } from 'src/cache/cache.service';
 
 @Injectable()
 export class ProjectsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly activity: ActivityService,
+    private readonly cache: CacheService,
   ) {}
 
   async createProject(orgId: string, teamId: string, dto: CreateProjectDto, actorId: string) {
@@ -53,6 +55,8 @@ export class ProjectsService {
       orgId,
       projectId: project.id,
     });
+
+    void this.cache.invalidateTeamCache(teamId).catch(() => {});
 
     return new ProjectEntity(project);
   }
@@ -117,6 +121,11 @@ export class ProjectsService {
       metadata: { fields: Object.keys(dto) },
     });
 
+    await Promise.all([
+      this.cache.invalidateProjectCache(project.id),
+      this.cache.invalidateTeamCache(teamId),
+    ]);
+
     return new ProjectEntity(project);
   }
 
@@ -155,6 +164,11 @@ export class ProjectsService {
       },
     });
 
+    await Promise.all([
+      this.cache.invalidateProjectCache(updated.id),
+      this.cache.invalidateTeamCache(teamId),
+    ]);
+
     return new ProjectEntity(updated);
   }
 
@@ -183,6 +197,11 @@ export class ProjectsService {
       orgId,
       projectId: project.id,
     });
+
+    await Promise.all([
+      this.cache.invalidateProjectCache(project.id),
+      this.cache.invalidateTeamCache(teamId),
+    ]);
   }
 
   async addMember(
@@ -227,6 +246,8 @@ export class ProjectsService {
         userId: dto.userId,
       },
     });
+
+    void this.cache.invalidateProjectCache(projectId).catch(() => {});
 
     return new ProjectMemberEntity(member);
   }
@@ -292,6 +313,11 @@ export class ProjectsService {
         userId: dto.userId,
       },
     });
+
+    await Promise.all([
+      this.cache.invalidateProjectCache(projectId),
+      this.cache.invalidateUserCache(dto.userId),
+    ]);
   }
 
   private async findActiveUser(userId: string): Promise<User> {

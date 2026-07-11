@@ -27,6 +27,10 @@ import {
   ResponseMessage,
 } from 'src/common/decorators';
 import { PaginationDto } from 'src/common/dtos';
+import { Cache } from 'src/cache/decorators';
+import { requireParam } from 'src/cache/utils';
+import { CacheTags } from 'src/cache/cache.tags';
+import { Idempotent } from 'src/idempotency/decorators';
 
 @ApiTags('Organizations')
 @ApiBearerAuth()
@@ -35,6 +39,7 @@ export class OrganizationsController {
   constructor(private readonly orgService: OrganizationsService) {}
 
   @Post()
+  @Idempotent(60 * 60 * 24)
   @ResponseMessage('Organization created successfully.')
   @ApiOperation({ summary: 'Create a new organization' })
   @ApiDataResponse(OrgDto, 'Organization created successfully.')
@@ -44,6 +49,7 @@ export class OrganizationsController {
   }
 
   @Post(':orgId/invite')
+  @Idempotent(60 * 60 * 24)
   @ResponseMessage('Invitation sent successfully.')
   @ApiOperation({ summary: 'Invite a new member to the organization.' })
   @ApiMessageResponse('Invitation sent successfully.', 201)
@@ -98,6 +104,7 @@ export class OrganizationsController {
   }
 
   @Get(':orgId/invitations')
+  @Cache(15, (req) => [CacheTags.org(requireParam(req, 'orgId'))])
   @ResponseMessage('Invitations listed successfully.')
   @ApiOperation({ summary: 'List invitations to the organization.' })
   @ApiPaginatedDataResponse(OrgDto, 'Invitations listed successfully.')

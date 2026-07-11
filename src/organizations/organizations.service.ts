@@ -15,6 +15,7 @@ import { ConfigService } from '@nestjs/config';
 import { buildPaginationMeta } from 'src/common/utils';
 import { PaginationDto } from 'src/common/dtos';
 import { ActivityService } from 'src/activity/activity.service';
+import { CacheService } from 'src/cache/cache.service';
 
 export enum OrgRole {
   OWNER = 'OWNER',
@@ -29,6 +30,7 @@ export class OrganizationsService {
     private readonly emailQueue: EmailQueueService,
     private readonly config: ConfigService,
     private readonly activity: ActivityService,
+    private readonly cache: CacheService,
   ) {}
 
   async createOrganization(dto: CreateOrganizationDto, userId: string) {
@@ -97,6 +99,8 @@ export class OrganizationsService {
       orgId,
       metadata: { role: dto.role ?? OrgRole.MEMBER },
     });
+
+    void this.cache.invalidateOrganizationCache(orgId).catch(() => {});
   }
 
   async resendInvite(orgId: string, dto: InviteDto, actorId: string) {
@@ -146,6 +150,8 @@ export class OrganizationsService {
       orgId,
       metadata: { role: existingInvitation.role },
     });
+
+    void this.cache.invalidateOrganizationCache(orgId).catch(() => {});
   }
 
   async acceptInvitation(orgId: string, dto: AcceptInviteDto, userId: string) {
@@ -154,6 +160,11 @@ export class OrganizationsService {
       include: { org: { select: { plan: true, deletedAt: true } } },
     });
     if (!invite) throw new ResourceNotFoundException('Invitation', dto.token);
+
+    if (invite.orgId !== orgId) {
+      throw new ResourceNotFoundException('Invitation', dto.token);
+    }
+
     if (invite.org.deletedAt) {
       throw new DomainException(
         HttpStatus.GONE,
@@ -195,6 +206,8 @@ export class OrganizationsService {
       orgId: invite.orgId,
       metadata: { role: invite.role },
     });
+
+    void this.cache.invalidateOrganizationCache(orgId).catch(() => {});
   }
 
   async declineInvitation(orgId: string, dto: DeclineInviteDto, userId: string): Promise<void> {
@@ -207,6 +220,10 @@ export class OrganizationsService {
       include: { org: { select: { plan: true, deletedAt: true } } },
     });
     if (!invite) throw new ResourceNotFoundException('Invitation', dto.token);
+
+    if (invite.orgId !== orgId) {
+      throw new ResourceNotFoundException('Invitation', dto.token);
+    }
 
     if (invite.org.deletedAt) {
       throw new DomainException(
@@ -231,6 +248,8 @@ export class OrganizationsService {
       actorId: userId,
       orgId,
     });
+
+    void this.cache.invalidateOrganizationCache(orgId).catch(() => {});
   }
 
   async listInvitations(orgId: string, userId: string, dto: PaginationDto) {

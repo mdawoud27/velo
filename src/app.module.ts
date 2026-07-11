@@ -20,6 +20,7 @@ import { TeamsModule } from './teams/teams.module';
 import { ProjectsModule } from './projects/projects.module';
 import { ActivityModule } from './activity/activity.module';
 import { TasksModule } from './tasks/tasks.module';
+import { CacheModule } from './cache/cache.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { TasksModule } from './tasks/tasks.module';
     ProjectsModule,
     ActivityModule,
     TasksModule,
+    CacheModule,
   ],
   controllers: [AppController],
   providers: [

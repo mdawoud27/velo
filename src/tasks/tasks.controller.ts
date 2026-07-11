@@ -30,6 +30,10 @@ import {
   UpdateTaskStatusDto,
 } from './dtos';
 import { CurrentUser } from 'src/auth/decorators';
+import { Cache } from 'src/cache/decorators';
+import { requireParam } from 'src/cache/utils';
+import { Idempotent } from 'src/idempotency/decorators';
+import { CacheTags } from 'src/cache/cache.tags';
 
 @ApiTags('Tasks')
 @ApiBearerAuth()
@@ -38,6 +42,7 @@ export class TasksController {
   constructor(private readonly tasksService: TasksService) {}
 
   @Post()
+  @Idempotent(60 * 60 * 24)
   @ResponseMessage('Task created successfully.')
   @ApiOperation({ summary: 'Create a new task' })
   @ApiDataResponse(TaskDto, 'Task created successfully.')
@@ -53,6 +58,10 @@ export class TasksController {
   }
 
   @Get()
+  @Cache(20, (req) => [
+    CacheTags.project(requireParam(req, 'projectId')),
+    CacheTags.team(requireParam(req, 'teamId')),
+  ])
   @ResponseMessage('Tasks listed successfully.')
   @ApiOperation({ summary: 'List and filter tasks in a project' })
   @ApiPaginatedDataResponse(TaskDto, 'Tasks listed successfully.')
@@ -88,6 +97,11 @@ export class TasksController {
   }
 
   @Get(':id')
+  @Cache(60, (req) => [
+    CacheTags.task(requireParam(req, 'id')),
+    CacheTags.project(requireParam(req, 'projectId')),
+    CacheTags.team(requireParam(req, 'teamId')),
+  ])
   @ResponseMessage('Task fetched successfully.')
   @ApiOperation({ summary: 'Get task details' })
   @ApiDataResponse(TaskDto, 'Task fetched successfully.')

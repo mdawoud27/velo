@@ -40,8 +40,9 @@ export class RedisService implements OnModuleDestroy {
     return await this.client.getex(key, 'EX', ttl);
   }
 
-  async del(key: string): Promise<void> {
-    await this.client.del(key);
+  async del(...keys: string[]): Promise<number> {
+    if (keys.length === 0) return 0;
+    return this.client.del(...keys);
   }
 
   async incr(key: string): Promise<number> {
@@ -52,9 +53,14 @@ export class RedisService implements OnModuleDestroy {
     return await this.client.exists(key);
   }
 
-  async expire(key: string, ttl: number): Promise<number> {
+  async expire(key: string, ttl: number, mode?: 'NX' | 'XX' | 'GT' | 'LT'): Promise<number> {
     this.validateTtl(ttl);
-    return await this.client.expire(key, ttl);
+
+    if (!mode) {
+      return this.client.expire(key, ttl);
+    }
+
+    return Number(await this.client.call('EXPIRE', key, ttl.toString(), mode));
   }
 
   async ttl(key: string): Promise<number> {
@@ -89,6 +95,34 @@ export class RedisService implements OnModuleDestroy {
     `;
     const result = await this.client.eval(script, 1, `lock:${resource}`, token);
     return result === 1;
+  }
+
+  async deleteByPattern(pattern: string): Promise<void> {
+    let cursor = '0';
+
+    do {
+      const [nextCursor, keys] = await this.client.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+
+      if (keys.length > 0) {
+        await this.client.del(...keys);
+      }
+
+      cursor = nextCursor;
+    } while (cursor !== '0');
+  }
+
+  async sadd(key: string, member: string): Promise<number> {
+    return this.client.sadd(key, member);
+  }
+
+  async smembers(key: string): Promise<string[]> {
+    return this.client.smembers(key);
+  }
+
+  async setNx(key: string, value: string, ttlSeconds: number): Promise<boolean> {
+    this.validateTtl(ttlSeconds);
+    const result = await this.client.set(key, value, 'EX', ttlSeconds, 'NX');
+    return result === 'OK';
   }
 
   private validateTtl(ttl: number): void {

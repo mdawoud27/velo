@@ -12,6 +12,7 @@ import { RedisService } from 'src/redis/redis.service';
 import type { NotifPreferences, UploadedFile } from './types';
 import { NotifPreferencesDto, UpdateAccountDto, UpdatePasswordDto } from './dtos';
 import { ActivityService } from 'src/activity/activity.service';
+import { CacheService } from 'src/cache/cache.service';
 
 type AccessPayload = JwtPayload & { exp?: number };
 
@@ -24,6 +25,7 @@ export class UsersService {
     private readonly cloudinary: CloudinaryService,
     private readonly logger: LoggerService,
     private readonly activity: ActivityService,
+    private readonly cache: CacheService,
   ) {}
 
   async findMe(userId: string): Promise<UserEntity> {
@@ -60,6 +62,8 @@ export class UsersService {
       metadata: { fields: Object.keys(dto) },
     });
 
+    void this.cache.invalidateUserCache(userId).catch(() => {});
+
     return new UserEntity(user);
   }
 
@@ -79,6 +83,8 @@ export class UsersService {
       entityId: userId,
       actorId: userId,
     });
+
+    void this.cache.invalidateUserCache(userId).catch(() => {});
 
     return new UserEntity(user);
   }
@@ -102,6 +108,8 @@ export class UsersService {
 
     await this.tokensService.revokeRefreshToken(user.id);
     await this.blacklistAccessToken(payload);
+
+    void this.cache.invalidateUserCache(user.id).catch(() => {});
 
     this.activity.log({
       action: 'user.password.updated',
@@ -134,6 +142,9 @@ export class UsersService {
 
     await this.deleteAvatarBestEffort(user.id, user.avatarUrl);
 
+    // await this.cache.invalidateUserCache(user.id);
+    void this.cache.invalidateUserCache(user.id).catch(() => {});
+
     this.activity.log({
       action: 'user.deleted',
       entityType: 'User',
@@ -153,6 +164,8 @@ export class UsersService {
 
     await this.deleteAvatarBestEffort(userId, user.avatarUrl);
 
+    void this.cache.invalidateUserCache(userId).catch(() => {});
+
     this.activity.log({
       action: 'user.avatar.uploaded',
       entityType: 'User',
@@ -171,6 +184,8 @@ export class UsersService {
     });
 
     await this.deleteAvatarBestEffort(userId, user.avatarUrl);
+
+    void this.cache.invalidateUserCache(userId).catch(() => {});
 
     this.activity.log({
       action: 'user.avatar.deleted',
