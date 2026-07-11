@@ -31,6 +31,8 @@ import {
 import { ProjectsService } from './projects.service';
 import { ProjectMemberWithUserEntity } from './entities';
 import { PaginationDto } from 'src/common/dtos';
+import { Cache } from 'src/cache/decorators';
+import { CacheTags, requireParam } from 'src/cache/utils';
 
 @ApiTags('Projects')
 @ApiBearerAuth()
@@ -53,6 +55,7 @@ export class ProjectsController {
   }
 
   @Get()
+  @Cache(30, (req) => [CacheTags.team(requireParam(req, 'teamId'))])
   @ResponseMessage('Projects listed successfully.')
   @ApiOperation({ summary: 'List all projects in a team' })
   @ApiPaginatedDataResponse(ProjectDto, 'Projects listed successfully.')
@@ -67,6 +70,7 @@ export class ProjectsController {
   }
 
   @Get(':id')
+  @Cache(60, (req) => [CacheTags.project(requireParam(req, 'id'))])
   @ResponseMessage('Project fetched successfully.')
   @ApiOperation({ summary: 'Get project details' })
   @ApiDataResponse(ProjectDto, 'Project fetched successfully.')
@@ -141,6 +145,7 @@ export class ProjectsController {
   }
 
   @Get(':id/members')
+  @Cache(30, (req) => [`project:${requireParam(req, 'id')}`])
   @ResponseMessage('Project members listed successfully.')
   @ApiOperation({ summary: 'List project members' })
   @ApiPaginatedDataResponse(ProjectMemberWithUserEntity, 'Project members listed successfully.')
