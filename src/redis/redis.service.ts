@@ -113,6 +113,12 @@ export class RedisService implements OnModuleDestroy {
   async smembers(key: string): Promise<string[]> {
     return this.client.smembers(key);
   }
+
+  async setNx(key: string, value: string, ttlSeconds: number): Promise<boolean> {
+    const result = await this.client.set(key, value, 'EX', ttlSeconds, 'NX');
+    return result === 'OK';
+  }
+
   private validateTtl(ttl: number): void {
     if (!Number.isInteger(ttl) || ttl <= 0) {
       throw new Error(`Invalid TTL: must be a positive integer, got ${ttl}`);
