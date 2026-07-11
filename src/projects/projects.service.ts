@@ -1,5 +1,5 @@
 import { ConflictException, ForbiddenException, Injectable } from '@nestjs/common';
-import { OrgRole, Prisma, ProjectStatus, TeamRole, User } from '@prisma/client';
+import { OrgRole, Prisma, ProjectStatus, TaskStatus, TeamRole, User } from '@prisma/client';
 import { BannedUserException, ResourceNotFoundException } from 'src/common/exceptions';
 import { PrismaService } from 'src/prisma/prisma.service';
 import {
@@ -16,7 +16,7 @@ import { assertProjectWritable } from 'src/common/helpers/project-guard.helper';
 import { ActivityService } from 'src/activity/activity.service';
 import { CacheService } from 'src/cache/cache.service';
 import { RedisService } from 'src/redis/redis.service';
-import { KanbanBoard } from './interfaces';
+import { KanbanBoard, ProjectSummary } from './interfaces';
 
 @Injectable()
 export class ProjectsService {
@@ -361,6 +361,53 @@ export class ProjectsService {
     await this.redis.setJson(cacheKey, board, 30);
 
     return board;
+  }
+
+  async getSummary(
+    projectId: string,
+    teamId: string,
+    orgId: string,
+    actorId: string,
+  ): Promise<ProjectSummary> {
+    await this.assertActorIsOrgMember(orgId, actorId);
+    await this.getProjectOrThrow(projectId, teamId, orgId);
+
+    const now = new Date();
+
+    const statusCountsQuery = this.prisma.task.groupBy({
+      by: ['status'],
+      where: { projectId, deletedAt: null },
+      orderBy: { status: 'asc' },
+      _count: true,
+    });
+
+    const overdueCountQuery = this.prisma.task.count({
+      where: {
+        projectId,
+        deletedAt: null,
+        dueDate: { lt: now },
+        status: { not: TaskStatus.DONE },
+      },
+    });
+
+    const [statusCounts, overdueCount] = await this.prisma.$transaction([
+      statusCountsQuery,
+      overdueCountQuery,
+    ]);
+
+    const summary: ProjectSummary = {
+      TODO: 0,
+      IN_PROGRESS: 0,
+      IN_REVIEW: 0,
+      DONE: 0,
+      overdue: overdueCount,
+    };
+
+    for (const row of statusCounts) {
+      summary[row.status] = row._count;
+    }
+
+    return summary;
   }
 
   private async findActiveUser(userId: string): Promise<User> {
