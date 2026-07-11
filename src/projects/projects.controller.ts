@@ -25,6 +25,7 @@ import {
   ListProjectsDto,
   ProjectDto,
   ProjectMemberDto,
+  ProjectSummaryDto,
   UpdateProjectDto,
   UpdateProjectStatusDto,
 } from './dtos';
@@ -183,5 +184,41 @@ export class ProjectsController {
     @CurrentUser('sub') actorId: string,
   ) {
     return this.projectsService.removeMember(id, teamId, orgId, dto, actorId);
+  }
+
+  @Get(':id/board')
+  @Cache(30, (req) => [
+    CacheTags.project(requireParam(req, 'id')),
+    CacheTags.team(requireParam(req, 'teamId')),
+  ])
+  @ResponseMessage('Project board fetched successfully.')
+  @ApiOperation({ summary: 'Get project Kanban board' })
+  @ApiDataResponse(Object, 'Project board fetched successfully.')
+  @ApiErrorResponses(401, 403, 404)
+  async getBoard(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Param('teamId', ParseUUIDPipe) teamId: string,
+    @Param('id', ParseUUIDPipe) projectId: string,
+    @CurrentUser('sub') actorId: string,
+  ) {
+    return this.projectsService.getBoard(projectId, teamId, orgId, actorId);
+  }
+
+  @Get(':id/summary')
+  @Cache(30, (req) => [
+    CacheTags.project(requireParam(req, 'id')),
+    CacheTags.team(requireParam(req, 'teamId')),
+  ])
+  @ResponseMessage('Project summary fetched successfully.')
+  @ApiOperation({ summary: 'Get project task summary' })
+  @ApiDataResponse(ProjectSummaryDto, 'Project summary fetched successfully.')
+  @ApiErrorResponses(401, 403, 404)
+  async getSummary(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Param('teamId', ParseUUIDPipe) teamId: string,
+    @Param('id', ParseUUIDPipe) projectId: string,
+    @CurrentUser('sub') actorId: string,
+  ) {
+    return this.projectsService.getSummary(projectId, teamId, orgId, actorId);
   }
 }

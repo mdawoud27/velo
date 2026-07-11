@@ -21,6 +21,7 @@ import { ProjectsModule } from './projects/projects.module';
 import { ActivityModule } from './activity/activity.module';
 import { TasksModule } from './tasks/tasks.module';
 import { CacheModule } from './cache/cache.module';
+import { IdempotencyModule } from './idempotency/idempotency.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { CacheModule } from './cache/cache.module';
     ActivityModule,
     TasksModule,
     CacheModule,
+    IdempotencyModule,
   ],
   controllers: [AppController],
   providers: [

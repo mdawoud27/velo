@@ -142,7 +142,6 @@ export class UsersService {
 
     await this.deleteAvatarBestEffort(user.id, user.avatarUrl);
 
-    // await this.cache.invalidateUserCache(user.id);
     void this.cache.invalidateUserCache(user.id).catch(() => {});
 
     this.activity.log({
