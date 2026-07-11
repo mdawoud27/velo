@@ -32,6 +32,8 @@ import {
 import { PaginationDto } from 'src/common/dtos';
 import { OrgRole } from '@prisma/client';
 import { TeamMemberWithUserEntity } from './entities';
+import { Cache } from 'src/cache/decorators';
+import { CacheTags, requireParam } from 'src/cache/utils';
 
 @ApiTags('Teams')
 @ApiBearerAuth()
@@ -53,6 +55,7 @@ export class TeamsController {
   }
 
   @Get()
+  @Cache(30, (req) => [CacheTags.org(requireParam(req, 'orgId'))])
   @ResponseMessage('Teams listed successfully.')
   @ApiOperation({ summary: 'List all teams in organization' })
   @ApiPaginatedDataResponse(TeamDto, 'Teams listed successfully.')
@@ -66,6 +69,7 @@ export class TeamsController {
   }
 
   @Get(':id')
+  @Cache(60, (req) => [CacheTags.team(requireParam(req, 'id'))])
   @ResponseMessage('Team fetched successfully.')
   @ApiOperation({ summary: 'Get team details' })
   @ApiDataResponse(TeamDto, 'Team fetched successfully.')
@@ -124,6 +128,7 @@ export class TeamsController {
   }
 
   @Get(':id/members')
+  @Cache(30, (req) => [CacheTags.team(requireParam(req, 'id'))])
   @ResponseMessage('Team members listed successfully.')
   @ApiOperation({ summary: 'List team members' })
   @ApiPaginatedDataResponse(TeamMemberWithUserEntity, 'Team members listed successfully.')

@@ -7,12 +7,14 @@ import { TeamEntity, TeamMemberEntity, TeamMemberWithUserEntity } from './entiti
 import { buildPaginationMeta } from 'src/common/utils';
 import { PaginationDto } from 'src/common/dtos';
 import { ActivityService } from 'src/activity/activity.service';
+import { CacheService } from 'src/cache/cache.service';
 
 @Injectable()
 export class TeamsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly activity: ActivityService,
+    private readonly cache: CacheService,
   ) {}
 
   async createTeam(orgId: string, dto: CreateTeamDto, actorId: string) {
@@ -33,6 +35,8 @@ export class TeamsService {
       orgId,
       metadata: { name: team.name },
     });
+
+    void this.cache.invalidateOrganizationCache(orgId).catch(() => {});
 
     return new TeamEntity(team);
   }
@@ -60,6 +64,11 @@ export class TeamsService {
       metadata: { fields: Object.keys(dto) },
     });
 
+    await Promise.all([
+      this.cache.invalidateTeamCache(teamId),
+      this.cache.invalidateOrganizationCache(orgId),
+    ]);
+
     return new TeamEntity(team);
   }
 
@@ -79,6 +88,11 @@ export class TeamsService {
       actorId,
       orgId,
     });
+
+    await Promise.all([
+      this.cache.invalidateTeamCache(teamId),
+      this.cache.invalidateOrganizationCache(orgId),
+    ]);
   }
 
   async listTeams(orgId: string, dto: PaginationDto, actorId: string) {
@@ -139,6 +153,8 @@ export class TeamsService {
       metadata: { userId: dto.userId, role: dto.role ?? TeamRole.MEMBER },
     });
 
+    void this.cache.invalidateTeamCache(teamId).catch(() => {});
+
     return new TeamMemberEntity(member);
   }
 
@@ -176,6 +192,8 @@ export class TeamsService {
       metadata: { userId, role: dto.role },
     });
 
+    void this.cache.invalidateTeamCache(teamId).catch(() => {});
+
     return new TeamMemberEntity(member);
   }
 
@@ -203,6 +221,8 @@ export class TeamsService {
       orgId,
       metadata: { userId },
     });
+
+    await this.cache.invalidateUserCache(userId);
   }
 
   async listMembers(teamId: string, orgId: string, dto: PaginationDto, actorId: string) {
