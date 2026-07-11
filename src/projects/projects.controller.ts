@@ -73,7 +73,10 @@ export class ProjectsController {
   }
 
   @Get(':id')
-  @Cache(60, (req) => [CacheTags.project(requireParam(req, 'id'))])
+  @Cache(60, (req) => [
+    CacheTags.project(requireParam(req, 'id')),
+    CacheTags.team(requireParam(req, 'teamId')),
+  ])
   @ResponseMessage('Project fetched successfully.')
   @ApiOperation({ summary: 'Get project details' })
   @ApiDataResponse(ProjectDto, 'Project fetched successfully.')
@@ -148,7 +151,10 @@ export class ProjectsController {
   }
 
   @Get(':id/members')
-  @Cache(30, (req) => [CacheTags.project(requireParam(req, 'id'))])
+  @Cache(30, (req) => [
+    CacheTags.project(requireParam(req, 'id')),
+    CacheTags.team(requireParam(req, 'teamId')),
+  ])
   @ResponseMessage('Project members listed successfully.')
   @ApiOperation({ summary: 'List project members' })
   @ApiPaginatedDataResponse(ProjectMemberWithUserEntity, 'Project members listed successfully.')

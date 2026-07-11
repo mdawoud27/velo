@@ -32,15 +32,17 @@ export class CacheService {
   private async invalidateTag(tag: string): Promise<void> {
     const indexKey = `${CACHE_INDEX_PREFIX}:${tag}`;
 
-    const members = await this.redis.smembers(indexKey);
-
-    if (members.length === 0) {
-      await this.redis.del(indexKey);
-      return;
-    }
+    const script = `
+    local members = redis.call('smembers', KEYS[1])
+    for i, key in ipairs(members) do
+      redis.call('del', key)
+    end
+    redis.call('del', KEYS[1])
+    return #members
+  `;
 
     try {
-      await this.redis.del(...members, indexKey);
+      await this.redis.eval(script, 1, indexKey);
     } catch (err) {
       this.logger.error(`Failed to invalidate tag ${tag}`, err);
       throw err;

@@ -58,7 +58,10 @@ export class TasksController {
   }
 
   @Get()
-  @Cache(20, (req) => [CacheTags.project(requireParam(req, 'projectId'))])
+  @Cache(20, (req) => [
+    CacheTags.project(requireParam(req, 'projectId')),
+    CacheTags.team(requireParam(req, 'teamId')),
+  ])
   @ResponseMessage('Tasks listed successfully.')
   @ApiOperation({ summary: 'List and filter tasks in a project' })
   @ApiPaginatedDataResponse(TaskDto, 'Tasks listed successfully.')
@@ -94,7 +97,11 @@ export class TasksController {
   }
 
   @Get(':id')
-  @Cache(60, (req) => [CacheTags.task(requireParam(req, 'id'))])
+  @Cache(60, (req) => [
+    CacheTags.task(requireParam(req, 'id')),
+    CacheTags.project(requireParam(req, 'projectId')),
+    CacheTags.team(requireParam(req, 'teamId')),
+  ])
   @ResponseMessage('Task fetched successfully.')
   @ApiOperation({ summary: 'Get task details' })
   @ApiDataResponse(TaskDto, 'Task fetched successfully.')

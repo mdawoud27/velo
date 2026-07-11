@@ -16,8 +16,9 @@ import {
   IDEMPOTENCY_TTL_KEY,
   IDEMPOTENCY_KEY_PREFIX,
   IDEMPOTENCY_LOCK_TTL_SECONDS,
-  IDEMPOTENCY_PROCESSING_MARKER,
+  IDEMPOTENCY_PROCESSING_PREFIX,
 } from '../constants';
+import { randomUUID } from 'node:crypto';
 
 interface StoredIdempotentResponse {
   statusCode: number;
@@ -44,11 +45,7 @@ export class IdempotencyInterceptor implements NestInterceptor {
     const request = context.switchToHttp().getRequest<AuthedRequest>();
     const rawKey = request.headers['idempotency-key'];
 
-    // No key supplied — this request just behaves normally, no dedup applied.
-    if (!rawKey) {
-      return next.handle();
-    }
-
+    if (!rawKey) return next.handle();
     if (Array.isArray(rawKey)) {
       throw new ConflictException('Idempotency-Key header must be a single value');
     }
@@ -58,25 +55,20 @@ export class IdempotencyInterceptor implements NestInterceptor {
 
     const existing = await this.redis.get(redisKey);
 
-    if (existing === IDEMPOTENCY_PROCESSING_MARKER) {
-      // A duplicate request arrived while the original is still running.
+    if (existing?.startsWith(IDEMPOTENCY_PROCESSING_PREFIX)) {
       throw new ConflictException('A request with this idempotency key is already being processed');
     }
 
     if (existing) {
-      // A completed response already exists — replay it verbatim, including
-      // its original status code, instead of re-running the handler.
       const stored = JSON.parse(existing) as StoredIdempotentResponse;
       context.switchToHttp().getResponse<Response>().status(stored.statusCode);
       return of(stored.body);
     }
 
-    // Atomically claim this key before doing any work. If two requests race
-    // here, only one SETNX succeeds — the loser gets a 409 instead of both
-    // proceeding to create a duplicate resource.
+    const token = randomUUID();
     const acquired = await this.redis.setNx(
       redisKey,
-      IDEMPOTENCY_PROCESSING_MARKER,
+      `${IDEMPOTENCY_PROCESSING_PREFIX}${token}`,
       IDEMPOTENCY_LOCK_TTL_SECONDS,
     );
 
@@ -94,17 +86,34 @@ export class IdempotencyInterceptor implements NestInterceptor {
           const stored: StoredIdempotentResponse = { statusCode, body };
 
           void this.redis
-            .setex(redisKey, JSON.stringify(stored), ttl)
+            .eval(
+              `if redis.call("get", KEYS[1]) == ARGV[1] then
+               return redis.call("setex", KEYS[1], ARGV[2], ARGV[3])
+             else
+               return 0
+             end`,
+              1,
+              redisKey,
+              `${IDEMPOTENCY_PROCESSING_PREFIX}${token}`,
+              String(ttl),
+              JSON.stringify(stored),
+            )
             .catch((err) =>
               this.logger.error(`Failed to persist idempotent response for ${redisKey}`, err),
             );
         },
         error: () => {
-          // The handler failed — release the lock immediately so the client
-          // can safely retry with the same key, rather than being stuck
-          // behind the lock TTL for a request that never actually succeeded.
           void this.redis
-            .del(redisKey)
+            .eval(
+              `if redis.call("get", KEYS[1]) == ARGV[1] then
+               return redis.call("del", KEYS[1])
+             else
+               return 0
+             end`,
+              1,
+              redisKey,
+              `${IDEMPOTENCY_PROCESSING_PREFIX}${token}`,
+            )
             .catch((err) =>
               this.logger.error(`Failed to release idempotency lock ${redisKey}`, err),
             );

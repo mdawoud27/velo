@@ -53,9 +53,14 @@ export class RedisService implements OnModuleDestroy {
     return await this.client.exists(key);
   }
 
-  async expire(key: string, ttl: number): Promise<number> {
+  async expire(key: string, ttl: number, mode?: 'NX' | 'XX' | 'GT' | 'LT'): Promise<number> {
     this.validateTtl(ttl);
-    return await this.client.expire(key, ttl);
+
+    if (!mode) {
+      return this.client.expire(key, ttl);
+    }
+
+    return Number(await this.client.call('EXPIRE', key, ttl.toString(), mode));
   }
 
   async ttl(key: string): Promise<number> {
@@ -115,6 +120,7 @@ export class RedisService implements OnModuleDestroy {
   }
 
   async setNx(key: string, value: string, ttlSeconds: number): Promise<boolean> {
+    this.validateTtl(ttlSeconds);
     const result = await this.client.set(key, value, 'EX', ttlSeconds, 'NX');
     return result === 'OK';
   }

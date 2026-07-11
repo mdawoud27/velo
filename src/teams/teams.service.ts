@@ -222,7 +222,10 @@ export class TeamsService {
       metadata: { userId },
     });
 
-    await this.cache.invalidateUserCache(userId);
+    await Promise.all([
+      this.cache.invalidateTeamCache(teamId),
+      this.cache.invalidateUserCache(userId),
+    ]);
   }
 
   async listMembers(teamId: string, orgId: string, dto: PaginationDto, actorId: string) {

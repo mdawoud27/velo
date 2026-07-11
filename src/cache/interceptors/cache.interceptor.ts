@@ -40,7 +40,11 @@ export class CacheInterceptor implements NestInterceptor {
 
     const cached = await this.redis.get(cacheKey);
     if (cached) {
-      return of(JSON.parse(cached));
+      try {
+        return of(JSON.parse(cached));
+      } catch {
+        this.logger.warn(`Corrupted cache entry for ${cacheKey}, treating as cache miss`);
+      }
     }
 
     const tagsResolver = this.reflector.get<CacheTagsResolver | undefined>(
@@ -89,7 +93,7 @@ export class CacheInterceptor implements NestInterceptor {
       tags.map(async (tag) => {
         const indexKey = `${CACHE_INDEX_PREFIX}:${tag}`;
         await this.redis.sadd(indexKey, cacheKey);
-        await this.redis.expire(indexKey, ttl);
+        await this.redis.expire(indexKey, ttl, 'GT');
       }),
     );
   }
