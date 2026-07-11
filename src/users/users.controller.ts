@@ -26,6 +26,7 @@ import {
 import { NotifPreferencesDto, UpdateAccountDto, UpdatePasswordDto, UserDto } from './dtos';
 import type { UploadedFile as UploadedFileType } from './types';
 import { UsersService } from './users.service';
+import { Cache } from 'src/cache/decorators';
 
 const MAX_AVATAR_SIZE = 5 * 1024 * 1024;
 const AVATAR_MIME_TYPE = /^image\/(jpeg|png|gif|webp)$/;
@@ -33,12 +34,13 @@ const AVATAR_MIME_TYPE = /^image\/(jpeg|png|gif|webp)$/;
 type AccessPayload = JwtPayload & { exp?: number };
 
 @ApiTags('Users')
-@ApiBearerAuth('access-token')
+@ApiBearerAuth()
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get('me')
+  @Cache(60)
   @ResponseMessage('User fetched successfully')
   @ApiOperation({ summary: 'Get current user' })
   @ApiDataResponse(UserDto, 'User fetched successfully')
