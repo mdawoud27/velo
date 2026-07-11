@@ -40,8 +40,9 @@ export class RedisService implements OnModuleDestroy {
     return await this.client.getex(key, 'EX', ttl);
   }
 
-  async del(key: string): Promise<void> {
-    await this.client.del(key);
+  async del(...keys: string[]): Promise<number> {
+    if (keys.length === 0) return 0;
+    return this.client.del(...keys);
   }
 
   async incr(key: string): Promise<number> {
@@ -91,6 +92,27 @@ export class RedisService implements OnModuleDestroy {
     return result === 1;
   }
 
+  async deleteByPattern(pattern: string): Promise<void> {
+    let cursor = '0';
+
+    do {
+      const [nextCursor, keys] = await this.client.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+
+      if (keys.length > 0) {
+        await this.client.del(...keys);
+      }
+
+      cursor = nextCursor;
+    } while (cursor !== '0');
+  }
+
+  async sadd(key: string, member: string): Promise<number> {
+    return this.client.sadd(key, member);
+  }
+
+  async smembers(key: string): Promise<string[]> {
+    return this.client.smembers(key);
+  }
   private validateTtl(ttl: number): void {
     if (!Number.isInteger(ttl) || ttl <= 0) {
       throw new Error(`Invalid TTL: must be a positive integer, got ${ttl}`);
