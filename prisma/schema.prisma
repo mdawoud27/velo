@@ -40,6 +40,7 @@ model User {
   notifications      Notification[]
   taskWatchers       TaskWatcher[]
   auditLogs          AuditLog[]
+  orgInvitations     OrgInvitation[]
 
   @@index([bannedAt, deletedAt])
 }
@@ -79,17 +80,20 @@ model OrgMember {
 }
 
 model OrgInvitation {
-  id        String   @id @default(uuid())
-  orgId     String
-  email     String
-  token     String   @unique
-  role      OrgRole  @default(MEMBER)
-  expiresAt DateTime
-  createdAt DateTime @default(now())
+  id          String   @id @default(uuid())
+  orgId       String
+  email       String
+  token       String   @unique
+  role        OrgRole  @default(MEMBER)
+  expiresAt   DateTime
+  invitedById String
+  createdAt   DateTime @default(now())
 
-  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  invitedBy User         @relation(fields: [invitedById], references: [id], onDelete: Cascade)
 
   @@index([orgId])
+  @@index([email])
 }
 
 model Team {
@@ -105,8 +109,8 @@ model Team {
   members  TeamMember[]
   projects Project[]
 
-  @@index([orgId])
   @@index([deletedAt])
+  @@unique([orgId, name])
 }
 
 model TeamMember {

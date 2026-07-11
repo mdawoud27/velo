@@ -17,6 +17,15 @@ function isPaginatedPayload(value: unknown): value is PaginatedPayload<unknown> 
   );
 }
 
+function isServiceMessage(value: unknown): value is ServiceMessage {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    (value as Record<string, unknown>).__type === 'ServiceMessage' &&
+    typeof (value as Record<string, unknown>).message === 'string'
+  );
+}
+
 @Injectable()
 export class ResponseInterceptor<T> implements NestInterceptor<
   T,
@@ -40,7 +49,7 @@ export class ResponseInterceptor<T> implements NestInterceptor<
           timeStyle: 'long',
         });
 
-        if (response instanceof ServiceMessage) {
+        if (isServiceMessage(response)) {
           return {
             success: true,
             data: null,

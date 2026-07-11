@@ -11,6 +11,8 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { RedisService } from 'src/redis/redis.service';
 import type { NotifPreferences, UploadedFile } from './types';
 import { NotifPreferencesDto, UpdateAccountDto, UpdatePasswordDto } from './dtos';
+import { ActivityService } from 'src/activity/activity.service';
+import { CacheService } from 'src/cache/cache.service';
 
 type AccessPayload = JwtPayload & { exp?: number };
 
@@ -22,6 +24,8 @@ export class UsersService {
     private readonly redis: RedisService,
     private readonly cloudinary: CloudinaryService,
     private readonly logger: LoggerService,
+    private readonly activity: ActivityService,
+    private readonly cache: CacheService,
   ) {}
 
   async findMe(userId: string): Promise<UserEntity> {
@@ -50,6 +54,16 @@ export class UsersService {
       data,
     });
 
+    this.activity.log({
+      action: 'user.updated',
+      entityType: 'User',
+      entityId: userId,
+      actorId: userId,
+      metadata: { fields: Object.keys(dto) },
+    });
+
+    void this.cache.invalidateUserCache(userId).catch(() => {});
+
     return new UserEntity(user);
   }
 
@@ -62,6 +76,15 @@ export class UsersService {
         notifPreferences: await this.mergeNotifPreferences(userId, patch),
       },
     });
+
+    this.activity.log({
+      action: 'user.notification_preferences.updated',
+      entityType: 'User',
+      entityId: userId,
+      actorId: userId,
+    });
+
+    void this.cache.invalidateUserCache(userId).catch(() => {});
 
     return new UserEntity(user);
   }
@@ -85,6 +108,15 @@ export class UsersService {
 
     await this.tokensService.revokeRefreshToken(user.id);
     await this.blacklistAccessToken(payload);
+
+    void this.cache.invalidateUserCache(user.id).catch(() => {});
+
+    this.activity.log({
+      action: 'user.password.updated',
+      entityType: 'User',
+      entityId: user.id,
+      actorId: user.id,
+    });
   }
 
   async softDeleteMe(payload: AccessPayload): Promise<void> {
@@ -109,6 +141,15 @@ export class UsersService {
     });
 
     await this.deleteAvatarBestEffort(user.id, user.avatarUrl);
+
+    void this.cache.invalidateUserCache(user.id).catch(() => {});
+
+    this.activity.log({
+      action: 'user.deleted',
+      entityType: 'User',
+      entityId: user.id,
+      actorId: user.id,
+    });
   }
 
   async uploadAvatar(userId: string, file: UploadedFile): Promise<UserEntity> {
@@ -122,6 +163,15 @@ export class UsersService {
 
     await this.deleteAvatarBestEffort(userId, user.avatarUrl);
 
+    void this.cache.invalidateUserCache(userId).catch(() => {});
+
+    this.activity.log({
+      action: 'user.avatar.uploaded',
+      entityType: 'User',
+      entityId: userId,
+      actorId: userId,
+    });
+
     return new UserEntity(updated);
   }
 
@@ -133,6 +183,15 @@ export class UsersService {
     });
 
     await this.deleteAvatarBestEffort(userId, user.avatarUrl);
+
+    void this.cache.invalidateUserCache(userId).catch(() => {});
+
+    this.activity.log({
+      action: 'user.avatar.deleted',
+      entityType: 'User',
+      entityId: userId,
+      actorId: userId,
+    });
 
     return new UserEntity(updated);
   }

@@ -2,7 +2,11 @@ import { NestFactory, Reflector } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { Logger } from 'nestjs-pino';
-import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
+import {
+  ClassSerializerInterceptor,
+  UnprocessableEntityException,
+  ValidationPipe,
+} from '@nestjs/common';
 import session from 'express-session';
 import helmet from 'helmet';
 import { requestIdMiddleware } from './common/middlewares';
@@ -64,6 +68,33 @@ async function bootstrap() {
       whitelist: true,
       transform: true,
       forbidNonWhitelisted: true,
+      exceptionFactory: (errors) => {
+        const flatten = (
+          errs: typeof errors,
+          parentField = '',
+        ): { field: string; message: string }[] =>
+          errs.flatMap((error) => {
+            const field = parentField ? `${parentField}.${error.property}` : error.property;
+
+            const messages = Object.values(error.constraints ?? {}).map((message) => ({
+              field,
+              message,
+            }));
+
+            const nested = error.children?.length ? flatten(error.children, field) : [];
+
+            return [...messages, ...nested];
+          });
+
+        throw new UnprocessableEntityException({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Validation failed',
+            errors: flatten(errors),
+          },
+        });
+      },
     }),
   );
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
@@ -85,6 +116,10 @@ async function bootstrap() {
     .addTag('Home', 'API root and health check')
     .addTag('Auth', 'Authentication and account management')
     .addTag('Users', 'User profile management')
+    .addTag('Organizations', 'Organization management')
+    .addTag('Teams', 'Team management')
+    .addTag('Projects', 'Project management')
+    .addTag('Tasks', 'Task management')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

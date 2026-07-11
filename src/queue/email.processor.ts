@@ -4,6 +4,7 @@ import { LoggerService } from '../logger/logger.service';
 import { MailService } from '../mail/mail.service';
 import { EMAIL_QUEUE, EmailJobType } from './constants';
 import type {
+  InvitationPayload,
   PasswordResetPayload,
   VerifyEmailPayload,
   WelcomeEmailPayload,
@@ -12,7 +13,8 @@ import type {
 type EmailJob =
   | Job<WelcomeEmailPayload, void, EmailJobType.WELCOME>
   | Job<VerifyEmailPayload, void, EmailJobType.VERIFY_EMAIL>
-  | Job<PasswordResetPayload, void, EmailJobType.PASSWORD_RESET>;
+  | Job<PasswordResetPayload, void, EmailJobType.PASSWORD_RESET>
+  | Job<InvitationPayload, void, EmailJobType.INVITATION>;
 
 @Processor(EMAIL_QUEUE)
 export class EmailProcessor extends WorkerHost {
@@ -39,6 +41,17 @@ export class EmailProcessor extends WorkerHost {
 
       case EmailJobType.PASSWORD_RESET:
         await this.mail.sendPasswordResetEmail(job.data.to, job.data.name, job.data.resetUrl);
+        break;
+
+      case EmailJobType.INVITATION:
+        await this.mail.sendInvitationEmail(
+          job.data.to,
+          job.data.orgName,
+          job.data.role,
+          job.data.inviterName,
+          job.data.invitationUrl,
+          job.data.declineInvitationUrl,
+        );
         break;
 
       default:

@@ -1,42 +1,40 @@
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException } from '@nestjs/common';
 import { Response } from 'express';
-import { ApiErrorResponse } from '../interfaces';
-import { deriveCode } from '../utils';
-import { DomainException } from '../exceptions';
-
-function extractMessage(exceptionResponse: string | object, fallback: string): string {
-  if (typeof exceptionResponse === 'string') return exceptionResponse;
-
-  const payload = exceptionResponse as Record<string, unknown>;
-  const msg = payload.message;
-
-  if (typeof msg === 'string') return msg;
-  if (Array.isArray(msg) && msg.length > 0) return String(msg[0]);
-
-  return fallback;
-}
+import { STATUS_CODE_MAP } from '../constants';
 
 @Catch(HttpException)
-export class HttpExceptionFilter implements ExceptionFilter {
-  catch(exception: HttpException, host: ArgumentsHost): void {
+export class HttpResponseFilter implements ExceptionFilter {
+  catch(exception: HttpException, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const status = exception.getStatus();
     const timestamp = new Date().toISOString();
 
-    if (exception instanceof DomainException) {
-      const payload = exception.getResponse() as Record<string, unknown>;
-      response.status(status).json({ ...payload, timestamp });
-      return;
+    const exceptionResponse = exception.getResponse();
+
+    if (
+      typeof exceptionResponse === 'object' &&
+      exceptionResponse !== null &&
+      'error' in exceptionResponse &&
+      typeof (exceptionResponse as Record<string, unknown>).error === 'object'
+    ) {
+      return response
+        .status(status)
+        .json({ ...(exceptionResponse as Record<string, unknown>), timestamp });
     }
+
+    const rawMessage =
+      typeof exceptionResponse === 'string'
+        ? exceptionResponse
+        : (exceptionResponse as Record<string, unknown>).message;
 
     response.status(status).json({
       success: false,
       error: {
-        code: deriveCode(status),
-        message: extractMessage(exception.getResponse(), exception.message),
+        code: STATUS_CODE_MAP[status] ?? 'INTERNAL_SERVER_ERROR',
+        message: typeof rawMessage === 'string' ? rawMessage : 'An error occurred',
       },
       timestamp,
-    } satisfies ApiErrorResponse);
+    });
   }
 }

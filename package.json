@@ -1,6 +1,6 @@
 {
   "name": "velo",
-  "version": "0.2.44",
+  "version": "0.3.77",
   "description": "",
   "author": "",
   "private": true,
@@ -114,6 +114,9 @@
       "**/*.(t|j)s"
     ],
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "moduleNameMapper": {
+      "^src/(.*)$": "<rootDir>/$1"
+    }
   }
 }
