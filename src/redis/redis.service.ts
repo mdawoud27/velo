@@ -125,6 +125,17 @@ export class RedisService implements OnModuleDestroy {
     return result === 'OK';
   }
 
+  async getJson<T>(key: string): Promise<T | null> {
+    const value = await this.get(key);
+    if (!value) return null;
+
+    return JSON.parse(value) as T;
+  }
+
+  async setJson(key: string, value: unknown, ttl: number): Promise<void> {
+    await this.setex(key, JSON.stringify(value), ttl);
+  }
+
   private validateTtl(ttl: number): void {
     if (!Number.isInteger(ttl) || ttl <= 0) {
       throw new Error(`Invalid TTL: must be a positive integer, got ${ttl}`);

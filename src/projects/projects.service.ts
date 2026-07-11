@@ -15,6 +15,8 @@ import { PaginationDto } from 'src/common/dtos';
 import { assertProjectWritable } from 'src/common/helpers/project-guard.helper';
 import { ActivityService } from 'src/activity/activity.service';
 import { CacheService } from 'src/cache/cache.service';
+import { RedisService } from 'src/redis/redis.service';
+import { KanbanBoard } from './interfaces';
 
 @Injectable()
 export class ProjectsService {
@@ -22,6 +24,7 @@ export class ProjectsService {
     private readonly prisma: PrismaService,
     private readonly activity: ActivityService,
     private readonly cache: CacheService,
+    private readonly redis: RedisService,
   ) {}
 
   async createProject(orgId: string, teamId: string, dto: CreateProjectDto, actorId: string) {
@@ -318,6 +321,46 @@ export class ProjectsService {
       this.cache.invalidateProjectCache(projectId),
       this.cache.invalidateUserCache(dto.userId),
     ]);
+  }
+
+  async getBoard(
+    projectId: string,
+    teamId: string,
+    orgId: string,
+    actorId: string,
+  ): Promise<KanbanBoard> {
+    await this.assertActorIsOrgMember(orgId, actorId);
+    await this.getProjectOrThrow(projectId, teamId, orgId);
+
+    const cacheKey = `cache:project-board:${projectId}`;
+
+    const cached = await this.redis.getJson<KanbanBoard>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const tasks = await this.prisma.task.findMany({
+      where: { projectId, deletedAt: null },
+      include: {
+        assignee: { select: { id: true, name: true, avatarUrl: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const board: KanbanBoard = {
+      TODO: [],
+      IN_PROGRESS: [],
+      IN_REVIEW: [],
+      DONE: [],
+    };
+
+    for (const task of tasks) {
+      board[task.status].push(task);
+    }
+
+    await this.redis.setJson(cacheKey, board, 30);
+
+    return board;
   }
 
   private async findActiveUser(userId: string): Promise<User> {

@@ -184,4 +184,22 @@ export class ProjectsController {
   ) {
     return this.projectsService.removeMember(id, teamId, orgId, dto, actorId);
   }
+
+  @Get(':id/board')
+  @Cache(30, (req) => [
+    CacheTags.project(requireParam(req, 'id')),
+    CacheTags.team(requireParam(req, 'teamId')),
+  ])
+  @ResponseMessage('Project board fetched successfully.')
+  @ApiOperation({ summary: 'Get project Kanban board' })
+  @ApiDataResponse(Object, 'Project board fetched successfully.')
+  @ApiErrorResponses(401, 403, 404)
+  async getBoard(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Param('teamId', ParseUUIDPipe) teamId: string,
+    @Param('id', ParseUUIDPipe) projectId: string,
+    @CurrentUser('sub') actorId: string,
+  ) {
+    return this.projectsService.getBoard(projectId, teamId, orgId, actorId);
+  }
 }
