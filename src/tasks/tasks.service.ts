@@ -586,15 +586,20 @@ export class TasksService {
   }
 
   private async checkAndCompleteParent(parentId: string, actorId = 'system'): Promise<void> {
-    await this.prisma.$transaction((tx) => this.tryAutoCompleteParent(tx, parentId, actorId));
+    const projectId = await this.prisma.$transaction((tx) =>
+      this.tryAutoCompleteParent(tx, parentId, actorId),
+    );
     void this.cache.invalidateTaskCache(parentId).catch(() => {});
+    if (projectId) {
+      void this.cache.invalidateProjectCache(projectId).catch(() => {});
+    }
   }
 
   private async tryAutoCompleteParent(
     tx: Prisma.TransactionClient,
     parentId: string,
     actorId: string,
-  ): Promise<void> {
+  ): Promise<string | undefined> {
     const parent = await tx.task.findUnique({ where: { id: parentId } });
     if (!parent || parent.deletedAt) return;
 
@@ -625,6 +630,8 @@ export class TasksService {
     if (updated.parentTaskId) {
       await this.tryAutoCompleteParent(tx, updated.parentTaskId, actorId);
     }
+
+    return updated.projectId;
   }
 
   private async transitionStatus(

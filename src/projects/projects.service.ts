@@ -332,13 +332,6 @@ export class ProjectsService {
     await this.assertActorIsOrgMember(orgId, actorId);
     await this.getProjectOrThrow(projectId, teamId, orgId);
 
-    const cacheKey = `cache:project-board:${projectId}`;
-
-    const cached = await this.redis.getJson<KanbanBoard>(cacheKey);
-    if (cached) {
-      return cached;
-    }
-
     const tasks = await this.prisma.task.findMany({
       where: { projectId, deletedAt: null },
       include: {
@@ -357,8 +350,6 @@ export class ProjectsService {
     for (const task of tasks) {
       board[task.status].push(task);
     }
-
-    await this.redis.setJson(cacheKey, board, 30);
 
     return board;
   }
