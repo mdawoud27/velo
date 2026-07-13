@@ -118,5 +118,12 @@
     "moduleNameMapper": {
       "^src/(.*)$": "<rootDir>/$1"
     }
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "bcryptjs",
+      "@prisma/client",
+      "prisma"
+    ]
   }
 }

@@ -5,3 +5,5 @@ allowBuilds:
   msgpackr-extract: true
   prisma: true
   unrs-resolver: true
+  packages:
+    - "."
