@@ -1,9 +1,11 @@
-allowBuilds:
-  '@nestjs/core': true
-  '@prisma/engines': true
-  '@scarf/scarf': true
-  msgpackr-extract: true
-  prisma: true
-  unrs-resolver: true
-  packages:
-    - "."
+packages:
+  - "."
+
+onlyBuiltDependencies:
+  - '@nestjs/core'
+  - '@prisma/engines'
+  - '@scarf/scarf'
+  - msgpackr-extract
+  - prisma
+  - unrs-resolver
+  
