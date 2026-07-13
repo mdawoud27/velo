@@ -6,7 +6,7 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
-    "build": "nest build",
+    "build": "prisma generate && nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
@@ -24,7 +24,8 @@
     "db:deploy": "prisma migrate deploy",
     "db:create": "prisma migrate dev",
     "db:generate": "prisma generate",
-    "db:reset": "prisma migrate reset --force"
+    "db:reset": "prisma migrate reset --force",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@nestjs-modules/mailer": "^2.3.7",
@@ -118,12 +119,5 @@
     "moduleNameMapper": {
       "^src/(.*)$": "<rootDir>/$1"
     }
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "bcryptjs",
-      "@prisma/client",
-      "prisma"
-    ]
   }
 }
