@@ -21,6 +21,9 @@ import { assertProjectWritable } from 'src/common/helpers/project-guard.helper';
 import { buildPaginationMeta } from 'src/common/utils';
 import { VALID_TRANSITIONS, USER_SUMMARY_SELECT } from './constants';
 import { CacheService } from 'src/cache/cache.service';
+import { RealtimeGateway } from 'src/realtime/realtime.gateway';
+import { NotificationsService } from 'src/notifications/notifications.service';
+import { LoggerService } from 'src/logger/logger.service';
 
 @Injectable()
 export class TasksService {
@@ -28,6 +31,9 @@ export class TasksService {
     private readonly prisma: PrismaService,
     private readonly activity: ActivityService,
     private readonly cache: CacheService,
+    private readonly gateway: RealtimeGateway,
+    private readonly notifications: NotificationsService,
+    private readonly logger: LoggerService,
   ) {}
 
   async createTask(
@@ -71,7 +77,30 @@ export class TasksService {
 
     void this.cache.invalidateProjectCache(projectId).catch(() => {});
 
-    return new TaskEntity(task);
+    const entity = new TaskEntity(task);
+
+    this.gateway.emitTaskCreated(projectId, entity);
+
+    if (task.assigneeId && task.assigneeId !== actorId) {
+      void this.notifications
+        .notify({
+          userId: task.assigneeId,
+          type: 'task.assigned',
+          title: 'You were assigned a task',
+          body: task.title,
+          entityType: 'Task',
+          entityId: task.id,
+        })
+        .catch((err: unknown) =>
+          this.logger.error(
+            'Failed to send task assignment notification',
+            err instanceof Error ? err : undefined,
+            TasksService.name,
+          ),
+        );
+    }
+
+    return entity;
   }
 
   async listTasks(
@@ -192,6 +221,25 @@ export class TasksService {
       },
     });
 
+    if (dto.assigneeId && dto.assigneeId !== task.assigneeId && dto.assigneeId !== actorId) {
+      void this.notifications
+        .notify({
+          userId: dto.assigneeId,
+          type: 'task.assigned',
+          title: 'You were assigned a task',
+          body: updated.title,
+          entityType: 'Task',
+          entityId: updated.id,
+        })
+        .catch((err: unknown) =>
+          this.logger.error(
+            'Failed to send task update notification',
+            err instanceof Error ? err : undefined,
+            TasksService.name,
+          ),
+        );
+    }
+
     if (Object.keys(rest).length > 0) {
       this.activity.log({
         action: 'task.updated',
@@ -212,7 +260,9 @@ export class TasksService {
     }
     void this.cache.invalidateTaskCache(taskId).catch(() => {});
 
-    return new TaskEntity(updated);
+    const entity = new TaskEntity(updated);
+    this.gateway.emitTaskUpdated(projectId, entity);
+    return entity;
   }
 
   async updateStatus(
@@ -230,7 +280,10 @@ export class TasksService {
     const task = await this.getTaskOrThrow(taskId, projectId);
 
     const updated = await this.transitionStatus(task, dto.status, actorId);
-    return new TaskEntity(updated);
+
+    const entity = new TaskEntity(updated);
+    this.gateway.emitTaskUpdated(projectId, entity);
+    return entity;
   }
 
   async softDeleteTask(
@@ -272,6 +325,8 @@ export class TasksService {
       this.cache.invalidateTaskCache(taskId),
       this.cache.invalidateProjectCache(projectId),
     ]);
+
+    this.gateway.emitTaskDeleted(projectId, taskId);
   }
 
   async addTags(
@@ -313,7 +368,9 @@ export class TasksService {
     void this.cache.invalidateTaskCache(taskId).catch(() => {});
     void this.cache.invalidateProjectCache(projectId).catch(() => {});
 
-    return new TaskEntity(updated);
+    const entity = new TaskEntity(updated);
+    this.gateway.emitTaskUpdated(projectId, entity);
+    return entity;
   }
 
   async removeTags(
@@ -368,7 +425,9 @@ export class TasksService {
     void this.cache.invalidateTaskCache(taskId).catch(() => {});
     void this.cache.invalidateProjectCache(projectId).catch(() => {});
 
-    return new TaskEntity(result.updated);
+    const entity = new TaskEntity(result.updated);
+    this.gateway.emitTaskUpdated(projectId, entity);
+    return entity;
   }
 
   async searchTasks(
@@ -586,12 +645,16 @@ export class TasksService {
   }
 
   private async checkAndCompleteParent(parentId: string, actorId = 'system'): Promise<void> {
-    const projectId = await this.prisma.$transaction((tx) =>
+    const completed = await this.prisma.$transaction((tx) =>
       this.tryAutoCompleteParent(tx, parentId, actorId),
     );
+
     void this.cache.invalidateTaskCache(parentId).catch(() => {});
-    if (projectId) {
-      void this.cache.invalidateProjectCache(projectId).catch(() => {});
+
+    for (const t of completed) {
+      void this.cache.invalidateTaskCache(t.id).catch(() => {});
+      void this.cache.invalidateProjectCache(t.projectId).catch(() => {});
+      this.gateway.emitTaskUpdated(t.projectId, new TaskEntity(t));
     }
   }
 
@@ -599,18 +662,18 @@ export class TasksService {
     tx: Prisma.TransactionClient,
     parentId: string,
     actorId: string,
-  ): Promise<string | undefined> {
+  ): Promise<Task[]> {
     const parent = await tx.task.findUnique({ where: { id: parentId } });
-    if (!parent || parent.deletedAt) return;
+    if (!parent || parent.deletedAt) return [];
 
-    if (!VALID_TRANSITIONS[parent.status]?.includes(TaskStatus.DONE)) return;
+    if (!VALID_TRANSITIONS[parent.status]?.includes(TaskStatus.DONE)) return [];
 
     const siblings = await tx.task.findMany({
       where: { parentTaskId: parentId, deletedAt: null },
       select: { status: true },
     });
     const allDone = siblings.length > 0 && siblings.every((s) => s.status === TaskStatus.DONE);
-    if (!allDone) return;
+    if (!allDone) return [];
 
     const updated = await tx.task.update({
       where: { id: parentId },
@@ -627,11 +690,11 @@ export class TasksService {
     });
 
     // Cascade upward: completing this parent might complete its own parent
-    if (updated.parentTaskId) {
-      await this.tryAutoCompleteParent(tx, updated.parentTaskId, actorId);
-    }
+    const cascaded = updated.parentTaskId
+      ? await this.tryAutoCompleteParent(tx, updated.parentTaskId, actorId)
+      : [];
 
-    return updated.projectId;
+    return [updated, ...cascaded];
   }
 
   private async transitionStatus(
@@ -657,6 +720,8 @@ export class TasksService {
 
     void this.cache.invalidateTaskCache(updated.id).catch(() => {});
     void this.cache.invalidateProjectCache(updated.projectId).catch(() => {});
+
+    this.gateway.emitTaskUpdated(updated.projectId, new TaskEntity(updated));
 
     if (newStatus === TaskStatus.DONE && task.parentTaskId) {
       await this.checkAndCompleteParent(task.parentTaskId);
