@@ -20,8 +20,6 @@ export class RealtimeEvictionProcessor extends WorkerHost {
 
   @OnWorkerEvent('failed')
   onFailed(job: Job<EvictFromRoomPayload> | undefined, err: Error) {
-    // All 3 attempts exhausted — this is the residual risk surfaced explicitly
-    // instead of silently disappearing into a single .catch() log line.
     this.logger.error(
       `Eviction permanently failed for user ${job?.data.userId} in room ${job?.data.room}: ${err.message}`,
     );

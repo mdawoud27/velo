@@ -121,14 +121,14 @@ export class TokensService {
   }
 
   async revokeAllSessions(userId: string): Promise<void> {
-    const ttl = this.config.getOrThrow<number>('JWT_ACCESS_EXPIRES_IN');
+    const ttlRaw = this.config.getOrThrow<string>('JWT_ACCESS_EXPIRES_IN');
+    const ttl = parseDurationToSeconds(ttlRaw);
     await this.redis.setex(
       `tokens-valid-after:${userId}`,
-      Math.floor(Date.now() / 1000).toString(),
+      (Math.floor(Date.now() / 1000) + 1).toString(),
       ttl,
     );
   }
-
   async isIssuedBeforeRevocation(userId: string, issuedAt: number): Promise<boolean> {
     const validAfter = await this.redis.get(`tokens-valid-after:${userId}`);
     return validAfter !== null && issuedAt < Number(validAfter);
