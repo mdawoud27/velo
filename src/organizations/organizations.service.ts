@@ -16,6 +16,9 @@ import { buildPaginationMeta } from 'src/common/utils';
 import { PaginationDto } from 'src/common/dtos';
 import { ActivityService } from 'src/activity/activity.service';
 import { CacheService } from 'src/cache/cache.service';
+import { RealtimeGateway } from 'src/realtime/realtime.gateway';
+import { NotificationsService } from 'src/notifications/notifications.service';
+import { LoggerService } from 'src/logger/logger.service';
 
 export enum OrgRole {
   OWNER = 'OWNER',
@@ -31,6 +34,9 @@ export class OrganizationsService {
     private readonly config: ConfigService,
     private readonly activity: ActivityService,
     private readonly cache: CacheService,
+    private readonly gateway: RealtimeGateway,
+    private readonly notifications: NotificationsService,
+    private readonly logger: LoggerService,
   ) {}
 
   async createOrganization(dto: CreateOrganizationDto, userId: string) {
@@ -49,11 +55,12 @@ export class OrganizationsService {
     });
     return new OrgEntity(org);
   }
+
   async inviteMember(orgId: string, dto: InviteDto, actorId: string) {
     const org = await this.prisma.organization.findUniqueOrThrow({ where: { id: orgId } });
     const actor = await this.findActiveUser(actorId, this.prisma);
     await this.assertActorCanManageMembers(orgId, actorId);
-    await this.assertNotAlreadyMember(orgId, dto.email);
+    const invitedUser = await this.assertNotAlreadyMember(orgId, dto.email);
 
     const existingInvitation = await this.prisma.orgInvitation.findFirst({
       where: { orgId, email: dto.email, expiresAt: { gt: new Date() } },
@@ -101,6 +108,25 @@ export class OrganizationsService {
     });
 
     void this.cache.invalidateOrganizationCache(orgId).catch(() => {});
+
+    if (invitedUser.id !== actorId) {
+      void this.notifications
+        .notify({
+          userId: invitedUser.id,
+          type: 'org.invitation.received',
+          title: 'You were invited to an organization',
+          body: org.name,
+          entityType: 'Organization',
+          entityId: orgId,
+        })
+        .catch((err: unknown) =>
+          this.logger.error(
+            'Failed to send org invitation notification',
+            err instanceof Error ? err : undefined,
+            OrganizationsService.name,
+          ),
+        );
+    }
   }
 
   async resendInvite(orgId: string, dto: InviteDto, actorId: string) {
@@ -208,6 +234,8 @@ export class OrganizationsService {
     });
 
     void this.cache.invalidateOrganizationCache(orgId).catch(() => {});
+
+    this.gateway.emitOrgMemberAdded(invite.orgId, { userId, role: invite.role });
   }
 
   async declineInvitation(orgId: string, dto: DeclineInviteDto, userId: string): Promise<void> {
@@ -250,6 +278,25 @@ export class OrganizationsService {
     });
 
     void this.cache.invalidateOrganizationCache(orgId).catch(() => {});
+
+    if (invite.invitedById !== userId) {
+      void this.notifications
+        .notify({
+          userId: invite.invitedById,
+          type: 'org.invitation.declined',
+          title: 'Your invitation was declined',
+          body: `${invite.email} declined your invitation`,
+          entityType: 'Organization',
+          entityId: orgId,
+        })
+        .catch((err: unknown) =>
+          this.logger.error(
+            'Failed to send invitation-declined notification',
+            err instanceof Error ? err : undefined,
+            OrganizationsService.name,
+          ),
+        );
+    }
   }
 
   async listInvitations(orgId: string, userId: string, dto: PaginationDto) {
@@ -307,7 +354,7 @@ export class OrganizationsService {
     }
   }
 
-  private async assertNotAlreadyMember(orgId: string, email: string): Promise<void> {
+  private async assertNotAlreadyMember(orgId: string, email: string): Promise<User> {
     const existingUser = await this.prisma.user.findUnique({ where: { email } });
     if (!existingUser) throw new ResourceNotFoundException('User', email);
 
@@ -319,5 +366,7 @@ export class OrganizationsService {
     if (alreadyMember) {
       throw new ConflictException('User is already a member of this organization.');
     }
+
+    return existingUser;
   }
 }

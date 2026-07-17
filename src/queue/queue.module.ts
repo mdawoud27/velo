@@ -3,10 +3,13 @@ import { BullModule } from '@nestjs/bullmq';
 import { ConfigService } from '@nestjs/config';
 import { Redis } from 'ioredis';
 import type { ConnectionOptions } from 'bullmq';
-import { EMAIL_QUEUE } from './constants';
+import { EMAIL_QUEUE, REALTIME_EVICTION_QUEUE } from './constants';
 import { EmailQueueService } from './email-queue.service';
 import { EmailProcessor } from './email.processor';
+import { RealtimeEvictionQueueService } from './realtime-eviction-queue.service';
+import { RealtimeEvictionProcessor } from './realtime-eviction.processor';
 import { MailModule } from 'src/mail/mail.module';
+import { RealtimeModule } from 'src/realtime/realtime.module';
 
 @Module({
   imports: [
@@ -19,10 +22,16 @@ import { MailModule } from 'src/mail/mail.module';
       }),
       inject: [ConfigService],
     }),
-    BullModule.registerQueue({ name: EMAIL_QUEUE }),
+    BullModule.registerQueue({ name: EMAIL_QUEUE }, { name: REALTIME_EVICTION_QUEUE }),
     MailModule,
+    RealtimeModule,
   ],
-  providers: [EmailQueueService, EmailProcessor],
-  exports: [EmailQueueService],
+  providers: [
+    EmailQueueService,
+    EmailProcessor,
+    RealtimeEvictionQueueService,
+    RealtimeEvictionProcessor,
+  ],
+  exports: [EmailQueueService, RealtimeEvictionQueueService],
 })
 export class QueueModule {}
