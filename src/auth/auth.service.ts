@@ -29,6 +29,8 @@ import { UserEntity } from '../users/entities';
 import { TokensService } from './tokens.service';
 import { ServiceMessage } from 'src/common/classes';
 import { ActivityService } from 'src/activity/activity.service';
+import { RealtimeGateway } from 'src/realtime/realtime.gateway';
+import { NotificationsService } from 'src/notifications/notifications.service';
 
 @Injectable()
 export class AuthService {
@@ -41,6 +43,8 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly tokensService: TokensService,
     private readonly activity: ActivityService,
+    private readonly gateway: RealtimeGateway,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async register(dto: RegistrationDto) {
@@ -295,6 +299,23 @@ export class AuthService {
       actorId: user.id.toString(),
     });
 
+    void this.notifications
+      .notify({
+        userId: user.id,
+        type: 'auth.password_reset_requested',
+        title: 'Password reset requested',
+        body: "If this wasn't you, ignore this email.",
+        entityType: 'User',
+        entityId: user.id,
+      })
+      .catch((err: unknown) =>
+        this.logger.error(
+          'Failed to send password-reset-requested notification',
+          err instanceof Error ? err : undefined,
+          AuthService.name,
+        ),
+      );
+
     return new ServiceMessage('If that account exists, a reset link has been sent');
   }
 
@@ -322,6 +343,33 @@ export class AuthService {
       entityId: userId,
       actorId: userId,
     });
+
+    void this.notifications
+      .notify({
+        userId,
+        type: 'user.password_changed',
+        title: 'Your password was changed',
+        body: "If this wasn't you, contact support immediately.",
+        entityType: 'User',
+        entityId: userId,
+      })
+      .catch((err: unknown) =>
+        this.logger.error(
+          'Failed to send password-changed notification',
+          err instanceof Error ? err : undefined,
+          AuthService.name,
+        ),
+      );
+
+    void this.gateway
+      .disconnectUser(userId, 'Password was reset')
+      .catch((err: unknown) =>
+        this.logger.error(
+          'Failed to disconnect sessions after password reset',
+          err instanceof Error ? err : undefined,
+          AuthService.name,
+        ),
+      );
   }
 
   async logout(payload: JwtPayload & { exp: number }) {
