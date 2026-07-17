@@ -8,6 +8,9 @@ import { buildPaginationMeta } from 'src/common/utils';
 import { PaginationDto } from 'src/common/dtos';
 import { ActivityService } from 'src/activity/activity.service';
 import { CacheService } from 'src/cache/cache.service';
+import { NotificationsService } from 'src/notifications/notifications.service';
+import { RealtimeGateway } from 'src/realtime/realtime.gateway';
+import { LoggerService } from 'src/logger/logger.service';
 
 @Injectable()
 export class TeamsService {
@@ -15,17 +18,15 @@ export class TeamsService {
     private readonly prisma: PrismaService,
     private readonly activity: ActivityService,
     private readonly cache: CacheService,
+    private readonly gateway: RealtimeGateway,
+    private readonly notifications: NotificationsService,
+    private readonly logger: LoggerService,
   ) {}
 
   async createTeam(orgId: string, dto: CreateTeamDto, actorId: string) {
     await this.assertActorCanManageTeams(orgId, actorId);
 
-    const team = await this.prisma.team.create({
-      data: {
-        ...dto,
-        orgId,
-      },
-    });
+    const team = await this.prisma.team.create({ data: { ...dto, orgId } });
 
     this.activity.log({
       action: 'team.created',
@@ -38,7 +39,9 @@ export class TeamsService {
 
     void this.cache.invalidateOrganizationCache(orgId).catch(() => {});
 
-    return new TeamEntity(team);
+    const entity = new TeamEntity(team);
+    this.gateway.emitTeamCreated(orgId, entity);
+    return entity;
   }
 
   async getTeam(teamId: string, orgId: string, actorId: string) {
@@ -50,10 +53,7 @@ export class TeamsService {
     await this.assertActorCanManageTeams(orgId, actorId);
     await this.getTeamOrThrow(teamId, orgId);
 
-    const team = await this.prisma.team.update({
-      where: { id: teamId },
-      data: dto,
-    });
+    const team = await this.prisma.team.update({ where: { id: teamId }, data: dto });
 
     this.activity.log({
       action: 'team.updated',
@@ -69,17 +69,16 @@ export class TeamsService {
       this.cache.invalidateOrganizationCache(orgId),
     ]);
 
-    return new TeamEntity(team);
+    const entity = new TeamEntity(team);
+    this.gateway.emitTeamUpdated(teamId, entity);
+    return entity;
   }
 
   async softDeleteTeam(teamId: string, orgId: string, actorId: string) {
     await this.assertActorCanManageTeams(orgId, actorId);
     await this.getTeamOrThrow(teamId, orgId);
 
-    await this.prisma.team.update({
-      where: { id: teamId },
-      data: { deletedAt: new Date() },
-    });
+    await this.prisma.team.update({ where: { id: teamId }, data: { deletedAt: new Date() } });
 
     this.activity.log({
       action: 'team.deleted',
@@ -93,6 +92,8 @@ export class TeamsService {
       this.cache.invalidateTeamCache(teamId),
       this.cache.invalidateOrganizationCache(orgId),
     ]);
+
+    this.gateway.emitTeamDeleted(orgId, teamId);
   }
 
   async listTeams(orgId: string, dto: PaginationDto, actorId: string) {
@@ -116,7 +117,7 @@ export class TeamsService {
 
   async addMember(teamId: string, orgId: string, dto: AddTeamMemberDto, actorId: string) {
     await this.assertActorCanManageTeams(orgId, actorId);
-    await this.getTeamOrThrow(teamId, orgId);
+    const team = await this.getTeamOrThrow(teamId, orgId);
 
     await this.findActiveUser(dto.userId);
 
@@ -137,11 +138,7 @@ export class TeamsService {
     }
 
     const member = await this.prisma.teamMember.create({
-      data: {
-        userId: dto.userId,
-        teamId,
-        role: dto.role ?? TeamRole.MEMBER,
-      },
+      data: { userId: dto.userId, teamId, role: dto.role ?? TeamRole.MEMBER },
     });
 
     this.activity.log({
@@ -155,7 +152,29 @@ export class TeamsService {
 
     void this.cache.invalidateTeamCache(teamId).catch(() => {});
 
-    return new TeamMemberEntity(member);
+    const entity = new TeamMemberEntity(member);
+    this.gateway.emitTeamMemberAdded(teamId, entity);
+
+    if (dto.userId !== actorId) {
+      void this.notifications
+        .notify({
+          userId: dto.userId,
+          type: 'team.member_added',
+          title: 'You were added to a team',
+          body: team.name,
+          entityType: 'Team',
+          entityId: teamId,
+        })
+        .catch((err: unknown) =>
+          this.logger.error(
+            'Failed to send team membership notification',
+            err instanceof Error ? err : undefined,
+            TeamsService.name,
+          ),
+        );
+    }
+
+    return entity;
   }
 
   async updateMemberRole(
@@ -166,7 +185,7 @@ export class TeamsService {
     actorId: string,
   ) {
     await this.assertActorCanManageTeams(orgId, actorId);
-    await this.getTeamOrThrow(teamId, orgId);
+    const team = await this.getTeamOrThrow(teamId, orgId);
 
     await this.findActiveUser(userId);
 
@@ -194,12 +213,34 @@ export class TeamsService {
 
     void this.cache.invalidateTeamCache(teamId).catch(() => {});
 
-    return new TeamMemberEntity(member);
+    const entity = new TeamMemberEntity(member);
+    this.gateway.emitTeamMemberUpdated(teamId, entity);
+
+    if (userId !== actorId) {
+      void this.notifications
+        .notify({
+          userId,
+          type: 'team.role_updated',
+          title: 'Your team role changed',
+          body: `${team.name}: now ${dto.role.toLowerCase()}`,
+          entityType: 'Team',
+          entityId: teamId,
+        })
+        .catch((err: unknown) =>
+          this.logger.error(
+            'Failed to send team role notification',
+            err instanceof Error ? err : undefined,
+            TeamsService.name,
+          ),
+        );
+    }
+
+    return entity;
   }
 
   async removeMember(teamId: string, orgId: string, userId: string, actorId: string) {
     await this.assertActorCanManageTeams(orgId, actorId);
-    await this.getTeamOrThrow(teamId, orgId);
+    const team = await this.getTeamOrThrow(teamId, orgId);
 
     const existingMember = await this.prisma.teamMember.findUnique({
       where: { userId_teamId: { userId, teamId } },
@@ -226,6 +267,36 @@ export class TeamsService {
       this.cache.invalidateTeamCache(teamId),
       this.cache.invalidateUserCache(userId),
     ]);
+
+    this.gateway.emitTeamMemberRemoved(teamId, userId);
+    void this.gateway
+      .evictFromRoom(userId, `team:${teamId}`, 'Removed from team')
+      .catch((err: unknown) =>
+        this.logger.error(
+          'Failed to evict removed member',
+          err instanceof Error ? err : undefined,
+          TeamsService.name,
+        ),
+      );
+
+    if (userId !== actorId) {
+      void this.notifications
+        .notify({
+          userId,
+          type: 'team.member_removed',
+          title: 'You were removed from a team',
+          body: team.name,
+          entityType: 'Team',
+          entityId: teamId,
+        })
+        .catch((err: unknown) =>
+          this.logger.error(
+            'Failed to send team membership notification',
+            err instanceof Error ? err : undefined,
+            TeamsService.name,
+          ),
+        );
+    }
   }
 
   async listMembers(teamId: string, orgId: string, dto: PaginationDto, actorId: string) {
