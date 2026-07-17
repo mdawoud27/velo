@@ -1,3 +1,6 @@
+packages:
+  - '.'
+
 allowBuilds:
   '@nestjs/core': true
   '@prisma/engines': true
@@ -5,3 +8,4 @@ allowBuilds:
   msgpackr-extract: true
   prisma: true
   unrs-resolver: true
+  bcryptjs: true

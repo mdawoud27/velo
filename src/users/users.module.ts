@@ -3,9 +3,11 @@ import { AuthModule } from 'src/auth/auth.module';
 import { CloudinaryModule } from 'src/cloudinary/cloudinary.module';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
+import { RealtimeModule } from 'src/realtime/realtime.module';
+import { NotificationsModule } from 'src/notifications/notifications.module';
 
 @Module({
-  imports: [AuthModule, CloudinaryModule],
+  imports: [AuthModule, CloudinaryModule, RealtimeModule, NotificationsModule],
   controllers: [UsersController],
   providers: [UsersService],
 })

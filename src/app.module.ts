@@ -22,9 +22,16 @@ import { ActivityModule } from './activity/activity.module';
 import { TasksModule } from './tasks/tasks.module';
 import { CacheModule } from './cache/cache.module';
 import { IdempotencyModule } from './idempotency/idempotency.module';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
+import { NotificationsModule } from './notifications/notifications.module';
+import { RealtimeModule } from './realtime/realtime.module';
 
 @Module({
   imports: [
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'public'),
+    }),
     PrismaModule,
     ConfigModule.forRoot({ isGlobal: true }),
     LoggerModule,
@@ -42,6 +49,8 @@ import { IdempotencyModule } from './idempotency/idempotency.module';
     TasksModule,
     CacheModule,
     IdempotencyModule,
+    RealtimeModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [

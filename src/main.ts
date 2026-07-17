@@ -60,7 +60,7 @@ async function bootstrap() {
   });
 
   app.setGlobalPrefix('api/v1', {
-    exclude: ['health'],
+    exclude: ['', 'health'],
   });
 
   app.useGlobalPipes(
@@ -104,6 +104,8 @@ async function bootstrap() {
   const config = new DocumentBuilder()
     .setTitle('Velo API')
     .setDescription('Production-grade project management API')
+    .addServer('http://localhost:3000', 'Development')
+    .addServer('https://velo-app.up.railway.app', 'Production')
     .setVersion('1.0')
     .addBearerAuth({
       type: 'http',

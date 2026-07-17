@@ -1,5 +1,4 @@
-import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { forwardRef, Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './strategies/jwt.strategy';
@@ -7,21 +6,17 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { QueueModule } from 'src/queue/queue.module';
 import { TokensService } from './tokens.service';
+import { RealtimeModule } from 'src/realtime/realtime.module';
+import { NotificationsModule } from 'src/notifications/notifications.module';
+import { jwtModuleAsyncOptions } from './jwt.config';
 
 @Module({
   imports: [
     PassportModule.register({ defaultStrategy: 'jwt' }),
-    JwtModule.registerAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        secret: config.getOrThrow<string>('JWT_ACCESS_SECRET'),
-        signOptions: {
-          expiresIn: config.getOrThrow<number>('JWT_ACCESS_EXPIRES_IN'),
-        },
-      }),
-    }),
-    QueueModule,
+    JwtModule.registerAsync(jwtModuleAsyncOptions),
+    forwardRef(() => QueueModule),
+    forwardRef(() => RealtimeModule),
+    NotificationsModule,
   ],
   providers: [JwtStrategy, AuthService, TokensService],
   controllers: [AuthController],

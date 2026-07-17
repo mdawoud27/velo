@@ -17,6 +17,10 @@ import { ActivityService } from 'src/activity/activity.service';
 import { CacheService } from 'src/cache/cache.service';
 import { RedisService } from 'src/redis/redis.service';
 import { KanbanBoard, ProjectSummary } from './interfaces';
+import { RealtimeGateway } from 'src/realtime/realtime.gateway';
+import { NotificationsService } from 'src/notifications/notifications.service';
+import { LoggerService } from 'src/logger/logger.service';
+import { RealtimeEvictionQueueService } from 'src/queue/realtime-eviction-queue.service';
 
 @Injectable()
 export class ProjectsService {
@@ -25,6 +29,10 @@ export class ProjectsService {
     private readonly activity: ActivityService,
     private readonly cache: CacheService,
     private readonly redis: RedisService,
+    private readonly gateway: RealtimeGateway,
+    private readonly notifications: NotificationsService,
+    private readonly logger: LoggerService,
+    private readonly realtimeEvictionQueue: RealtimeEvictionQueueService,
   ) {}
 
   async createProject(orgId: string, teamId: string, dto: CreateProjectDto, actorId: string) {
@@ -32,11 +40,7 @@ export class ProjectsService {
     await this.getTeamOrThrow(teamId, orgId);
 
     const existingProject = await this.prisma.project.findFirst({
-      where: {
-        teamId,
-        name: dto.name,
-        deletedAt: null,
-      },
+      where: { teamId, name: dto.name, deletedAt: null },
     });
     if (existingProject) {
       throw new ConflictException('Project already exists');
@@ -61,7 +65,9 @@ export class ProjectsService {
 
     void this.cache.invalidateTeamCache(teamId).catch(() => {});
 
-    return new ProjectEntity(project);
+    const entity = new ProjectEntity(project);
+    this.gateway.emitProjectCreated(teamId, entity);
+    return entity;
   }
 
   async listProjects(orgId: string, teamId: string, dto: ListProjectsDto, actorId: string) {
@@ -129,7 +135,9 @@ export class ProjectsService {
       this.cache.invalidateTeamCache(teamId),
     ]);
 
-    return new ProjectEntity(project);
+    const entity = new ProjectEntity(project);
+    this.gateway.emitProjectUpdated(project.id, entity);
+    return entity;
   }
 
   async updateProjectStatus(
@@ -172,7 +180,9 @@ export class ProjectsService {
       this.cache.invalidateTeamCache(teamId),
     ]);
 
-    return new ProjectEntity(updated);
+    const entity = new ProjectEntity(updated);
+    this.gateway.emitProjectUpdated(updated.id, entity);
+    return entity;
   }
 
   async softDeleteProject(projectId: string, teamId: string, orgId: string, actorId: string) {
@@ -205,6 +215,8 @@ export class ProjectsService {
       this.cache.invalidateProjectCache(project.id),
       this.cache.invalidateTeamCache(teamId),
     ]);
+
+    this.gateway.emitProjectDeleted(teamId, project.id);
   }
 
   async addMember(
@@ -217,7 +229,7 @@ export class ProjectsService {
     await this.assertActorCanManageProjects(orgId, teamId, actorId);
     await assertProjectWritable(this.prisma, projectId);
 
-    await this.getProjectOrThrow(projectId, teamId, orgId);
+    const project = await this.getProjectOrThrow(projectId, teamId, orgId);
     await this.findActiveUser(dto.userId);
 
     const teamMembership = await this.prisma.teamMember.findUnique({
@@ -252,7 +264,29 @@ export class ProjectsService {
 
     void this.cache.invalidateProjectCache(projectId).catch(() => {});
 
-    return new ProjectMemberEntity(member);
+    const entity = new ProjectMemberEntity(member);
+    this.gateway.emitProjectMemberAdded(projectId, entity);
+
+    if (dto.userId !== actorId) {
+      void this.notifications
+        .notify({
+          userId: dto.userId,
+          type: 'project.member_added',
+          title: 'You were added to a project',
+          body: project.name,
+          entityType: 'Project',
+          entityId: projectId,
+        })
+        .catch((err: unknown) =>
+          this.logger.error(
+            'Failed to send project membership notification',
+            err instanceof Error ? err : undefined,
+            ProjectsService.name,
+          ),
+        );
+    }
+
+    return entity;
   }
 
   async listMembers(
@@ -292,7 +326,7 @@ export class ProjectsService {
     await this.assertActorCanManageProjects(orgId, teamId, actorId);
     await assertProjectWritable(this.prisma, projectId);
 
-    await this.getProjectOrThrow(projectId, teamId, orgId);
+    const project = await this.getProjectOrThrow(projectId, teamId, orgId);
 
     const existingMember = await this.prisma.projectMember.findUnique({
       where: { userId_projectId: { userId: dto.userId, projectId } },
@@ -321,6 +355,40 @@ export class ProjectsService {
       this.cache.invalidateProjectCache(projectId),
       this.cache.invalidateUserCache(dto.userId),
     ]);
+
+    this.gateway.emitProjectMemberRemoved(projectId, dto.userId);
+    void this.realtimeEvictionQueue
+      .enqueueEviction({
+        userId: dto.userId,
+        room: `project:${projectId}`,
+        reason: 'Removed from project',
+      })
+      .catch((err: unknown) =>
+        this.logger.error(
+          'Failed to queue eviction job',
+          err instanceof Error ? err : undefined,
+          ProjectsService.name,
+        ),
+      );
+
+    if (dto.userId !== actorId) {
+      void this.notifications
+        .notify({
+          userId: dto.userId,
+          type: 'project.member_removed',
+          title: 'You were removed from a project',
+          body: project.name,
+          entityType: 'Project',
+          entityId: projectId,
+        })
+        .catch((err: unknown) =>
+          this.logger.error(
+            'Failed to send project membership notification',
+            err instanceof Error ? err : undefined,
+            ProjectsService.name,
+          ),
+        );
+    }
   }
 
   async getBoard(
