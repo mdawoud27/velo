@@ -132,6 +132,16 @@ export class UsersService {
         ),
       );
 
+    void this.tokensService
+      .revokeAllSessions(user.id)
+      .catch((err: unknown) =>
+        this.logger.error(
+          'Failed to durably revoke sessions after password change',
+          err instanceof Error ? err : undefined,
+          UsersService.name,
+        ),
+      );
+
     void this.notifications
       .notify({
         userId: user.id,
@@ -152,6 +162,25 @@ export class UsersService {
 
   async softDeleteMe(payload: AccessPayload): Promise<void> {
     const user = await this.findActiveUser(payload.sub);
+
+    void this.tokensService
+      .revokeAllSessions(user.id)
+      .catch((err: unknown) =>
+        this.logger.error(
+          'Failed to durably revoke sessions before deletion',
+          err instanceof Error ? err : undefined,
+          UsersService.name,
+        ),
+      );
+    void this.gateway
+      .disconnectUser(user.id, 'Account deleted')
+      .catch((err: unknown) =>
+        this.logger.error(
+          'Failed to disconnect sessions before deletion',
+          err instanceof Error ? err : undefined,
+          UsersService.name,
+        ),
+      );
 
     await Promise.all([
       this.tokensService.revokeRefreshToken(user.id),

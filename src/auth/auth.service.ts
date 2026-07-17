@@ -370,6 +370,16 @@ export class AuthService {
           AuthService.name,
         ),
       );
+
+    void this.tokensService
+      .revokeAllSessions(userId)
+      .catch((err: unknown) =>
+        this.logger.error(
+          'Failed to durably revoke sessions after password reset',
+          err instanceof Error ? err : undefined,
+          AuthService.name,
+        ),
+      );
   }
 
   async logout(payload: JwtPayload & { exp: number }) {

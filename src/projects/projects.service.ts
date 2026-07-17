@@ -20,6 +20,7 @@ import { KanbanBoard, ProjectSummary } from './interfaces';
 import { RealtimeGateway } from 'src/realtime/realtime.gateway';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { LoggerService } from 'src/logger/logger.service';
+import { RealtimeEvictionQueueService } from 'src/queue/realtime-eviction-queue.service';
 
 @Injectable()
 export class ProjectsService {
@@ -31,6 +32,7 @@ export class ProjectsService {
     private readonly gateway: RealtimeGateway,
     private readonly notifications: NotificationsService,
     private readonly logger: LoggerService,
+    private readonly realtimeEvictionQueue: RealtimeEvictionQueueService,
   ) {}
 
   async createProject(orgId: string, teamId: string, dto: CreateProjectDto, actorId: string) {
@@ -355,11 +357,15 @@ export class ProjectsService {
     ]);
 
     this.gateway.emitProjectMemberRemoved(projectId, dto.userId);
-    void this.gateway
-      .evictFromRoom(dto.userId, `project:${projectId}`, 'Removed from project')
+    void this.realtimeEvictionQueue
+      .enqueueEviction({
+        userId: dto.userId,
+        room: `project:${projectId}`,
+        reason: 'Removed from project',
+      })
       .catch((err: unknown) =>
         this.logger.error(
-          'Failed to evict removed member',
+          'Failed to queue eviction job',
           err instanceof Error ? err : undefined,
           ProjectsService.name,
         ),

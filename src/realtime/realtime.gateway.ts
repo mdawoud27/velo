@@ -18,6 +18,7 @@ import type { TaskEntity } from 'src/tasks/entities';
 import type { Comment } from '@prisma/client';
 import { TeamMemberEntity } from 'src/teams/entities';
 import { ProjectMemberEntity } from 'src/projects/entities';
+import { TokensService } from 'src/auth/tokens.service';
 
 @WebSocketGateway({
   cors: { origin: process.env.CLIENT_URL || 'http://localhost:3000', credentials: true },
@@ -30,26 +31,13 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly tokensService: TokensService,
   ) {}
 
   afterInit(server: Server) {
     server.use((socket: AuthenticatedSocket, next) => {
-      const token =
-        (socket.handshake.auth?.token as string | undefined) ??
-        socket.handshake.headers.authorization?.split(' ')[1];
-
-      if (!token) {
-        return next(new Error('Unauthorized'));
-      }
-
-      try {
-        socket.data.user = this.jwtService.verify<JwtPayload>(token);
-        next();
-      } catch {
-        next(new Error('Unauthorized'));
-      }
+      void this.authenticateSocket(socket, next);
     });
-
     this.logger.log('Realtime gateway initialized');
   }
 
@@ -190,7 +178,7 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
   async disconnectUser(userId: string, reason = 'Account access revoked') {
     const sockets = await this.server.in(`user:${userId}`).fetchSockets();
     for (const socket of sockets) {
-      socket.emit('force-disconnect', { reason });
+      this.server.to(socket.id).emit('force-disconnect', { reason });
       socket.disconnect(true);
     }
   }
@@ -200,7 +188,7 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
     for (const socket of sockets) {
       if (socket.rooms.has(room)) {
         socket.leave(room);
-        socket.emit('access-revoked', { room, reason });
+        this.server.to(socket.id).emit('access-revoked', { room, reason });
       }
     }
   }
@@ -230,6 +218,33 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
     });
     if (!membership) {
       throw new WsException('You are not a member of this project');
+    }
+  }
+
+  private async authenticateSocket(
+    socket: AuthenticatedSocket,
+    next: (err?: Error) => void,
+  ): Promise<void> {
+    const token =
+      (socket.handshake.auth?.token as string | undefined) ??
+      socket.handshake.headers.authorization?.split(' ')[1];
+
+    if (!token) {
+      next(new Error('Unauthorized'));
+      return;
+    }
+
+    try {
+      const payload = this.jwtService.verify<JwtPayload & { iat: number }>(token);
+      const revoked = await this.tokensService.isIssuedBeforeRevocation(payload.sub, payload.iat);
+      if (revoked) {
+        next(new Error('Unauthorized'));
+        return;
+      }
+      socket.data.user = payload;
+      next();
+    } catch {
+      next(new Error('Unauthorized'));
     }
   }
 }

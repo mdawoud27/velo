@@ -120,6 +120,20 @@ export class TokensService {
     await this.redis.del(`refresh:${userId}`);
   }
 
+  async revokeAllSessions(userId: string): Promise<void> {
+    const ttl = this.config.getOrThrow<number>('JWT_ACCESS_EXPIRES_IN');
+    await this.redis.setex(
+      `tokens-valid-after:${userId}`,
+      Math.floor(Date.now() / 1000).toString(),
+      ttl,
+    );
+  }
+
+  async isIssuedBeforeRevocation(userId: string, issuedAt: number): Promise<boolean> {
+    const validAfter = await this.redis.get(`tokens-valid-after:${userId}`);
+    return validAfter !== null && issuedAt < Number(validAfter);
+  }
+
   private async storeRefreshToken(userId: string, refreshToken: string): Promise<void> {
     const hash = await bcrypt.hash(this.toSafeHash(refreshToken), 12);
     const data: StoredRefreshToken = { hash, nonce: uuidv4() };

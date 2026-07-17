@@ -11,6 +11,7 @@ import { CacheService } from 'src/cache/cache.service';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { RealtimeGateway } from 'src/realtime/realtime.gateway';
 import { LoggerService } from 'src/logger/logger.service';
+import { RealtimeEvictionQueueService } from 'src/queue/realtime-eviction-queue.service';
 
 @Injectable()
 export class TeamsService {
@@ -21,6 +22,7 @@ export class TeamsService {
     private readonly gateway: RealtimeGateway,
     private readonly notifications: NotificationsService,
     private readonly logger: LoggerService,
+    private readonly realtimeEvictionQueue: RealtimeEvictionQueueService,
   ) {}
 
   async createTeam(orgId: string, dto: CreateTeamDto, actorId: string) {
@@ -269,11 +271,15 @@ export class TeamsService {
     ]);
 
     this.gateway.emitTeamMemberRemoved(teamId, userId);
-    void this.gateway
-      .evictFromRoom(userId, `team:${teamId}`, 'Removed from team')
+    void this.realtimeEvictionQueue
+      .enqueueEviction({
+        userId,
+        room: `team:${teamId}`,
+        reason: 'Removed from team',
+      })
       .catch((err: unknown) =>
         this.logger.error(
-          'Failed to evict removed member',
+          'Failed to queue eviction job',
           err instanceof Error ? err : undefined,
           TeamsService.name,
         ),

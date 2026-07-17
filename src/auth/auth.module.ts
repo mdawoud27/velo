@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './strategies/jwt.strategy';
@@ -14,8 +14,8 @@ import { jwtModuleAsyncOptions } from './jwt.config';
   imports: [
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync(jwtModuleAsyncOptions),
-    QueueModule,
-    RealtimeModule,
+    forwardRef(() => QueueModule),
+    forwardRef(() => RealtimeModule),
     NotificationsModule,
   ],
   providers: [JwtStrategy, AuthService, TokensService],

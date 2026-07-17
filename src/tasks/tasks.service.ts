@@ -282,7 +282,6 @@ export class TasksService {
     const updated = await this.transitionStatus(task, dto.status, actorId);
 
     const entity = new TaskEntity(updated);
-    this.gateway.emitTaskUpdated(projectId, entity);
     return entity;
   }
 
