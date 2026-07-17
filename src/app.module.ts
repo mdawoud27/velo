@@ -24,6 +24,8 @@ import { CacheModule } from './cache/cache.module';
 import { IdempotencyModule } from './idempotency/idempotency.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
+import { NotificationsModule } from './notifications/notifications.module';
+import { RealtimeModule } from './realtime/realtime.module';
 
 @Module({
   imports: [
@@ -47,6 +49,8 @@ import { join } from 'path';
     TasksModule,
     CacheModule,
     IdempotencyModule,
+    RealtimeModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [
