@@ -6,13 +6,15 @@ import { TokensService } from 'src/auth/tokens.service';
 import { UserEntity } from './entities';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 import { InvalidCredentialsException, ResourceNotFoundException } from 'src/common/exceptions';
-import { LoggerService } from 'src/logger/logger.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { RedisService } from 'src/redis/redis.service';
 import type { NotifPreferences, UploadedFile } from './types';
 import { NotifPreferencesDto, UpdateAccountDto, UpdatePasswordDto } from './dtos';
 import { ActivityService } from 'src/activity/activity.service';
 import { CacheService } from 'src/cache/cache.service';
+import { RealtimeGateway } from 'src/realtime/realtime.gateway';
+import { NotificationsService } from 'src/notifications/notifications.service';
+import { LoggerService } from 'src/logger/logger.service';
 
 type AccessPayload = JwtPayload & { exp?: number };
 
@@ -26,6 +28,8 @@ export class UsersService {
     private readonly logger: LoggerService,
     private readonly activity: ActivityService,
     private readonly cache: CacheService,
+    private readonly gateway: RealtimeGateway,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async findMe(userId: string): Promise<UserEntity> {
@@ -117,6 +121,33 @@ export class UsersService {
       entityId: user.id,
       actorId: user.id,
     });
+
+    void this.gateway
+      .disconnectUser(user.id, 'Password was changed')
+      .catch((err: unknown) =>
+        this.logger.error(
+          'Failed to disconnect sessions after password change',
+          err instanceof Error ? err : undefined,
+          UsersService.name,
+        ),
+      );
+
+    void this.notifications
+      .notify({
+        userId: user.id,
+        type: 'user.password_changed',
+        title: 'Your password was changed',
+        body: "If this wasn't you, reset your password immediately.",
+        entityType: 'User',
+        entityId: user.id,
+      })
+      .catch((err: unknown) =>
+        this.logger.error(
+          'Failed to send password-changed notification',
+          err instanceof Error ? err : undefined,
+          UsersService.name,
+        ),
+      );
   }
 
   async softDeleteMe(payload: AccessPayload): Promise<void> {
@@ -150,6 +181,16 @@ export class UsersService {
       entityId: user.id,
       actorId: user.id,
     });
+
+    void this.gateway
+      .disconnectUser(user.id, 'Account deleted')
+      .catch((err: unknown) =>
+        this.logger.error(
+          'Failed to disconnect deleted user sockets',
+          err instanceof Error ? err : undefined,
+          UsersService.name,
+        ),
+      );
   }
 
   async uploadAvatar(userId: string, file: UploadedFile): Promise<UserEntity> {
@@ -251,11 +292,12 @@ export class UsersService {
 
     try {
       await this.cloudinary.deleteByUrl(avatarUrl);
-    } catch (error) {
-      this.logger.warn('Failed to delete avatar from Cloudinary', {
-        userId,
-        error: error instanceof Error ? error.message : String(error),
-      });
+    } catch (error: unknown) {
+      this.logger.error(
+        'Failed to delete avatar from Cloudinary',
+        error instanceof Error ? error : undefined,
+        UsersService.name,
+      );
     }
   }
 
