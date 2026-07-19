@@ -159,7 +159,7 @@ export class TeamsService {
 
     if (dto.userId !== actorId) {
       void this.notifications
-        .notify({
+        .create({
           userId: dto.userId,
           type: 'team.member_added',
           title: 'You were added to a team',
@@ -220,7 +220,7 @@ export class TeamsService {
 
     if (userId !== actorId) {
       void this.notifications
-        .notify({
+        .create({
           userId,
           type: 'team.role_updated',
           title: 'Your team role changed',
@@ -287,7 +287,7 @@ export class TeamsService {
 
     if (userId !== actorId) {
       void this.notifications
-        .notify({
+        .create({
           userId,
           type: 'team.member_removed',
           title: 'You were removed from a team',

@@ -83,7 +83,7 @@ export class TasksService {
 
     if (task.assigneeId && task.assigneeId !== actorId) {
       void this.notifications
-        .notify({
+        .create({
           userId: task.assigneeId,
           type: 'task.assigned',
           title: 'You were assigned a task',
@@ -223,7 +223,7 @@ export class TasksService {
 
     if (dto.assigneeId && dto.assigneeId !== task.assigneeId && dto.assigneeId !== actorId) {
       void this.notifications
-        .notify({
+        .create({
           userId: dto.assigneeId,
           type: 'task.assigned',
           title: 'You were assigned a task',
@@ -262,6 +262,7 @@ export class TasksService {
 
     const entity = new TaskEntity(updated);
     this.gateway.emitTaskUpdated(projectId, entity);
+    this.notifyWatchers(taskId, 'updated', updated, actorId).catch(() => {});
     return entity;
   }
 
@@ -282,6 +283,7 @@ export class TasksService {
     const updated = await this.transitionStatus(task, dto.status, actorId);
 
     const entity = new TaskEntity(updated);
+    this.notifyWatchers(taskId, 'status updated', updated, actorId).catch(() => {});
     return entity;
   }
 
@@ -326,6 +328,7 @@ export class TasksService {
     ]);
 
     this.gateway.emitTaskDeleted(projectId, taskId);
+    this.notifyWatchers(taskId, 'deleted', {}, actorId).catch(() => {});
   }
 
   async addTags(
@@ -763,5 +766,27 @@ export class TasksService {
     }
 
     return updated;
+  }
+
+  private async notifyWatchers(taskId: string, event: string, payload: unknown, actorId: string) {
+    const watchers = await this.prisma.taskWatcher.findMany({
+      where: { taskId },
+      select: { userId: true },
+    });
+
+    const notifyUsers = watchers.map((w) => w.userId).filter((id) => id !== actorId); // don't notify the person who made the change
+
+    const notifications = notifyUsers.map((userId) => ({
+      userId,
+      type: 'TASK_WATCHED_UPDATE',
+      title: 'Watched task updated',
+      body: `A task you're watching has been ${event}`,
+      entityType: 'Task',
+      entityId: taskId,
+    }));
+
+    if (notifications.length > 0) {
+      await this.notifications.createBulk(notifications);
+    }
   }
 }
