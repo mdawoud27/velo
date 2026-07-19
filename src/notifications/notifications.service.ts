@@ -16,8 +16,8 @@ export class NotificationsService {
   }
 
   async createBulk(notifications: CreateNotificationDto[]): Promise<void> {
-    await this.prisma.notification.createMany({ data: notifications });
-    notifications.forEach((n) => {
+    const created = await this.prisma.notification.createManyAndReturn({ data: notifications });
+    created.forEach((n) => {
       this.gateway.emitNotification(n.userId, n);
     });
   }
