@@ -489,8 +489,6 @@ export class TasksService {
       create: { userId: actorId, taskId },
       update: {},
     });
-
-    return { watching: true };
   }
 
   async unwatchTask(
