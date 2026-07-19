@@ -493,6 +493,22 @@ export class TasksService {
     return { watching: true };
   }
 
+  async unwatchTask(
+    taskId: string,
+    projectId: string,
+    teamId: string,
+    orgId: string,
+    actorId: string,
+  ): Promise<void> {
+    await this.assertActorIsOrgMember(orgId, actorId);
+    await this.getProjectOrThrow(projectId, teamId, orgId);
+    await this.getTaskOrThrow(taskId, projectId);
+
+    await this.prisma.taskWatcher.deleteMany({
+      where: { userId: actorId, taskId },
+    });
+  }
+
   private async assertUserIsProjectMember(userId: string, projectId: string): Promise<void> {
     await this.findActiveUser(userId);
 
