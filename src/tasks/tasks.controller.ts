@@ -196,4 +196,34 @@ export class TasksController {
   ) {
     return this.tasksService.removeTags(id, projectId, teamId, orgId, dto, actorId);
   }
+
+  @Post(':id/watch')
+  @ResponseMessage('Task watched successfully.')
+  @ApiMessageResponse('Task watched successfully.')
+  @HttpCode(HttpStatus.OK)
+  @ApiErrorResponses(401, 403, 404, 409)
+  async watchTask(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Param('teamId', ParseUUIDPipe) teamId: string,
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('sub') actorId: string,
+  ) {
+    return this.tasksService.watchTask(id, projectId, teamId, orgId, actorId);
+  }
+
+  @Delete(':id/watch')
+  @ResponseMessage('Task unwatched successfully.')
+  @ApiMessageResponse('Task unwatched successfully.')
+  @HttpCode(HttpStatus.OK)
+  @ApiErrorResponses(401, 403, 404, 409)
+  async unwatchTask(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Param('teamId', ParseUUIDPipe) teamId: string,
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('sub') actorId: string,
+  ) {
+    return this.tasksService.unwatchTask(id, projectId, teamId, orgId, actorId);
+  }
 }

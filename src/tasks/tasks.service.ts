@@ -473,6 +473,42 @@ export class TasksService {
     };
   }
 
+  async watchTask(
+    taskId: string,
+    projectId: string,
+    teamId: string,
+    orgId: string,
+    actorId: string,
+  ) {
+    await this.assertActorIsOrgMember(orgId, actorId);
+    await this.getProjectOrThrow(projectId, teamId, orgId);
+    await assertProjectWritable(this.prisma, projectId);
+    await this.getTaskOrThrow(taskId, projectId);
+
+    await this.prisma.taskWatcher.upsert({
+      where: { userId_taskId: { userId: actorId, taskId } },
+      create: { userId: actorId, taskId },
+      update: {},
+    });
+  }
+
+  async unwatchTask(
+    taskId: string,
+    projectId: string,
+    teamId: string,
+    orgId: string,
+    actorId: string,
+  ): Promise<void> {
+    await this.assertActorIsOrgMember(orgId, actorId);
+    await this.getProjectOrThrow(projectId, teamId, orgId);
+    await assertProjectWritable(this.prisma, projectId);
+    await this.getTaskOrThrow(taskId, projectId);
+
+    await this.prisma.taskWatcher.deleteMany({
+      where: { userId: actorId, taskId },
+    });
+  }
+
   private async assertUserIsProjectMember(userId: string, projectId: string): Promise<void> {
     await this.findActiveUser(userId);
 
