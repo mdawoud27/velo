@@ -269,7 +269,7 @@ export class ProjectsService {
 
     if (dto.userId !== actorId) {
       void this.notifications
-        .notify({
+        .create({
           userId: dto.userId,
           type: 'project.member_added',
           title: 'You were added to a project',
@@ -373,7 +373,7 @@ export class ProjectsService {
 
     if (dto.userId !== actorId) {
       void this.notifications
-        .notify({
+        .create({
           userId: dto.userId,
           type: 'project.member_removed',
           title: 'You were removed from a project',

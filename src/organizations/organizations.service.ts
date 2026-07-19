@@ -111,7 +111,7 @@ export class OrganizationsService {
 
     if (invitedUser.id !== actorId) {
       void this.notifications
-        .notify({
+        .create({
           userId: invitedUser.id,
           type: 'org.invitation.received',
           title: 'You were invited to an organization',
@@ -281,7 +281,7 @@ export class OrganizationsService {
 
     if (invite.invitedById !== userId) {
       void this.notifications
-        .notify({
+        .create({
           userId: invite.invitedById,
           type: 'org.invitation.declined',
           title: 'Your invitation was declined',

@@ -1,33 +1,38 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { RealtimeGateway } from 'src/realtime/realtime.gateway';
-import type { NotifyParams } from './interfaces';
+import { CreateNotificationDto } from './dtos';
 
 @Injectable()
 export class NotificationsService {
-  private readonly logger = new Logger(NotificationsService.name);
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly gateway: RealtimeGateway,
   ) {}
 
-  async notify(params: NotifyParams) {
-    const notification = await this.prisma.notification.create({ data: params });
-    this.gateway.emitUserNotification(params.userId, notification);
-    return notification;
+  async create(data: CreateNotificationDto): Promise<void> {
+    const notification = await this.prisma.notification.create({ data });
+    this.gateway.emitNotification(data.userId, notification);
   }
 
-  async notifyMany(userIds: string[], params: Omit<NotifyParams, 'userId'>) {
-    const unique = [...new Set(userIds)];
-    if (unique.length === 0) return [];
-    const notifications = await this.prisma.notification.createManyAndReturn({
-      data: unique.map((userId) => ({ ...params, userId })),
+  async createBulk(notifications: CreateNotificationDto[]): Promise<void> {
+    await this.prisma.notification.createMany({ data: notifications });
+    notifications.forEach((n) => {
+      this.gateway.emitNotification(n.userId, n);
     });
+  }
 
-    for (const notification of notifications) {
-      this.gateway.emitUserNotification(notification.userId, notification);
-    }
-    return notifications;
+  async markAsRead(id: string, userId: string): Promise<void> {
+    await this.prisma.notification.updateMany({
+      where: { id, userId },
+      data: { isRead: true },
+    });
+  }
+
+  async markAllAsRead(userId: string): Promise<void> {
+    await this.prisma.notification.updateMany({
+      where: { userId, isRead: false },
+      data: { isRead: true },
+    });
   }
 }

@@ -143,7 +143,7 @@ export class UsersService {
       );
 
     void this.notifications
-      .notify({
+      .create({
         userId: user.id,
         type: 'user.password_changed',
         title: 'Your password was changed',

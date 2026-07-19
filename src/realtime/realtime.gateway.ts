@@ -171,7 +171,7 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
   }
 
   // assignments, invites, mentions
-  emitUserNotification(userId: string, notification: unknown) {
+  emitNotification(userId: string, notification: unknown) {
     this.server.to(`user:${userId}`).emit('notification', notification);
   }
 
