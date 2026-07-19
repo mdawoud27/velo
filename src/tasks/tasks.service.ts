@@ -482,6 +482,7 @@ export class TasksService {
   ) {
     await this.assertActorIsOrgMember(orgId, actorId);
     await this.getProjectOrThrow(projectId, teamId, orgId);
+    await assertProjectWritable(this.prisma, projectId);
     await this.getTaskOrThrow(taskId, projectId);
 
     await this.prisma.taskWatcher.upsert({
@@ -500,6 +501,7 @@ export class TasksService {
   ): Promise<void> {
     await this.assertActorIsOrgMember(orgId, actorId);
     await this.getProjectOrThrow(projectId, teamId, orgId);
+    await assertProjectWritable(this.prisma, projectId);
     await this.getTaskOrThrow(taskId, projectId);
 
     await this.prisma.taskWatcher.deleteMany({
