@@ -552,7 +552,7 @@ export class TasksService {
     file: Express.Multer.File,
     uploaderId: string,
   ) {
-    await this.assertActorIsOrgMember(orgId, uploaderId);
+    await this.assertActorCanManageTasks(orgId, teamId, projectId, uploaderId);
     await this.getProjectOrThrow(projectId, teamId, orgId);
     await assertProjectWritable(this.prisma, projectId);
     await this.getTaskOrThrow(id, projectId);
