@@ -72,13 +72,11 @@ export class UsersService {
   }
 
   async updateNotifPreferences(userId: string, patch: NotifPreferencesDto): Promise<UserEntity> {
-    const current = await this.findActiveUser(userId);
-    const currentPrefs = (current.notifPreferences as NotifPreferences) ?? {};
-
+    const notifPreferences = await this.mergeNotifPreferences(userId, patch);
     const user = await this.prisma.user.update({
       where: { id: userId },
       data: {
-        notifPreferences: { ...currentPrefs, ...patch },
+        notifPreferences,
       },
     });
 

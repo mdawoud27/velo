@@ -112,8 +112,8 @@ export class EmailQueueService {
         to: task.assignee.email,
         name: task.assignee.name,
         taskTitle: task.title,
-        // taskUrl: `${process.env.CLIENT_URL}/tasks/${task.id}`,
-      },
+        taskUrl: `${process.env.CLIENT_URL}/tasks/${task.id}`,
+      } satisfies TaskAssignedPayload,
       EMAIL_JOB_OPTIONS,
     );
   }
