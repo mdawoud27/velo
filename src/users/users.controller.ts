@@ -96,7 +96,7 @@ export class UsersController {
   }
 
   @Patch('me/avatar')
-  @UseInterceptors(FileInterceptor('avatar'))
+  @UseInterceptors(FileInterceptor('avatar', { limits: { fileSize: MAX_AVATAR_SIZE } }))
   @ResponseMessage('Avatar uploaded successfully')
   @ApiOperation({ summary: 'Upload avatar' })
   @ApiConsumes('multipart/form-data')
