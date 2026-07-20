@@ -25,6 +25,7 @@ import { RealtimeGateway } from 'src/realtime/realtime.gateway';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { LoggerService } from 'src/logger/logger.service';
 import { EmailQueueService } from 'src/queue/email-queue.service';
+import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 
 @Injectable()
 export class TasksService {
@@ -36,6 +37,7 @@ export class TasksService {
     private readonly notifications: NotificationsService,
     private readonly logger: LoggerService,
     private readonly emailQueue: EmailQueueService,
+    private readonly cloudinary: CloudinaryService,
   ) {}
 
   async createTask(
@@ -539,6 +541,31 @@ export class TasksService {
 
     await this.prisma.taskWatcher.deleteMany({
       where: { userId: actorId, taskId },
+    });
+  }
+
+  async addAttachments(
+    id: string,
+    orgId: string,
+    teamId: string,
+    projectId: string,
+    file: Express.Multer.File,
+    uploaderId: string,
+  ) {
+    await this.assertActorIsOrgMember(orgId, uploaderId);
+    await this.getProjectOrThrow(projectId, teamId, orgId);
+    await assertProjectWritable(this.prisma, projectId);
+    await this.getTaskOrThrow(id, projectId);
+    const result = await this.cloudinary.upload(file, `velo/tasks/${id}`);
+
+    return this.prisma.attachment.create({
+      data: {
+        filename: file.originalname,
+        url: result.secureUrl,
+        size: file.size,
+        taskId: id,
+        uploaderId,
+      },
     });
   }
 

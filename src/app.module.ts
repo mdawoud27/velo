@@ -27,6 +27,7 @@ import { join } from 'path';
 import { NotificationsModule } from './notifications/notifications.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { CommentsModule } from './comments/comments.module';
+import { CloudinaryModule } from './cloudinary/cloudinary.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { CommentsModule } from './comments/comments.module';
     RealtimeModule,
     NotificationsModule,
     CommentsModule,
+    CloudinaryModule,
   ],
   controllers: [AppController],
   providers: [
