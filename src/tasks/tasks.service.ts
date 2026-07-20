@@ -555,8 +555,20 @@ export class TasksService {
     await this.assertActorCanManageTasks(orgId, teamId, projectId, uploaderId);
     await this.getProjectOrThrow(projectId, teamId, orgId);
     await assertProjectWritable(this.prisma, projectId);
-    await this.getTaskOrThrow(id, projectId);
+    const task = await this.getTaskOrThrow(id, projectId);
     const result = await this.cloudinary.upload(file, `velo/tasks/${id}`);
+
+    this.activity.log({
+      action: 'task.attachment.added',
+      entityType: 'task',
+      entityId: id,
+      actorId: uploaderId,
+      orgId,
+      projectId,
+      metadata: { filename: file.originalname, url: result.secureUrl },
+    });
+
+    this.gateway.emitTaskUpdated(projectId, new TaskEntity(task));
 
     return this.prisma.attachment.create({
       data: {
