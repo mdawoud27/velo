@@ -7,7 +7,7 @@ import { RealtimeModule } from 'src/realtime/realtime.module';
 import { NotificationsModule } from 'src/notifications/notifications.module';
 
 @Module({
-  imports: [AuthModule, CloudinaryModule, RealtimeModule, NotificationsModule],
+  imports: [AuthModule, CloudinaryModule, RealtimeModule, NotificationsModule, CloudinaryModule],
   controllers: [UsersController],
   providers: [UsersService],
 })

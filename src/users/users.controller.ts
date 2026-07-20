@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -97,18 +96,7 @@ export class UsersController {
   }
 
   @Patch('me/avatar')
-  @UseInterceptors(
-    FileInterceptor('avatar', {
-      limits: { fileSize: MAX_AVATAR_SIZE, files: 1 },
-      fileFilter: (_req, file, callback) => {
-        if (AVATAR_MIME_TYPE.test(file.mimetype)) {
-          callback(null, true);
-          return;
-        }
-        callback(new BadRequestException(`File type ${file.mimetype} is not allowed.`), false);
-      },
-    }),
-  )
+  @UseInterceptors(FileInterceptor('avatar', { limits: { fileSize: MAX_AVATAR_SIZE } }))
   @ResponseMessage('Avatar uploaded successfully')
   @ApiOperation({ summary: 'Upload avatar' })
   @ApiConsumes('multipart/form-data')
