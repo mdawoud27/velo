@@ -2,14 +2,19 @@ import {
   Body,
   Controller,
   Delete,
+  FileTypeValidator,
   Get,
   HttpCode,
   HttpStatus,
+  MaxFileSizeValidator,
   Param,
+  ParseFilePipe,
   ParseUUIDPipe,
   Patch,
   Post,
   Query,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { TasksService } from './tasks.service';
@@ -22,6 +27,7 @@ import {
 } from 'src/common/decorators';
 import {
   CreateTaskDto,
+  FileDto,
   FilterTasksDto,
   SearchTasksDto,
   TaskDto,
@@ -34,6 +40,7 @@ import { Cache } from 'src/cache/decorators';
 import { requireParam } from 'src/cache/utils';
 import { Idempotent } from 'src/idempotency/decorators';
 import { CacheTags } from 'src/cache/cache.tags';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @ApiTags('Tasks')
 @ApiBearerAuth()
@@ -225,5 +232,31 @@ export class TasksController {
     @CurrentUser('sub') actorId: string,
   ) {
     return this.tasksService.unwatchTask(id, projectId, teamId, orgId, actorId);
+  }
+
+  @Post(':id/attachments')
+  @ResponseMessage('Attachment uploaded successfully.')
+  @ApiOperation({ summary: 'Upload an attachment to a task' })
+  @ApiDataResponse(FileDto, 'Attachment uploaded successfully.')
+  @HttpCode(HttpStatus.OK)
+  @ApiErrorResponses(401, 403, 404, 409)
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadAttachment(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Param('teamId', ParseUUIDPipe) teamId: string,
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 10 * 1024 * 1024 }),
+          new FileTypeValidator({ fileType: /^(image\/(jpeg|png|gif)|application\/pdf)$/ }),
+        ],
+      }),
+    )
+    file: Express.Multer.File,
+    @CurrentUser('sub') userId: string,
+  ) {
+    return this.tasksService.addAttachments(id, orgId, teamId, projectId, file, userId);
   }
 }
