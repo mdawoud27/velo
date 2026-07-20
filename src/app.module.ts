@@ -26,6 +26,7 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { NotificationsModule } from './notifications/notifications.module';
 import { RealtimeModule } from './realtime/realtime.module';
+import { CommentsModule } from './comments/comments.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { RealtimeModule } from './realtime/realtime.module';
     IdempotencyModule,
     RealtimeModule,
     NotificationsModule,
+    CommentsModule,
   ],
   controllers: [AppController],
   providers: [

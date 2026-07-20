@@ -19,11 +19,12 @@ import {
 } from 'src/common/exceptions';
 import { assertProjectWritable } from 'src/common/helpers/project-guard.helper';
 import { buildPaginationMeta } from 'src/common/utils';
-import { VALID_TRANSITIONS, USER_SUMMARY_SELECT } from './constants';
+import { VALID_TRANSITIONS, USER_SUMMARY_SELECT, ASSIGNEE_WITH_PREFS_SELECT } from './constants';
 import { CacheService } from 'src/cache/cache.service';
 import { RealtimeGateway } from 'src/realtime/realtime.gateway';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { LoggerService } from 'src/logger/logger.service';
+import { EmailQueueService } from 'src/queue/email-queue.service';
 
 @Injectable()
 export class TasksService {
@@ -34,6 +35,7 @@ export class TasksService {
     private readonly gateway: RealtimeGateway,
     private readonly notifications: NotificationsService,
     private readonly logger: LoggerService,
+    private readonly emailQueue: EmailQueueService,
   ) {}
 
   async createTask(
@@ -46,15 +48,10 @@ export class TasksService {
     await this.assertActorCanManageTasks(orgId, teamId, projectId, actorId);
     await this.getProjectOrThrow(projectId, teamId, orgId);
     await assertProjectWritable(this.prisma, projectId);
-
     await this.assertTaskTitleAvailable(projectId, dto.title);
 
-    if (dto.assigneeId) {
-      await this.assertUserIsProjectMember(dto.assigneeId, projectId);
-    }
-    if (dto.parentTaskId) {
-      await this.getValidParentOrThrow(dto.parentTaskId, projectId);
-    }
+    if (dto.assigneeId) await this.assertUserIsProjectMember(dto.assigneeId, projectId);
+    if (dto.parentTaskId) await this.getValidParentOrThrow(dto.parentTaskId, projectId);
 
     const task = await this.prisma.task.create({
       data: {
@@ -62,6 +59,9 @@ export class TasksService {
         dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
         projectId,
         creatorId: actorId,
+      },
+      include: {
+        assignee: { select: ASSIGNEE_WITH_PREFS_SELECT },
       },
     });
 
@@ -78,12 +78,11 @@ export class TasksService {
     void this.cache.invalidateProjectCache(projectId).catch(() => {});
 
     const entity = new TaskEntity(task);
-
     this.gateway.emitTaskCreated(projectId, entity);
 
     if (task.assigneeId && task.assigneeId !== actorId) {
       void this.notifications
-        .notify({
+        .create({
           userId: task.assigneeId,
           type: 'task.assigned',
           title: 'You were assigned a task',
@@ -94,6 +93,16 @@ export class TasksService {
         .catch((err: unknown) =>
           this.logger.error(
             'Failed to send task assignment notification',
+            err instanceof Error ? err : undefined,
+            TasksService.name,
+          ),
+        );
+
+      void this.emailQueue
+        .addTaskAssignedEmail(task)
+        .catch((err: unknown) =>
+          this.logger.error(
+            'Failed to enqueue task assignment email',
             err instanceof Error ? err : undefined,
             TasksService.name,
           ),
@@ -222,8 +231,17 @@ export class TasksService {
     });
 
     if (dto.assigneeId && dto.assigneeId !== task.assigneeId && dto.assigneeId !== actorId) {
+      const taskForEmail = await this.prisma.task.findUnique({
+        where: { id: updated.id },
+        select: {
+          id: true,
+          title: true,
+          assignee: { select: ASSIGNEE_WITH_PREFS_SELECT },
+        },
+      });
+
       void this.notifications
-        .notify({
+        .create({
           userId: dto.assigneeId,
           type: 'task.assigned',
           title: 'You were assigned a task',
@@ -238,6 +256,18 @@ export class TasksService {
             TasksService.name,
           ),
         );
+
+      if (taskForEmail) {
+        void this.emailQueue
+          .addTaskAssignedEmail(taskForEmail)
+          .catch((err: unknown) =>
+            this.logger.error(
+              'Failed to enqueue task update email',
+              err instanceof Error ? err : undefined,
+              TasksService.name,
+            ),
+          );
+      }
     }
 
     if (Object.keys(rest).length > 0) {
@@ -262,6 +292,7 @@ export class TasksService {
 
     const entity = new TaskEntity(updated);
     this.gateway.emitTaskUpdated(projectId, entity);
+    this.notifyWatchers(taskId, 'updated', updated, actorId).catch(() => {});
     return entity;
   }
 
@@ -282,6 +313,7 @@ export class TasksService {
     const updated = await this.transitionStatus(task, dto.status, actorId);
 
     const entity = new TaskEntity(updated);
+    this.notifyWatchers(taskId, 'status updated', updated, actorId).catch(() => {});
     return entity;
   }
 
@@ -326,6 +358,7 @@ export class TasksService {
     ]);
 
     this.gateway.emitTaskDeleted(projectId, taskId);
+    this.notifyWatchers(taskId, 'deleted', {}, actorId).catch(() => {});
   }
 
   async addTags(
@@ -471,6 +504,42 @@ export class TasksService {
       meta: buildPaginationMeta(total, dto.page, dto.limit),
       data: tasks.map((task) => new TaskEntity(task)),
     };
+  }
+
+  async watchTask(
+    taskId: string,
+    projectId: string,
+    teamId: string,
+    orgId: string,
+    actorId: string,
+  ) {
+    await this.assertActorIsOrgMember(orgId, actorId);
+    await this.getProjectOrThrow(projectId, teamId, orgId);
+    await assertProjectWritable(this.prisma, projectId);
+    await this.getTaskOrThrow(taskId, projectId);
+
+    await this.prisma.taskWatcher.upsert({
+      where: { userId_taskId: { userId: actorId, taskId } },
+      create: { userId: actorId, taskId },
+      update: {},
+    });
+  }
+
+  async unwatchTask(
+    taskId: string,
+    projectId: string,
+    teamId: string,
+    orgId: string,
+    actorId: string,
+  ): Promise<void> {
+    await this.assertActorIsOrgMember(orgId, actorId);
+    await this.getProjectOrThrow(projectId, teamId, orgId);
+    await assertProjectWritable(this.prisma, projectId);
+    await this.getTaskOrThrow(taskId, projectId);
+
+    await this.prisma.taskWatcher.deleteMany({
+      where: { userId: actorId, taskId },
+    });
   }
 
   private async assertUserIsProjectMember(userId: string, projectId: string): Promise<void> {
@@ -727,5 +796,27 @@ export class TasksService {
     }
 
     return updated;
+  }
+
+  private async notifyWatchers(taskId: string, event: string, payload: unknown, actorId: string) {
+    const watchers = await this.prisma.taskWatcher.findMany({
+      where: { taskId },
+      select: { userId: true },
+    });
+
+    const notifyUsers = watchers.map((w) => w.userId).filter((id) => id !== actorId); // don't notify the person who made the change
+
+    const notifications = notifyUsers.map((userId) => ({
+      userId,
+      type: 'TASK_WATCHED_UPDATE',
+      title: 'Watched task updated',
+      body: `A task you're watching has been ${event}`,
+      entityType: 'Task',
+      entityId: taskId,
+    }));
+
+    if (notifications.length > 0) {
+      await this.notifications.createBulk(notifications);
+    }
   }
 }

@@ -72,12 +72,11 @@ export class UsersService {
   }
 
   async updateNotifPreferences(userId: string, patch: NotifPreferencesDto): Promise<UserEntity> {
-    await this.findActiveUser(userId);
-
+    const notifPreferences = await this.mergeNotifPreferences(userId, patch);
     const user = await this.prisma.user.update({
       where: { id: userId },
       data: {
-        notifPreferences: await this.mergeNotifPreferences(userId, patch),
+        notifPreferences,
       },
     });
 
@@ -91,6 +90,11 @@ export class UsersService {
     void this.cache.invalidateUserCache(userId).catch(() => {});
 
     return new UserEntity(user);
+  }
+
+  async getNotifPreferences(userId: string): Promise<NotifPreferences> {
+    const user = await this.findActiveUser(userId);
+    return (user.notifPreferences as NotifPreferences) ?? {};
   }
 
   async updatePassword(payload: AccessPayload, dto: UpdatePasswordDto): Promise<void> {
@@ -143,7 +147,7 @@ export class UsersService {
       );
 
     void this.notifications
-      .notify({
+      .create({
         userId: user.id,
         type: 'user.password_changed',
         title: 'Your password was changed',

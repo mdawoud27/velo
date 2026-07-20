@@ -5,6 +5,10 @@ export enum EmailJobType {
   VERIFY_EMAIL = 'verify-email',
   PASSWORD_RESET = 'password-reset',
   INVITATION = 'invitation',
+  TASK_ASSIGNED = 'task-assigned',
+  MENTION = 'mention',
+  COMMENT = 'comment',
+  DUE_REMINDER = 'due-reminder',
 }
 
 export const REALTIME_EVICTION_QUEUE = 'realtime-eviction';

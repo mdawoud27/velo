@@ -300,7 +300,7 @@ export class AuthService {
     });
 
     void this.notifications
-      .notify({
+      .create({
         userId: user.id,
         type: 'auth.password_reset_requested',
         title: 'Password reset requested',
@@ -345,7 +345,7 @@ export class AuthService {
     });
 
     void this.notifications
-      .notify({
+      .create({
         userId,
         type: 'user.password_changed',
         title: 'Your password was changed',
