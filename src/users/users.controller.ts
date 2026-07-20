@@ -58,6 +58,15 @@ export class UsersController {
     return this.usersService.updateMe(userId, dto);
   }
 
+  @Get('me/notification-preferences')
+  @ResponseMessage('Notification preferences retrieved successfully')
+  @ApiOperation({ summary: 'Get notification preferences' })
+  @ApiDataResponse(NotifPreferencesDto, 'Notification preferences')
+  @ApiErrorResponses(401)
+  getNotifPreferences(@CurrentUser('sub') userId: string) {
+    return this.usersService.getNotifPreferences(userId);
+  }
+
   @Patch('me/notification-preferences')
   @ResponseMessage('Notification preferences updated successfully')
   @ApiOperation({ summary: 'Update notification preferences' })
