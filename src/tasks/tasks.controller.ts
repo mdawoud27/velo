@@ -27,6 +27,7 @@ import {
 } from 'src/common/decorators';
 import {
   CreateTaskDto,
+  FileDto,
   FilterTasksDto,
   SearchTasksDto,
   TaskDto,
@@ -234,6 +235,11 @@ export class TasksController {
   }
 
   @Post(':id/attachments')
+  @ResponseMessage('Attachment uploaded successfully.')
+  @ApiOperation({ summary: 'Upload an attachment to a task' })
+  @ApiDataResponse(FileDto, 'Attachment uploaded successfully.')
+  @HttpCode(HttpStatus.OK)
+  @ApiErrorResponses(401, 403, 404, 409)
   @UseInterceptors(FileInterceptor('file'))
   async uploadAttachment(
     @Param('orgId', ParseUUIDPipe) orgId: string,
