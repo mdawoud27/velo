@@ -28,6 +28,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { CommentsModule } from './comments/comments.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
+import { BillingModule } from './billing/billing.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { CloudinaryModule } from './cloudinary/cloudinary.module';
     NotificationsModule,
     CommentsModule,
     CloudinaryModule,
+    BillingModule,
   ],
   controllers: [AppController],
   providers: [
