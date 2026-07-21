@@ -1,5 +1,4 @@
-// ai/ai.controller.ts
-import { Controller, Post, Body, Query, Sse } from '@nestjs/common';
+import { Controller, Post, Body, Query, Sse, UseGuards } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AiService } from './ai.service';
@@ -7,11 +6,13 @@ import { AiSuggestDto, AiSuggestionDto } from './dtos';
 import { RequiresPlan } from 'src/auth/decorators';
 import { ApiDataResponse, ApiErrorResponses, ResponseMessage } from 'src/common/decorators';
 import { Plan } from '@prisma/client';
+import { AiRateLimitGuard } from './guards';
 
 @ApiTags('AI')
 @ApiBearerAuth()
 @Controller('ai')
 @RequiresPlan(Plan.PRO)
+@UseGuards(AiRateLimitGuard)
 export class AiController {
   constructor(private readonly aiService: AiService) {}
 
