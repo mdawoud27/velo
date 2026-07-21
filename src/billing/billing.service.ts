@@ -304,16 +304,26 @@ export class BillingService {
   ): Promise<string> {
     if (org.stripeCustomerId) return org.stripeCustomerId;
 
-    const customer = await this.stripe.customers.create({
-      name: org.name,
-      metadata: { orgId },
-    });
+    const lockKey = `stripe:customer:${orgId}`;
+    const locked = await this.redis.acquireLock(lockKey, 15);
+    if (!locked) throw new InternalServerErrorException('Could not acquire customer creation lock');
 
-    await this.prisma.organization.update({
-      where: { id: orgId },
-      data: { stripeCustomerId: customer.id },
-    });
+    try {
+      // Re-read inside lock — another request may have created it while we waited
+      const fresh = await this.prisma.organization.findUniqueOrThrow({
+        where: { id: orgId },
+        select: { stripeCustomerId: true },
+      });
+      if (fresh.stripeCustomerId) return fresh.stripeCustomerId;
 
-    return customer.id;
+      const customer = await this.stripe.customers.create({ name: org.name, metadata: { orgId } });
+      await this.prisma.organization.update({
+        where: { id: orgId },
+        data: { stripeCustomerId: customer.id },
+      });
+      return customer.id;
+    } finally {
+      await this.redis.releaseLock(lockKey, locked);
+    }
   }
 }
