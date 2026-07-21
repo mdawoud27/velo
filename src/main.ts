@@ -16,8 +16,12 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    rawBody: true,
     bufferLogs: true,
   });
+
+  // app.use('/api/v1/billing/webhook', express.raw({ type: 'application/json' }));
+  // app.use(express.json());
 
   const isProduction = process.env.NODE_ENV === 'production';
 
