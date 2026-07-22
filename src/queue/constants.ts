@@ -9,6 +9,7 @@ export enum EmailJobType {
   MENTION = 'mention',
   COMMENT = 'comment',
   DUE_REMINDER = 'due-reminder',
+  SUBSCRIPTION_EXPIRY_WARNING = 'subscription-expiry-warning',
 }
 
 export const REALTIME_EVICTION_QUEUE = 'realtime-eviction';

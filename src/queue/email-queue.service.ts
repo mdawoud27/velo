@@ -54,6 +54,12 @@ export interface DueReminderPayload {
   taskUrl: string;
 }
 
+export interface SubscriptionExpiryWarningPayload {
+  email: string;
+  orgName: string;
+  expiresAt: Date | string;
+}
+
 export interface InvitationPayload {
   to: string;
   orgName: string;
@@ -170,5 +176,9 @@ export class EmailQueueService {
       } satisfies DueReminderPayload,
       EMAIL_JOB_OPTIONS,
     );
+  }
+
+  addSubscriptionExpiryWarning(payload: SubscriptionExpiryWarningPayload) {
+    return this.queue.add(EmailJobType.SUBSCRIPTION_EXPIRY_WARNING, payload, EMAIL_JOB_OPTIONS);
   }
 }

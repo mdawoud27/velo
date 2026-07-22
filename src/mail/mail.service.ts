@@ -135,6 +135,24 @@ export class MailService {
     });
   }
 
+  async sendSubscriptionExpiryWarningEmail(
+    to: string,
+    orgName: string,
+    expiresAt: Date | string,
+  ): Promise<void> {
+    const formattedDate =
+      expiresAt instanceof Date ? expiresAt.toLocaleDateString('en-US') : String(expiresAt);
+    await this.mailer.sendMail({
+      to,
+      subject: `Subscription expiring soon: ${orgName}`,
+      template: 'subscription-expiry-warning',
+      context: {
+        orgName,
+        expiresAt: formattedDate,
+      },
+    });
+  }
+
   async sendMail(options: Parameters<MailerService['sendMail']>[0]): Promise<void> {
     await this.mailer.sendMail(options);
   }

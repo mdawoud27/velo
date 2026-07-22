@@ -9,6 +9,7 @@ import type {
   InvitationPayload,
   MentionPayload,
   PasswordResetPayload,
+  SubscriptionExpiryWarningPayload,
   TaskAssignedPayload,
   VerifyEmailPayload,
   WelcomeEmailPayload,
@@ -22,7 +23,8 @@ type EmailJob =
   | Job<TaskAssignedPayload, void, EmailJobType.TASK_ASSIGNED>
   | Job<MentionPayload, void, EmailJobType.MENTION>
   | Job<CommentPayload, void, EmailJobType.COMMENT>
-  | Job<DueReminderPayload, void, EmailJobType.DUE_REMINDER>;
+  | Job<DueReminderPayload, void, EmailJobType.DUE_REMINDER>
+  | Job<SubscriptionExpiryWarningPayload, void, EmailJobType.SUBSCRIPTION_EXPIRY_WARNING>;
 
 @Processor(EMAIL_QUEUE)
 export class EmailProcessor extends WorkerHost {
@@ -95,6 +97,14 @@ export class EmailProcessor extends WorkerHost {
 
       case EmailJobType.DUE_REMINDER:
         await this.handleDueReminder(job.data);
+        break;
+
+      case EmailJobType.SUBSCRIPTION_EXPIRY_WARNING:
+        await this.mail.sendSubscriptionExpiryWarningEmail(
+          job.data.email,
+          job.data.orgName,
+          job.data.expiresAt,
+        );
         break;
 
       default:
