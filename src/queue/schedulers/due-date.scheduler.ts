@@ -18,16 +18,16 @@ export class DueDateScheduler {
 
   @Cron(CronExpression.EVERY_DAY_AT_8AM, { timeZone: 'UTC' })
   async sendDueDateReminders(): Promise<void> {
-    // Multi-instance guard: only one instance processes this per day
-    const locked = await this.redis.acquireCronLock('due-date-reminders', 3600);
-    if (!locked) {
-      this.logger.debug('Due-date reminders already running on another instance — skipping');
-      return;
-    }
-
-    this.logger.log('Running due-date reminder cron');
-
     try {
+      // Multi-instance guard: only one instance processes this per day
+      const locked = await this.redis.acquireCronLock('due-date-reminders', 3600);
+      if (!locked) {
+        this.logger.debug('Due-date reminders already running on another instance — skipping');
+        return;
+      }
+
+      this.logger.log('Running due-date reminder cron');
+
       // Window: tasks due in the NEXT 24 hours (not already overdue)
       const now = new Date();
       const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);

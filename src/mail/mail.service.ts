@@ -62,7 +62,7 @@ export class MailService {
   ): Promise<void> {
     await this.mailer.sendMail({
       to,
-      subject: `Task due tomorrow: ${taskTitle}`,
+      subject: `Task due soon: ${taskTitle}`,
       template: 'due-reminder',
       context: {
         name,
