@@ -52,4 +52,90 @@ export class MailService {
       },
     });
   }
+
+  async sendDueReminderEmail(
+    to: string,
+    name: string,
+    taskTitle: string,
+    dueDate: string,
+    taskUrl: string,
+  ): Promise<void> {
+    await this.mailer.sendMail({
+      to,
+      subject: `Task due tomorrow: ${taskTitle}`,
+      template: 'due-reminder',
+      context: {
+        name,
+        taskTitle,
+        dueDate,
+        taskUrl,
+      },
+    });
+  }
+
+  async sendTaskAssignedEmail(
+    to: string,
+    name: string,
+    taskTitle: string,
+    taskUrl: string,
+  ): Promise<void> {
+    await this.mailer.sendMail({
+      to,
+      subject: `Task assigned: ${taskTitle}`,
+      template: 'task-assigned',
+      context: {
+        name,
+        taskTitle,
+        taskUrl,
+      },
+    });
+  }
+
+  async sendMentionEmail(
+    to: string,
+    name: string,
+    mentionedBy: string,
+    taskTitle: string,
+    commentBody: string,
+    taskUrl: string,
+  ): Promise<void> {
+    await this.mailer.sendMail({
+      to,
+      subject: `${mentionedBy} mentioned you in a comment`,
+      template: 'mention',
+      context: {
+        name,
+        mentionedBy,
+        taskTitle,
+        commentBody,
+        taskUrl,
+      },
+    });
+  }
+
+  async sendCommentEmail(
+    to: string,
+    name: string,
+    commenterName: string,
+    taskTitle: string,
+    commentBody: string,
+    taskUrl: string,
+  ): Promise<void> {
+    await this.mailer.sendMail({
+      to,
+      subject: `New comment on ${taskTitle}`,
+      template: 'comment',
+      context: {
+        name,
+        commenterName,
+        taskTitle,
+        commentBody,
+        taskUrl,
+      },
+    });
+  }
+
+  async sendMail(options: Parameters<MailerService['sendMail']>[0]): Promise<void> {
+    await this.mailer.sendMail(options);
+  }
 }
