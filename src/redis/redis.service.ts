@@ -136,6 +136,11 @@ export class RedisService implements OnModuleDestroy {
     await this.setex(key, JSON.stringify(value), ttl);
   }
 
+  async acquireCronLock(lockKey: string, ttlSeconds: number): Promise<boolean> {
+    const result = await this.client.set(`cron:lock:${lockKey}`, '1', 'EX', ttlSeconds, 'NX');
+    return result === 'OK';
+  }
+
   private validateTtl(ttl: number): void {
     if (!Number.isInteger(ttl) || ttl <= 0) {
       throw new Error(`Invalid TTL: must be a positive integer, got ${ttl}`);

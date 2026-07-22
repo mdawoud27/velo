@@ -30,6 +30,7 @@ import { CommentsModule } from './comments/comments.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import { BillingModule } from './billing/billing.module';
 import { AiModule } from './ai/ai.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { AiModule } from './ai/ai.module';
     CloudinaryModule,
     BillingModule,
     AiModule,
+    ScheduleModule.forRoot(),
   ],
   controllers: [AppController],
   providers: [
