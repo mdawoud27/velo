@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { ConfigService } from '@nestjs/config';
 import { Redis } from 'ioredis';
@@ -26,7 +26,7 @@ import { SchedulersModule } from './schedulers/schedulers.module';
     BullModule.registerQueue({ name: EMAIL_QUEUE }, { name: REALTIME_EVICTION_QUEUE }),
     MailModule,
     RealtimeModule,
-    SchedulersModule,
+    forwardRef(() => SchedulersModule),
   ],
   providers: [
     EmailQueueService,
