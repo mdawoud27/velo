@@ -153,4 +153,22 @@ export class EmailQueueService {
       EMAIL_JOB_OPTIONS,
     );
   }
+
+  async addDueReminderEmail(
+    recipient: { email: string; name: string; notifPreferences: unknown },
+    payload: Omit<DueReminderPayload, 'to' | 'name'>,
+  ): Promise<void> {
+    const prefs = recipient.notifPreferences as NotifPreferences | null;
+    if (prefs?.emailOnDueReminder === false) return; // explicit opt-out only
+
+    await this.queue.add(
+      EmailJobType.DUE_REMINDER,
+      {
+        to: recipient.email,
+        name: recipient.name,
+        ...payload,
+      } satisfies DueReminderPayload,
+      EMAIL_JOB_OPTIONS,
+    );
+  }
 }
