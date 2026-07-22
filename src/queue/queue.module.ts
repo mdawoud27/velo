@@ -10,6 +10,7 @@ import { RealtimeEvictionQueueService } from './realtime-eviction-queue.service'
 import { RealtimeEvictionProcessor } from './realtime-eviction.processor';
 import { MailModule } from 'src/mail/mail.module';
 import { RealtimeModule } from 'src/realtime/realtime.module';
+import { SchedulersModule } from './schedulers/schedulers.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { RealtimeModule } from 'src/realtime/realtime.module';
     BullModule.registerQueue({ name: EMAIL_QUEUE }, { name: REALTIME_EVICTION_QUEUE }),
     MailModule,
     RealtimeModule,
+    SchedulersModule,
   ],
   providers: [
     EmailQueueService,
