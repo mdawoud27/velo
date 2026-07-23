@@ -1,9 +1,9 @@
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
-import { LoggerService } from '../logger/logger.service';
-import { MailService } from '../mail/mail.service';
-import { EMAIL_QUEUE, EmailJobType } from './constants';
-import type {
+import { LoggerService } from '../../logger/logger.service';
+import { MailService } from '../../mail/mail.service';
+import { EMAIL_QUEUE, EmailJobType } from '../constants/constants';
+import {
   CommentPayload,
   DueReminderPayload,
   InvitationPayload,
@@ -13,7 +13,7 @@ import type {
   TaskAssignedPayload,
   VerifyEmailPayload,
   WelcomeEmailPayload,
-} from './email-queue.service';
+} from '../interfaces';
 
 type EmailJob =
   | Job<WelcomeEmailPayload, void, EmailJobType.WELCOME>
