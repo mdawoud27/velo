@@ -102,6 +102,43 @@ export class CloudinaryService {
     }
   }
 
+  async uploadBuffer(
+    buffer: Buffer,
+    filename: string,
+    mimetype: string,
+    folder: string,
+  ): Promise<CloudinaryUploadResult> {
+    if (!buffer?.length) {
+      throw new BadRequestException('Upload buffer is empty.');
+    }
+
+    const credentials = this.getCredentials();
+    const timestamp = this.timestamp();
+    const signedParams = { folder, timestamp };
+    const formData = new FormData();
+
+    this.appendSignedParams(formData, signedParams, credentials);
+
+    const dataUri = `data:${mimetype};base64,${buffer.toString('base64')}`;
+    formData.append('file', dataUri);
+
+    const response = await fetch(this.endpoint(credentials.cloudName, 'auto', 'upload'), {
+      method: 'POST',
+      body: formData,
+      signal: AbortSignal.timeout(30_000), // larger files need more time
+    });
+
+    const payload = await this.readJson(response);
+
+    if (!response.ok) {
+      throw new BadGatewayException(
+        this.providerErrorMessage('Cloudinary buffer upload failed', payload),
+      );
+    }
+
+    return this.toUploadResult(payload); // returns { publicId, secureUrl, resourceType }
+  }
+
   private appendSignedParams(
     formData: FormData,
     params: Record<string, string>,
