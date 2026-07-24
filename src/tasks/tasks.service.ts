@@ -24,7 +24,7 @@ import { CacheService } from 'src/cache/cache.service';
 import { RealtimeGateway } from 'src/realtime/realtime.gateway';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { LoggerService } from 'src/logger/logger.service';
-import { EmailQueueService } from 'src/queue/email-queue.service';
+import { EmailQueueService } from 'src/queue/services';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 
 @Injectable()

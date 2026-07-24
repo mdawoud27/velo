@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { EmailQueueService } from '../email-queue.service';
+import { EmailQueueService } from '../services/email-queue.service';
 import { RedisService } from 'src/redis/redis.service';
 import { TaskStatus } from '@prisma/client';
 import { ASSIGNEE_WITH_PREFS_SELECT } from 'src/tasks/constants';

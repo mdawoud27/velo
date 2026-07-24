@@ -10,7 +10,6 @@ import {
 import { Plan, Prisma, User } from '@prisma/client';
 import { OrgEntity } from './entities';
 import { AcceptInviteDto, DeclineInviteDto, InviteDto } from './dtos';
-import { EmailQueueService } from 'src/queue/email-queue.service';
 import { ConfigService } from '@nestjs/config';
 import { buildPaginationMeta } from 'src/common/utils';
 import { PaginationDto } from 'src/common/dtos';
@@ -19,6 +18,7 @@ import { CacheService } from 'src/cache/cache.service';
 import { RealtimeGateway } from 'src/realtime/realtime.gateway';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { LoggerService } from 'src/logger/logger.service';
+import { EmailQueueService } from 'src/queue/services';
 
 export enum OrgRole {
   OWNER = 'OWNER',

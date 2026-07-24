@@ -156,4 +156,21 @@ export class MailService {
   async sendMail(options: Parameters<MailerService['sendMail']>[0]): Promise<void> {
     await this.mailer.sendMail(options);
   }
+
+  async sendReportEmail(data: {
+    to: string;
+    name: string;
+    orgName: string;
+    reportType: string;
+    period: string;
+    downloadUrl: string;
+    rowCount: number;
+  }): Promise<void> {
+    await this.mailer.sendMail({
+      to: data.to,
+      subject: `${data.reportType} — ${data.orgName}`,
+      template: 'report-ready',
+      context: data,
+    });
+  }
 }

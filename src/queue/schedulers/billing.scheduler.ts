@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { EmailQueueService } from '../email-queue.service';
 import { RedisService } from 'src/redis/redis.service';
 import { OrgRole, Plan } from '@prisma/client';
 import { LoggerService } from 'src/logger/logger.service';
+import { EmailQueueService } from '../services';
 
 @Injectable()
 export class BillingScheduler {

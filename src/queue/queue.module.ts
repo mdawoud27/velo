@@ -3,14 +3,20 @@ import { BullModule } from '@nestjs/bullmq';
 import { ConfigService } from '@nestjs/config';
 import { Redis } from 'ioredis';
 import type { ConnectionOptions } from 'bullmq';
-import { EMAIL_QUEUE, REALTIME_EVICTION_QUEUE } from './constants';
-import { EmailQueueService } from './email-queue.service';
-import { EmailProcessor } from './email.processor';
-import { RealtimeEvictionQueueService } from './realtime-eviction-queue.service';
-import { RealtimeEvictionProcessor } from './realtime-eviction.processor';
+import { EMAIL_QUEUE, EXPORT_QUEUE, REALTIME_EVICTION_QUEUE } from './constants';
+import { EmailQueueService } from './services/email-queue.service';
+import { EmailProcessor } from './processors/email.processor';
+import { RealtimeEvictionQueueService } from './services/realtime-eviction-queue.service';
+import { RealtimeEvictionProcessor } from './processors/realtime-eviction.processor';
 import { MailModule } from 'src/mail/mail.module';
 import { RealtimeModule } from 'src/realtime/realtime.module';
-import { SchedulersModule } from './schedulers/schedulers.module';
+import { DueDateScheduler } from './schedulers/due-date.scheduler';
+import { BillingScheduler } from './schedulers/billing.scheduler';
+import { CleanupScheduler } from './schedulers/cleanup.scheduler';
+import { ExportProcessor } from './processors';
+import { ExportQueueService } from './services';
+import { ScheduledExportScheduler } from './schedulers';
+import { CloudinaryModule } from 'src/cloudinary/cloudinary.module';
 
 @Module({
   imports: [
@@ -23,17 +29,27 @@ import { SchedulersModule } from './schedulers/schedulers.module';
       }),
       inject: [ConfigService],
     }),
-    BullModule.registerQueue({ name: EMAIL_QUEUE }, { name: REALTIME_EVICTION_QUEUE }),
+    BullModule.registerQueue(
+      { name: EMAIL_QUEUE },
+      { name: REALTIME_EVICTION_QUEUE },
+      { name: EXPORT_QUEUE },
+    ),
     MailModule,
     RealtimeModule,
-    SchedulersModule,
+    CloudinaryModule,
   ],
   providers: [
     EmailQueueService,
-    EmailProcessor,
+    ExportQueueService,
     RealtimeEvictionQueueService,
+    EmailProcessor,
+    ExportProcessor,
     RealtimeEvictionProcessor,
+    DueDateScheduler,
+    BillingScheduler,
+    CleanupScheduler,
+    ScheduledExportScheduler,
   ],
-  exports: [EmailQueueService, RealtimeEvictionQueueService],
+  exports: [EmailQueueService, RealtimeEvictionQueueService, ExportQueueService],
 })
 export class QueueModule {}
