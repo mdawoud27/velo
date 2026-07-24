@@ -10,3 +10,6 @@ export * from './verify-email.interface';
 export * from './welcome-email.interface';
 export * from './export.interface';
 export * from './task-row.interface';
+export * from './email-data.interface';
+export * from './export-data.interface';
+export * from './admin-queue.interface';

@@ -31,6 +31,7 @@ import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import { BillingModule } from './billing/billing.module';
 import { AiModule } from './ai/ai.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     BillingModule,
     AiModule,
     ScheduleModule.forRoot(),
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [
