@@ -1,7 +1,7 @@
 import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { Observable } from 'rxjs';
-import { tap } from 'rxjs/operators';
+import { Observable, from } from 'rxjs';
+import { mergeMap, map } from 'rxjs/operators';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { LoggerService } from 'src/logger/logger.service';
 import { AUDIT_ACTION_KEY } from '../decorators/audit.decorator';
@@ -27,30 +27,45 @@ export class AuditInterceptor implements NestInterceptor {
     const request = context.switchToHttp().getRequest<AdminRequest>();
     const { user, params } = request;
 
-    return next.handle().pipe(
-      tap({
-        next: () => {
-          const sanitized = this.sanitizeParams(params);
-          this.prisma.auditLog
-            .create({
-              data: {
-                actorId: user.sub,
-                action,
-                targetType: this.deriveTargetType(params),
-                targetId: sanitized.userId ?? sanitized.taskId ?? sanitized.id ?? null,
-                metadata: { params: sanitized },
-              },
-            })
-            .catch((err: unknown) =>
-              this.logger.error(
-                'Audit log write failed',
-                err instanceof Error ? err : undefined,
-                AuditInterceptor.name,
-              ),
-            );
+    return next
+      .handle()
+      .pipe(
+        mergeMap((response: unknown) =>
+          from(this.writeAuditLog(action, user, params)).pipe(map(() => response)),
+        ),
+      );
+  }
+
+  private async writeAuditLog(
+    action: string,
+    user: JwtPayload,
+    params: Record<string, string | string[]>,
+  ): Promise<void> {
+    const sanitized = this.sanitizeParams(params);
+
+    try {
+      await this.prisma.auditLog.create({
+        data: {
+          actorId: user.sub,
+          action,
+          targetType: this.deriveTargetType(params),
+          targetId:
+            sanitized.userId ??
+            sanitized.taskId ??
+            sanitized.jobId ??
+            sanitized.orgId ??
+            sanitized.id ??
+            null,
+          metadata: { params: sanitized },
         },
-      }),
-    );
+      });
+    } catch (err: unknown) {
+      this.logger.error(
+        'Audit log write failed',
+        err instanceof Error ? err : undefined,
+        AuditInterceptor.name,
+      );
+    }
   }
 
   private deriveTargetType(params: Record<string, string | string[]>): string {

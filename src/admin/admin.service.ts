@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Job, Queue } from 'bullmq';
 import { Plan, Prisma, SystemRole } from '@prisma/client';
@@ -382,9 +382,7 @@ export class AdminService {
   private getQueue(queueName: string): Queue<EmailJobData> | Queue<ExportJobData> {
     const validated = KNOWN_QUEUES[queueName];
     if (!validated) {
-      throw new NotFoundException(
-        `Queue '${queueName}' not found. Available: ${Object.keys(KNOWN_QUEUES).join(', ')}`,
-      );
+      throw new ResourceNotFoundException('Queue', queueName);
     }
     return queueName === EMAIL_QUEUE ? this.emailQueue : this.exportQueue;
   }
