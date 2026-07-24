@@ -249,7 +249,7 @@ model ActivityLog {
   orgId      String?
   createdAt  DateTime @default(now())
 
-  actor   User          @relation("Actor", fields: [actorId], references: [id])
+  actor   User          @relation("Actor", fields: [actorId], references: [id], onDelete: Cascade)
   project Project?      @relation(fields: [projectId], references: [id], onDelete: SetNull)
   org     Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
 
