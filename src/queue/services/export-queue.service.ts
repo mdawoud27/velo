@@ -1,5 +1,5 @@
 import { InjectQueue } from '@nestjs/bullmq';
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { Job, Queue } from 'bullmq';
 
 import { ResourceNotFoundException } from 'src/common/exceptions';
@@ -21,8 +21,7 @@ export class ExportQueueService {
   async addProjectExportJob(data: ProjectExportJobData): Promise<Job> {
     return this.queue.add(ExportJobType.PROJECT_TASKS, data, {
       ...EXPORT_JOB_OPTIONS,
-      // Prevent the same user from queuing multiple exports for the same project
-      jobId: `project-export:${data.projectId}:${data.requesterId}`,
+      jobId: `project-export-${data.projectId}-${data.requesterId}`,
     });
   }
 
@@ -40,9 +39,23 @@ export class ExportQueueService {
   }
 
   // Status polling
-  async getJobStatus(jobId: string): Promise<JobStatusResponse> {
+  async getJobStatus(
+    jobId: string,
+    projectId: string,
+    requesterId: string,
+  ): Promise<JobStatusResponse> {
     const job = await this.queue.getJob(jobId);
     if (!job) throw new ResourceNotFoundException('Export job', jobId);
+
+    const jobData = job.data as Partial<ProjectExportJobData>;
+
+    if (jobData.projectId !== projectId) {
+      throw new ResourceNotFoundException('Export job', jobId);
+    }
+
+    if (jobData.requesterId !== requesterId) {
+      throw new ForbiddenException('You do not have access to this export job');
+    }
 
     const state = await job.getState();
     const result = job.returnvalue as ExportJobResult | null;

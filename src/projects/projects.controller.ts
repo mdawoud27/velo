@@ -235,8 +235,10 @@ export class ProjectsController {
   async requestExport(
     @Param('id', ParseUUIDPipe) projectId: string,
     @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Param('teamId', ParseUUIDPipe) teamId: string,
     @CurrentUser('sub') userId: string,
   ) {
+    await this.projectsService.getProject(projectId, teamId, orgId, userId);
     const job = await this.exportQueue.addProjectExportJob({
       projectId,
       requesterId: userId,
@@ -250,7 +252,11 @@ export class ProjectsController {
   @ApiOperation({ summary: 'Poll the status of a project export job' })
   @ApiDataResponse(JobStatusDto)
   @ApiErrorResponses(401, 403, 404)
-  getExportStatus(@Param('id', ParseUUIDPipe) _projectId: string, @Query('jobId') jobId: string) {
-    return this.exportQueue.getJobStatus(jobId);
+  getExportStatus(
+    @Param('id', ParseUUIDPipe) projectId: string,
+    @Query('jobId') jobId: string,
+    @CurrentUser('sub') userId: string,
+  ) {
+    return this.exportQueue.getJobStatus(jobId, projectId, userId);
   }
 }

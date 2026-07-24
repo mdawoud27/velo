@@ -13,9 +13,10 @@ import {
   TaskRow,
   WeeklyTasksReportJobData,
 } from '../interfaces';
-import { addSummarySheet, buildTasksSheet, workbookToBuffer } from '../utils';
+import { addSummarySheet, buildTasksSheet, sanitizeFilename, workbookToBuffer } from '../utils';
 import { MailService } from 'src/mail/mail.service';
 import { LoggerService } from 'src/logger/logger.service';
+import { RedisService } from 'src/redis/redis.service';
 
 @Processor(EXPORT_QUEUE)
 export class ExportProcessor extends WorkerHost {
@@ -24,6 +25,7 @@ export class ExportProcessor extends WorkerHost {
     private readonly cloudinary: CloudinaryService,
     private readonly mailer: MailService,
     private readonly logger: LoggerService,
+    private readonly redis: RedisService,
   ) {
     super();
   }
@@ -99,7 +101,8 @@ export class ExportProcessor extends WorkerHost {
     await job.updateProgress(70);
 
     const buffer = await workbookToBuffer(workbook);
-    const filename = `tasks-${project?.name ?? projectId}-${Date.now()}.xlsx`;
+    const safeName = project?.name ? sanitizeFilename(project.name) : projectId;
+    const filename = `tasks-${safeName}-${Date.now()}.xlsx`;
 
     const result = await this.cloudinary.uploadBuffer(
       buffer,
@@ -171,33 +174,36 @@ export class ExportProcessor extends WorkerHost {
     await job.updateProgress(70);
 
     const buffer = await workbookToBuffer(workbook);
-    const filename = `weekly-tasks-${orgId}-${Date.now()}.xlsx`;
+    const filename = `weekly-tasks-${sanitizeFilename(orgName)}-${job.id}.xlsx`;
 
-    const result = await this.cloudinary.uploadBuffer(
+    const { downloadUrl } = await this.uploadAndNotifyOnce(
+      job,
       buffer,
       filename,
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       'velo/reports/weekly',
+      async (url) => {
+        await this.mailer.sendReportEmail({
+          to: ownerEmail,
+          name: ownerName,
+          orgName,
+          reportType: 'Weekly Tasks Report',
+          period: `${weekAgo.toLocaleDateString()} – ${new Date().toLocaleDateString()}`,
+          downloadUrl: url,
+          rowCount: tasks.length,
+        });
+      },
     );
-
-    // Email the report directly to the org owner
-    await this.mailer.sendReportEmail({
-      to: ownerEmail,
-      name: ownerName,
-      orgName,
-      reportType: 'Weekly Tasks Report',
-      period: `${weekAgo.toLocaleDateString()} – ${new Date().toLocaleDateString()}`,
-      downloadUrl: result.secureUrl,
-      rowCount: tasks.length,
-    });
 
     await job.updateProgress(100);
 
-    return { downloadUrl: result.secureUrl, filename, rowCount: tasks.length };
+    return {
+      downloadUrl,
+      filename,
+      rowCount: tasks.length,
+    };
   }
 
   // Scheduled: bi-weekly projects report
-
   private async processBiweeklyProjectsReport(
     job: Job<BiweeklyProjectsReportJobData>,
   ): Promise<ExportJobResult> {
@@ -266,27 +272,33 @@ export class ExportProcessor extends WorkerHost {
     await job.updateProgress(70);
 
     const buffer = await workbookToBuffer(workbook);
-    const filename = `projects-report-${orgId}-${Date.now()}.xlsx`;
+    const filename = `projects-report-${sanitizeFilename(orgName)}-${job.id}.xlsx`;
 
-    const result = await this.cloudinary.uploadBuffer(
+    const { downloadUrl } = await this.uploadAndNotifyOnce(
+      job,
       buffer,
       filename,
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       'velo/reports/biweekly',
+      async (url) => {
+        await this.mailer.sendReportEmail({
+          to: ownerEmail,
+          name: ownerName,
+          orgName,
+          reportType: 'Bi-Weekly Projects Report',
+          period: `${now.toLocaleDateString()}`,
+          downloadUrl: url,
+          rowCount: projects.length,
+        });
+      },
     );
 
-    await this.mailer.sendReportEmail({
-      to: ownerEmail,
-      name: ownerName,
-      orgName,
-      reportType: 'Bi-Weekly Projects Report',
-      period: `As of ${now.toLocaleDateString()}`,
-      downloadUrl: result.secureUrl,
-      rowCount: projects.length,
-    });
-
     await job.updateProgress(100);
-    return { downloadUrl: result.secureUrl, filename, rowCount: projects.length };
+
+    return {
+      downloadUrl,
+      filename,
+      rowCount: projects.length,
+    };
   }
 
   // Scheduled: monthly org report
@@ -373,26 +385,75 @@ export class ExportProcessor extends WorkerHost {
     await job.updateProgress(70);
 
     const buffer = await workbookToBuffer(workbook);
-    const filename = `monthly-org-report-${orgId}-${Date.now()}.xlsx`;
+    const filename = `monthly-org-report-${sanitizeFilename(orgName)}-${job.id}.xlsx`;
 
+    const { downloadUrl } = await this.uploadAndNotifyOnce(
+      job,
+      buffer,
+      filename,
+      'velo/reports/monthly',
+      async (url) => {
+        await this.mailer.sendReportEmail({
+          to: ownerEmail,
+          name: ownerName,
+          orgName,
+          reportType: 'Monthly Organization Report',
+          period: `${monthAgo.toLocaleDateString()} – ${new Date().toLocaleDateString()}`,
+          downloadUrl: url,
+          rowCount: members.length,
+        });
+      },
+    );
+
+    await job.updateProgress(100);
+
+    return {
+      downloadUrl,
+      filename,
+      rowCount: members.length,
+    };
+  }
+
+  private async uploadAndNotifyOnce(
+    job: Job,
+    buffer: Buffer,
+    filename: string,
+    folder: string,
+    emailFn: (downloadUrl: string) => Promise<void>,
+  ): Promise<{ downloadUrl: string; filename: string }> {
+    const idempotencyKey = `export:done:${job.id}`;
+
+    // Check if this job already completed a previous attempt
+    const cached = await this.redis.get(idempotencyKey);
+    if (cached) {
+      this.logger.debug(
+        `Job ${job.id} already completed on a prior attempt — skipping upload+email`,
+      );
+      const { downloadUrl, filename: cachedFilename } = JSON.parse(cached) as {
+        downloadUrl: string;
+        filename: string;
+      };
+      return { downloadUrl, filename: cachedFilename };
+    }
+
+    // First attempt
     const result = await this.cloudinary.uploadBuffer(
       buffer,
       filename,
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'velo/reports/monthly',
+      folder,
     );
 
-    await this.mailer.sendReportEmail({
-      to: ownerEmail,
-      name: ownerName,
-      orgName,
-      reportType: 'Monthly Organization Report',
-      period: `${monthAgo.toLocaleDateString()} – ${new Date().toLocaleDateString()}`,
-      downloadUrl: result.secureUrl,
-      rowCount: members.length,
-    });
+    await emailFn(result.secureUrl);
 
-    await job.updateProgress(100);
-    return { downloadUrl: result.secureUrl, filename, rowCount: members.length };
+    // Mark as done — TTL 7 days
+    await this.redis.setex(
+      idempotencyKey,
+
+      JSON.stringify({ downloadUrl: result.secureUrl, filename }),
+      7 * 24 * 60 * 60,
+    );
+
+    return { downloadUrl: result.secureUrl, filename };
   }
 }
