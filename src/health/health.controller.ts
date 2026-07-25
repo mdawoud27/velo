@@ -3,6 +3,7 @@ import { HealthCheck, HealthCheckService, PrismaHealthIndicator } from '@nestjs/
 import { PrismaService } from 'src/prisma/prisma.service';
 import { RedisHealthIndicator } from './redis.health';
 import { Public } from 'src/auth/decorators';
+import { SkipThrottle } from '@nestjs/throttler';
 
 @Controller('health')
 export class HealthController {
@@ -14,11 +15,13 @@ export class HealthController {
   ) {}
 
   @Public()
+  @SkipThrottle()
   @Get()
   liveness() {
     return { status: 'ok' };
   }
 
+  @SkipThrottle()
   @Get('details')
   @HealthCheck()
   async check() {

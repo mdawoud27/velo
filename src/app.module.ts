@@ -32,6 +32,7 @@ import { BillingModule } from './billing/billing.module';
 import { AiModule } from './ai/ai.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AdminModule } from './admin/admin.module';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 
 @Module({
   imports: [
@@ -63,6 +64,13 @@ import { AdminModule } from './admin/admin.module';
     AiModule,
     ScheduleModule.forRoot(),
     AdminModule,
+    ThrottlerModule.forRoot([
+      {
+        name: 'global',
+        ttl: 60000,
+        limit: 100,
+      },
+    ]),
   ],
   controllers: [AppController],
   providers: [
@@ -73,6 +81,7 @@ import { AdminModule } from './admin/admin.module';
     { provide: APP_INTERCEPTOR, useClass: ResponseInterceptor },
     { provide: APP_FILTER, useClass: HttpResponseFilter },
     { provide: APP_FILTER, useClass: PrismaExceptionFilter },
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
 export class AppModule {}
