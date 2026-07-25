@@ -14,7 +14,7 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import { Audit } from './decorators/audit.decorator';
-import { BanUserDto, ListUsersDto, OverridePlanDto } from './dtos';
+import { BanUserDto, FailedJobDto, ListUsersDto, OverridePlanDto, QueueStatsDto } from './dtos';
 import { CurrentUser } from 'src/auth/decorators';
 import {
   ApiDataResponse,
@@ -25,6 +25,7 @@ import {
 } from 'src/common/decorators';
 import { PaginationDto } from 'src/common/dtos';
 import { AdminOnly } from 'src/auth/decorators/admin-only.decorator';
+import { QueueNamePipe } from './pipes';
 
 @ApiTags('Admin')
 @ApiBearerAuth()
@@ -89,6 +90,22 @@ export class AdminController {
     return this.adminService.promoteToAdmin(userId, actorId);
   }
 
+  // Organization management
+  @Patch('organizations/:orgId/plan')
+  @Audit('admin.org.plan_overridden')
+  @ResponseMessage('Organization plan updated')
+  @ApiOperation({ summary: 'Override an organization plan (for support/manual adjustments)' })
+  @ApiMessageResponse('Plan updated')
+  @ApiErrorResponses(400, 401, 403, 404)
+  @HttpCode(HttpStatus.OK)
+  overrideOrgPlan(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Body() dto: OverridePlanDto,
+    @CurrentUser('sub') actorId: string,
+  ) {
+    return this.adminService.overridePlan(orgId, dto.plan, actorId);
+  }
+
   // Task management
   @Get('tasks/deleted')
   @ResponseMessage('Deleted tasks retrieved')
@@ -109,22 +126,6 @@ export class AdminController {
     return this.adminService.restoreTask(taskId, actorId);
   }
 
-  // Organization management
-  @Patch('organizations/:orgId/plan')
-  @Audit('admin.org.plan_overridden')
-  @ResponseMessage('Organization plan updated')
-  @ApiOperation({ summary: 'Override an organization plan (for support/manual adjustments)' })
-  @ApiMessageResponse('Plan updated')
-  @ApiErrorResponses(400, 401, 403, 404)
-  @HttpCode(HttpStatus.OK)
-  overrideOrgPlan(
-    @Param('orgId', ParseUUIDPipe) orgId: string,
-    @Body() dto: OverridePlanDto,
-    @CurrentUser('sub') actorId: string,
-  ) {
-    return this.adminService.overridePlan(orgId, dto.plan, actorId);
-  }
-
   // Audit log
   @Get('audit-logs')
   @ResponseMessage('Audit logs retrieved')
@@ -143,18 +144,18 @@ export class AdminController {
   @Get('queues/:queueName')
   @ResponseMessage('Queue stats retrieved')
   @ApiOperation({ summary: 'Get queue statistics' })
-  @ApiDataResponse(Object, 'Queue stats')
+  @ApiDataResponse(QueueStatsDto, 'Queue stats')
   @ApiErrorResponses(401, 403, 404)
-  getQueueStats(@Param('queueName') queueName: string) {
+  getQueueStats(@Param('queueName', QueueNamePipe) queueName: string) {
     return this.adminService.getQueueStats(queueName);
   }
 
   @Get('queues/:queueName/failed')
   @ResponseMessage('Failed jobs retrieved')
   @ApiOperation({ summary: 'List failed jobs in a queue' })
-  @ApiPaginatedDataResponse(Object)
+  @ApiPaginatedDataResponse(FailedJobDto, 'Failed jobs')
   @ApiErrorResponses(401, 403, 404)
-  getFailedJobs(@Param('queueName') queueName: string, @Query() dto: PaginationDto) {
+  getFailedJobs(@Param('queueName', QueueNamePipe) queueName: string, @Query() dto: PaginationDto) {
     return this.adminService.getFailedJobs(queueName, dto);
   }
 
@@ -166,7 +167,7 @@ export class AdminController {
   @ApiErrorResponses(400, 401, 403, 404)
   @HttpCode(HttpStatus.OK)
   retryJob(
-    @Param('queueName') queueName: string,
+    @Param('queueName', QueueNamePipe) queueName: string,
     @Param('jobId') jobId: string,
     @CurrentUser('sub') actorId: string,
   ) {
@@ -181,7 +182,7 @@ export class AdminController {
   @ApiErrorResponses(400, 401, 403, 404)
   @HttpCode(HttpStatus.OK)
   deleteJob(
-    @Param('queueName') queueName: string,
+    @Param('queueName', QueueNamePipe) queueName: string,
     @Param('jobId') jobId: string,
     @CurrentUser('sub') actorId: string,
   ) {
