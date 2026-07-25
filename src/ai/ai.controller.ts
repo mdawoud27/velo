@@ -17,6 +17,7 @@ export class AiController {
   constructor(private readonly aiService: AiService) {}
 
   // Sync
+  @UseGuards(AiRateLimitGuard)
   @Post('suggest')
   @ResponseMessage('AI suggestion generated')
   @ApiOperation({ summary: 'Generate AI task suggestions (JSON response)' })
