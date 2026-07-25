@@ -67,8 +67,8 @@ export class AdminService {
           number
         >,
       },
-      tasks: { total: totalTasks },
       projects: { active: activeProjects },
+      tasks: { total: totalTasks },
       activity: { last7Days: recentActivity },
     };
   }
@@ -76,7 +76,7 @@ export class AdminService {
   // User management
   async listUsers(dto: PaginationDto & { search?: string; banned?: boolean }) {
     const where: Prisma.UserWhereInput = {
-      deletedAt: null,
+      // deletedAt: null,
       ...(dto.search && {
         OR: [
           { email: { contains: dto.search, mode: 'insensitive' } },
@@ -97,6 +97,7 @@ export class AdminService {
           name: true,
           systemRole: true,
           bannedAt: true,
+          deletedAt: true,
           createdAt: true,
           _count: { select: { memberships: true } },
         },
@@ -120,6 +121,7 @@ export class AdminService {
 
     const target = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!target) throw new ResourceNotFoundException('User', userId);
+    if (target.deletedAt) throw new ForbiddenException('User is deleted');
     if (target.bannedAt) throw new ForbiddenException('User is already banned');
     if (target.systemRole === SystemRole.SUPER_ADMIN) {
       throw new ForbiddenException('Cannot ban a super admin');
@@ -149,6 +151,7 @@ export class AdminService {
   async unbanUser(userId: string, actorId: string): Promise<void> {
     const target = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!target) throw new ResourceNotFoundException('User', userId);
+    if (target.deletedAt) throw new ForbiddenException('User is deleted');
     if (!target.bannedAt) throw new ForbiddenException('User is not banned');
 
     await this.prisma.user.update({
@@ -168,7 +171,9 @@ export class AdminService {
   }
 
   async promoteToAdmin(userId: string, actorId: string): Promise<void> {
-    const target = await this.prisma.user.findUnique({ where: { id: userId } });
+    const target = await this.prisma.user.findUnique({
+      where: { id: userId, deletedAt: null, bannedAt: null },
+    });
     if (!target) throw new ResourceNotFoundException('User', userId);
     if (target.systemRole === SystemRole.SUPER_ADMIN) {
       throw new ForbiddenException('User is already a super admin');
@@ -358,7 +363,9 @@ export class AdminService {
 
   // Organization management
   async overridePlan(orgId: string, plan: Plan, actorId: string): Promise<void> {
-    const org = await this.prisma.organization.findUnique({ where: { id: orgId } });
+    const org = await this.prisma.organization.findUnique({
+      where: { id: orgId, deletedAt: null },
+    });
     if (!org) throw new ResourceNotFoundException('Organization', orgId);
 
     const previousPlan = org.plan;
