@@ -18,7 +18,7 @@ jobs:
       - name: Verify Authorized User
         run: |
           TARGET_BRANCH="${{ github.event.pull_request.base.ref }}"
-          PR_AUTHOR="${{ github.actor }}"
+          PR_AUTHOR="${{ github.event.pull_request.user.login }}"
           ALLOWED_USER="mdawoud27"
 
           if [ "$PR_AUTHOR" != "$ALLOWED_USER" ] && [ "$TARGET_BRANCH" = "main" ]; then
