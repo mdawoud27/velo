@@ -12,7 +12,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
 RUN pnpm config set store-dir /root/.pnpm-store
 
-RUN --mount=type=cache,target=/root/.pnpm-store \
+RUN --mount=type=cache,id=pnpm-store,target=/root/.pnpm-store \
     pnpm install --frozen-lockfile
 
 COPY prisma ./prisma
@@ -22,7 +22,7 @@ RUN DATABASE_URL="$PRISMA_GENERATE_DATABASE_URL" pnpm prisma generate
 COPY . .
 RUN DATABASE_URL="$PRISMA_GENERATE_DATABASE_URL" pnpm build
 
-RUN --mount=type=cache,target=/root/.pnpm-store \
+RUN --mount=type=cache,id=pnpm-store,target=/root/.pnpm-store \
     pnpm prune --prod --ignore-scripts
 
 # For prisma runtime files
