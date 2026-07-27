@@ -53,10 +53,10 @@ jobs:
             DEPLOYMENT_TARGET="Production"
             RAILWAY_SERVICE="velo"
           else
-            VERSION_TAG="$VERSION-staging"
-            LATEST_TAG="staging-latest"
+            VERSION_TAG="$VERSION-dev"
+            LATEST_TAG="dev-latest"
             DEPLOYMENT_URL="https://velo-app.up.railway.app"
-            DEPLOYMENT_TARGET="Staging"
+            DEPLOYMENT_TARGET="Development"
             RAILWAY_SERVICE="velo"
           fi
 
