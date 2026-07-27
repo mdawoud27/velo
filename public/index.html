@@ -52,10 +52,17 @@
         font-weight: 700;
       }
 
+      .title-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
       h1 {
         font-size: 40px;
         font-weight: 700;
-        margin-bottom: 12px;
 
         background: linear-gradient(135deg, oklch(0.98 0 0), oklch(0.65 0.15 264));
 
@@ -64,6 +71,20 @@
 
         color: transparent;
         -webkit-text-fill-color: transparent;
+      }
+
+      .version {
+        display: inline-block;
+        font-family: 'Inter', sans-serif;
+        font-size: 12px;
+        font-weight: 600;
+        color: oklch(0.85 0.1 264);
+        background: oklch(0.25 0.04 264);
+        border: 1px solid oklch(0.35 0.06 264);
+        padding: 4px 14px;
+        border-radius: 999px;
+        letter-spacing: 0.5px;
+        white-space: nowrap;
       }
 
       .subtitle {
@@ -189,7 +210,10 @@
     <main class="container">
       <div class="logo">V</div>
 
-      <h1>Velo API</h1>
+      <div class="title-row">
+        <h1>Velo API</h1>
+        <span class="version">v{{VERSION}}</span>
+      </div>
 
       <p class="subtitle">Production-grade project management API built with NestJS.</p>
 
