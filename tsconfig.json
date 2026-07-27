@@ -23,6 +23,6 @@
     "strictBindCallApply": false,
     "noFallthroughCasesInSwitch": false
   },
-  "include": ["src/**/*.ts", "test/**/*.ts", "package.json"]
+  "include": ["src/**/*.ts", "test/**/*.ts"]
 }
 
