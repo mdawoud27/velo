@@ -6,6 +6,15 @@ import { randomUUID } from 'crypto';
 import { requestContext } from 'src/common/middlewares';
 import { Request } from 'express';
 
+function isPinoPrettyAvailable(): boolean {
+  try {
+    require.resolve('pino-pretty');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 @Global()
 @Module({
   imports: [
@@ -15,11 +24,18 @@ import { Request } from 'express';
         const nodeEnv = config.get<string>('NODE_ENV');
         const isProduction = nodeEnv === 'production';
         const isDevelopment = nodeEnv === 'development';
+        const usePrettyTransport = isDevelopment && isPinoPrettyAvailable();
+
+        if (isDevelopment && !isPinoPrettyAvailable()) {
+          console.warn(
+            '[LoggerModule] NODE_ENV=development but pino-pretty is not installed; falling back to JSON logs.',
+          );
+        }
 
         return {
           pinoHttp: {
             level: isProduction ? 'info' : 'debug',
-            transport: isDevelopment
+            transport: usePrettyTransport
               ? {
                   target: 'pino-pretty',
                   options: {
