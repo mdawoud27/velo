@@ -9,7 +9,8 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { RedisHealthIndicator } from './redis.health';
 import { Public } from 'src/auth/decorators';
 import { SkipThrottle } from '@nestjs/throttler';
-import { version } from '../../package.json';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 @Controller('health')
 export class HealthController {
@@ -25,6 +26,9 @@ export class HealthController {
   @Get()
   @HealthCheck()
   async check() {
+    const { version } = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf8')) as {
+      version: string;
+    };
     try {
       const result = await this.health.check([
         () => this.db.pingCheck('prisma', this.prisma, { timeout: 5000 }),

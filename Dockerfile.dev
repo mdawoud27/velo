@@ -10,7 +10,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
 RUN pnpm config set store-dir /root/.pnpm-store
 
-RUN --mount=type=cache,target=/root/.pnpm-store \
+RUN --mount=type=cache,id=s/4a3cd1ac-69c9-4723-a0cd-21e3de014e57-/root/.pnpm-store,target=/root/.pnpm-store \
     pnpm install --frozen-lockfile
 
 COPY prisma ./prisma
