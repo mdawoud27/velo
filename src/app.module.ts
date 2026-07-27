@@ -38,6 +38,7 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
   imports: [
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'public'),
+      exclude: ['/', '/index.html'],
     }),
     PrismaModule,
     ConfigModule.forRoot({ isGlobal: true }),
