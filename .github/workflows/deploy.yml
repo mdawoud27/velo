@@ -85,7 +85,7 @@ jobs:
             ${{ steps.image.outputs.image }}:${{ steps.image.outputs.latest_tag }}
             ${{ steps.image.outputs.image }}:${{ steps.image.outputs.sha_tag }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=max,ignore-error=true
 
       - name: Trigger Railway redeploy
         id: railway_redeploy
