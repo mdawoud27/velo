@@ -4,6 +4,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { RedisHealthIndicator } from './redis.health';
 import { Public } from 'src/auth/decorators';
 import { SkipThrottle } from '@nestjs/throttler';
+import { version } from '../../package.json';
 
 @Controller('health')
 export class HealthController {
@@ -17,12 +18,6 @@ export class HealthController {
   @Public()
   @SkipThrottle()
   @Get()
-  liveness() {
-    return { status: 'ok' };
-  }
-
-  @SkipThrottle()
-  @Get('details')
   @HealthCheck()
   async check() {
     const result = await this.health.check([
@@ -31,7 +26,7 @@ export class HealthController {
     ]);
     return {
       ...result,
-      version: process.env.npm_package_version,
+      version,
     };
   }
 }
