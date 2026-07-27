@@ -1,84 +1,20 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
-import { JobsOptions, Queue } from 'bullmq';
-import { EMAIL_QUEUE, EmailJobType } from './constants';
+import { Queue } from 'bullmq';
 import { NotifPreferences } from 'src/notifications/types';
-
-export interface WelcomeEmailPayload {
-  to: string;
-  name: string;
-}
-
-export interface VerifyEmailPayload {
-  to: string;
-  name: string;
-  verificationUrl: string;
-}
-
-export interface PasswordResetPayload {
-  to: string;
-  name: string;
-  resetUrl: string;
-}
-
-export interface TaskAssignedPayload {
-  to: string;
-  name: string;
-  taskTitle: string;
-  taskUrl: string;
-}
-
-export interface MentionPayload {
-  to: string;
-  name: string;
-  mentionedBy: string;
-  taskTitle: string;
-  commentBody: string;
-  taskUrl: string;
-}
-
-export interface CommentPayload {
-  to: string;
-  name: string;
-  commenterName: string;
-  taskTitle: string;
-  commentBody: string;
-  taskUrl: string;
-}
-
-export interface DueReminderPayload {
-  to: string;
-  name: string;
-  taskTitle: string;
-  dueDate: string;
-  taskUrl: string;
-}
-
-export interface InvitationPayload {
-  to: string;
-  orgName: string;
-  role: string;
-  inviterName: string;
-  invitationUrl: string;
-  declineInvitationUrl: string;
-}
-
-interface AssignableTask {
-  id: string;
-  title: string;
-  assignee: {
-    email: string;
-    name: string;
-    notifPreferences: unknown;
-  } | null;
-}
-
-const EMAIL_JOB_OPTIONS: JobsOptions = {
-  attempts: 3,
-  backoff: { type: 'exponential', delay: 5000 },
-  removeOnComplete: 100,
-  removeOnFail: 50,
-};
+import { EMAIL_JOB_OPTIONS, EMAIL_QUEUE, EmailJobType } from '../constants';
+import {
+  AssignableTask,
+  CommentPayload,
+  DueReminderPayload,
+  InvitationPayload,
+  MentionPayload,
+  PasswordResetPayload,
+  SubscriptionExpiryWarningPayload,
+  TaskAssignedPayload,
+  VerifyEmailPayload,
+  WelcomeEmailPayload,
+} from '../interfaces';
 
 @Injectable()
 export class EmailQueueService {
@@ -152,5 +88,27 @@ export class EmailQueueService {
       } satisfies CommentPayload,
       EMAIL_JOB_OPTIONS,
     );
+  }
+
+  async addDueReminderEmail(
+    recipient: { email: string; name: string; notifPreferences: unknown },
+    payload: Omit<DueReminderPayload, 'to' | 'name'>,
+  ): Promise<void> {
+    const prefs = recipient.notifPreferences as NotifPreferences | null;
+    if (prefs?.emailOnDueReminder === false) return; // explicit opt-out only
+
+    await this.queue.add(
+      EmailJobType.DUE_REMINDER,
+      {
+        to: recipient.email,
+        name: recipient.name,
+        ...payload,
+      } satisfies DueReminderPayload,
+      EMAIL_JOB_OPTIONS,
+    );
+  }
+
+  addSubscriptionExpiryWarning(payload: SubscriptionExpiryWarningPayload) {
+    return this.queue.add(EmailJobType.SUBSCRIPTION_EXPIRY_WARNING, payload, EMAIL_JOB_OPTIONS);
   }
 }

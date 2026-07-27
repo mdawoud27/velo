@@ -11,7 +11,7 @@ import { CacheService } from 'src/cache/cache.service';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { RealtimeGateway } from 'src/realtime/realtime.gateway';
 import { LoggerService } from 'src/logger/logger.service';
-import { RealtimeEvictionQueueService } from 'src/queue/realtime-eviction-queue.service';
+import { RealtimeEvictionQueueService } from 'src/queue/services';
 
 @Injectable()
 export class TeamsService {

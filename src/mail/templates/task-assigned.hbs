@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#f0f0f0">
+  <table width="600" align="center" style="margin:40px auto;background:#fff;border-radius:8px;overflow:hidden">
+    <tr><td>{{> header}}</td></tr>
+    <tr>
+      <td style="padding:32px;font-family:sans-serif;color:#333">
+        <h2>Hi {{name}}, a task was assigned to you</h2>
+        <p style="line-height:1.6">You have been assigned to <strong>"{{taskTitle}}"</strong>.</p>
+        <a href="{{taskUrl}}"
+           style="display:inline-block;margin:16px 0;padding:12px 28px;background:#4f46e5;color:#fff;text-decoration:none;border-radius:6px;font-family:sans-serif">
+          View Task
+        </a>
+      </td>
+    </tr>
+    <tr><td>{{> footer}}</td></tr>
+  </table>
+</body>
+</html>

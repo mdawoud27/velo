@@ -1,8 +1,15 @@
-import { Controller, Get } from '@nestjs/common';
-import { HealthCheck, HealthCheckService, PrismaHealthIndicator } from '@nestjs/terminus';
+import { Controller, Get, ServiceUnavailableException } from '@nestjs/common';
+import {
+  HealthCheck,
+  HealthCheckResult,
+  HealthCheckService,
+  PrismaHealthIndicator,
+} from '@nestjs/terminus';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { RedisHealthIndicator } from './redis.health';
 import { Public } from 'src/auth/decorators';
+import { SkipThrottle } from '@nestjs/throttler';
+import { version } from '../../package.json';
 
 @Controller('health')
 export class HealthController {
@@ -14,21 +21,22 @@ export class HealthController {
   ) {}
 
   @Public()
+  @SkipThrottle()
   @Get()
-  liveness() {
-    return { status: 'ok' };
-  }
-
-  @Get('details')
   @HealthCheck()
   async check() {
-    const result = await this.health.check([
-      () => this.db.pingCheck('prisma', this.prisma, { timeout: 5000 }),
-      () => this.redisHealthIndicator.pingCheck('redis'),
-    ]);
-    return {
-      ...result,
-      version: process.env.npm_package_version,
-    };
+    try {
+      const result = await this.health.check([
+        () => this.db.pingCheck('prisma', this.prisma, { timeout: 5000 }),
+        () => this.redisHealthIndicator.pingCheck('redis'),
+      ]);
+      return { ...result, version };
+    } catch (error) {
+      if (error instanceof ServiceUnavailableException) {
+        const body = error.getResponse() as HealthCheckResult;
+        throw new ServiceUnavailableException({ ...body, version });
+      }
+      throw error;
+    }
   }
 }

@@ -1,0 +1,23 @@
+FROM node:24-alpine
+
+RUN apk add --no-cache libssl3
+
+RUN corepack enable && corepack prepare pnpm@10.18.0 --activate
+
+WORKDIR /app
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+
+RUN pnpm config set store-dir /root/.pnpm-store
+
+RUN --mount=type=cache,target=/root/.pnpm-store \
+    pnpm install --frozen-lockfile
+
+COPY prisma ./prisma
+COPY prisma.config.ts nest-cli.json tsconfig.json tsconfig.build.json* ./
+
+COPY . .
+
+EXPOSE 3000
+
+CMD ["sh", "-c", "pnpm prisma generate && pnpm prisma migrate deploy && pnpm start:dev"]

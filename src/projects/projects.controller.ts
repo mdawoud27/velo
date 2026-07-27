@@ -36,12 +36,17 @@ import { Cache } from 'src/cache/decorators';
 import { requireParam } from 'src/cache/utils';
 import { CacheTags } from 'src/cache/cache.tags';
 import { Idempotent } from 'src/idempotency/decorators';
+import { ExportQueueService } from 'src/queue/services';
+import { ExportJobResponseDto, JobStatusDto } from 'src/queue/dtos';
 
 @ApiTags('Projects')
 @ApiBearerAuth()
 @Controller('organizations/:orgId/teams/:teamId/projects')
 export class ProjectsController {
-  constructor(private readonly projectsService: ProjectsService) {}
+  constructor(
+    private readonly projectsService: ProjectsService,
+    private readonly exportQueue: ExportQueueService,
+  ) {}
 
   @Post()
   @Idempotent(60 * 60 * 24)
@@ -220,5 +225,38 @@ export class ProjectsController {
     @CurrentUser('sub') actorId: string,
   ) {
     return this.projectsService.getSummary(projectId, teamId, orgId, actorId);
+  }
+
+  @Post(':id/export')
+  @ResponseMessage('Export queued')
+  @ApiOperation({ summary: 'Request a task export for a project' })
+  @ApiDataResponse(ExportJobResponseDto)
+  @ApiErrorResponses(401, 403, 404, 409)
+  async requestExport(
+    @Param('id', ParseUUIDPipe) projectId: string,
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Param('teamId', ParseUUIDPipe) teamId: string,
+    @CurrentUser('sub') userId: string,
+  ) {
+    await this.projectsService.getProject(projectId, teamId, orgId, userId);
+    const job = await this.exportQueue.addProjectExportJob({
+      projectId,
+      requesterId: userId,
+      orgId,
+    });
+    return { jobId: job.id };
+  }
+
+  @Get(':id/export/status')
+  @ResponseMessage('Export status retrieved')
+  @ApiOperation({ summary: 'Poll the status of a project export job' })
+  @ApiDataResponse(JobStatusDto)
+  @ApiErrorResponses(401, 403, 404)
+  getExportStatus(
+    @Param('id', ParseUUIDPipe) projectId: string,
+    @Query('jobId') jobId: string,
+    @CurrentUser('sub') userId: string,
+  ) {
+    return this.exportQueue.getJobStatus(jobId, projectId, userId);
   }
 }

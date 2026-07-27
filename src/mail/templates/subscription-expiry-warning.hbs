@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#f0f0f0">
+  <table width="600" align="center" style="margin:40px auto;background:#fff;border-radius:8px;overflow:hidden">
+    <tr><td>{{> header}}</td></tr>
+    <tr>
+      <td style="padding:32px;font-family:sans-serif;color:#333">
+        <h2>Subscription Expiring Soon</h2>
+        <p style="line-height:1.6">The subscription for organization <strong>"{{orgName}}"</strong> will expire on <strong>{{expiresAt}}</strong>.</p>
+        <p style="line-height:1.6">Please renew your plan to ensure uninterrupted access.</p>
+      </td>
+    </tr>
+    <tr><td>{{> footer}}</td></tr>
+  </table>
+</body>
+</html>

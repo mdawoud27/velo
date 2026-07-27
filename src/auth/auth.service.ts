@@ -21,7 +21,6 @@ import {
   InvalidCredentialsException,
   InvalidOrExpiredTokenException,
 } from 'src/common/exceptions';
-import { EmailQueueService } from 'src/queue/email-queue.service';
 import { LoggerService } from 'src/logger/logger.service';
 import { JwtService } from '@nestjs/jwt';
 import { JwtPayload } from './interfaces';
@@ -31,6 +30,7 @@ import { ServiceMessage } from 'src/common/classes';
 import { ActivityService } from 'src/activity/activity.service';
 import { RealtimeGateway } from 'src/realtime/realtime.gateway';
 import { NotificationsService } from 'src/notifications/notifications.service';
+import { EmailQueueService } from 'src/queue/services';
 
 @Injectable()
 export class AuthService {

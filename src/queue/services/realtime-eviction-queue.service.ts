@@ -1,7 +1,7 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
 import { JobsOptions, Queue } from 'bullmq';
-import { REALTIME_EVICTION_QUEUE, RealtimeEvictionJobType } from './constants';
+import { REALTIME_EVICTION_QUEUE, RealtimeEvictionJobType } from '../constants';
 
 export interface EvictFromRoomPayload {
   userId: string;

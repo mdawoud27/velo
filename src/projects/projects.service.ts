@@ -20,7 +20,7 @@ import { KanbanBoard, ProjectSummary } from './interfaces';
 import { RealtimeGateway } from 'src/realtime/realtime.gateway';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { LoggerService } from 'src/logger/logger.service';
-import { RealtimeEvictionQueueService } from 'src/queue/realtime-eviction-queue.service';
+import { RealtimeEvictionQueueService } from 'src/queue/services';
 
 @Injectable()
 export class ProjectsService {
