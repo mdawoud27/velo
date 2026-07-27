@@ -97,7 +97,7 @@ jobs:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
       - name: Notify Discord Success
-        if: always() && steps.build.outcome == 'success' && steps.railway_redeploy.outcome == 'success'
+        if: always() && steps.build.outcome == 'success'
         env:
           DISCORD_WEBHOOK: ${{ secrets.DEPLOYMENT_DISCORD_WEBHOOK }}
         run: |
@@ -113,7 +113,7 @@ jobs:
           curl -sf -X POST "$DISCORD_WEBHOOK" -H "Content-Type: application/json" -d "$PAYLOAD"
 
       - name: Notify Discord Failure
-        if: always() && (steps.build.outcome != 'success' || steps.railway_redeploy.outcome != 'success')
+        if: always() && steps.build.outcome != 'success'
         env:
           DISCORD_WEBHOOK: ${{ secrets.DEPLOYMENT_DISCORD_WEBHOOK }}
         run: |
