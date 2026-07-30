@@ -13,21 +13,24 @@ datasource db {
 }
 
 model User {
-  id               String     @id @default(uuid())
-  email            String     @unique
-  password         String?
-  name             String
-  avatarUrl        String?
-  isEmailVerified  Boolean    @default(false)
-  googleId         String?    @unique
-  githubId         String?    @unique
-  systemRole       SystemRole @default(USER)
-  bannedAt         DateTime?
-  deletedAt        DateTime?
-  notifPreferences Json       @default("{}")
-  stripeCustomerId String?    @unique
-  createdAt        DateTime   @default(now())
-  updatedAt        DateTime   @updatedAt
+  id                   String     @id @default(uuid())
+  email                String     @unique
+  password             String?
+  name                 String
+  avatarUrl            String?
+  isEmailVerified      Boolean    @default(false)
+  twoFactorSecret      String?
+  isTwoFactorEnabled   Boolean    @default(false)
+  twoFactorBackupCodes String[]   @default([])
+  googleId             String?    @unique
+  githubId             String?    @unique
+  systemRole           SystemRole @default(USER)
+  bannedAt             DateTime?
+  deletedAt            DateTime?
+  notifPreferences     Json       @default("{}")
+  stripeCustomerId     String?    @unique
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
 
   memberships        OrgMember[]
   teamMemberships    TeamMember[]
@@ -110,7 +113,6 @@ model Team {
   projects Project[]
 
   @@index([deletedAt])
-  @@unique([orgId, name])
 }
 
 model TeamMember {
@@ -145,6 +147,7 @@ model Project {
   @@index([teamId])
   @@index([status])
   @@index([deletedAt])
+  @@index([teamId, deletedAt, status])
 }
 
 model ProjectMember {
