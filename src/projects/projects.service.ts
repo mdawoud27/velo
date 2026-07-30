@@ -1,5 +1,13 @@
 import { ConflictException, ForbiddenException, Injectable } from '@nestjs/common';
-import { OrgRole, Prisma, ProjectStatus, TaskStatus, TeamRole, User } from '@prisma/client';
+import {
+  OrgRole,
+  Prisma,
+  ProjectMember,
+  ProjectStatus,
+  TaskStatus,
+  TeamRole,
+  User,
+} from '@prisma/client';
 import { BannedUserException, ResourceNotFoundException } from 'src/common/exceptions';
 import { PrismaService } from 'src/prisma/prisma.service';
 import {
@@ -197,10 +205,17 @@ export class ProjectsService {
       );
     }
 
-    await this.prisma.project.update({
-      where: { id: projectId },
-      data: { deletedAt: new Date() },
-    });
+    const now = new Date();
+    await this.prisma.$transaction([
+      this.prisma.project.update({
+        where: { id: projectId },
+        data: { deletedAt: now },
+      }),
+      this.prisma.task.updateMany({
+        where: { projectId, deletedAt: null },
+        data: { deletedAt: now },
+      }),
+    ]);
 
     this.activity.log({
       action: 'project.deleted',
@@ -246,9 +261,17 @@ export class ProjectsService {
       throw new ConflictException('User is already a member of this project');
     }
 
-    const member = await this.prisma.projectMember.create({
-      data: { userId: dto.userId, projectId },
-    });
+    let member: ProjectMember;
+    try {
+      member = await this.prisma.projectMember.create({
+        data: { userId: dto.userId, projectId },
+      });
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        throw new ConflictException('User is already a member of this project');
+      }
+      throw err;
+    }
 
     this.activity.log({
       action: 'project.member.added',
@@ -328,21 +351,22 @@ export class ProjectsService {
 
     const project = await this.getProjectOrThrow(projectId, teamId, orgId);
 
-    const existingMember = await this.prisma.projectMember.findUnique({
-      where: { userId_projectId: { userId: dto.userId, projectId } },
-    });
-    if (!existingMember) {
-      throw new ResourceNotFoundException('ProjectMember', dto.userId);
+    let deletedMember: ProjectMember;
+    try {
+      deletedMember = await this.prisma.projectMember.delete({
+        where: { userId_projectId: { userId: dto.userId, projectId } },
+      });
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
+        throw new ResourceNotFoundException('ProjectMember', dto.userId);
+      }
+      throw err;
     }
-
-    await this.prisma.projectMember.delete({
-      where: { userId_projectId: { userId: dto.userId, projectId } },
-    });
 
     this.activity.log({
       action: 'project.member.removed',
       entityType: 'projectMember',
-      entityId: existingMember.id,
+      entityId: deletedMember.id,
       actorId,
       orgId,
       projectId,
