@@ -46,6 +46,7 @@ export class OrganizationsService {
       await tx.orgMember.create({ data: { orgId: org.id, userId, role: OrgRole.OWNER } });
       return new OrgEntity(org);
     });
+
     this.activity.log({
       action: 'org.created',
       entityType: 'Organization',
@@ -53,6 +54,16 @@ export class OrganizationsService {
       actorId: userId,
       orgId: org.id,
     });
+
+    void this.cache
+      .invalidateUserCache(userId)
+      .catch((err: unknown) =>
+        this.logger.error(
+          'Failed to invalidate user cache',
+          err instanceof Error ? err : undefined,
+          OrganizationsService.name,
+        ),
+      );
     return new OrgEntity(org);
   }
 
@@ -252,7 +263,24 @@ export class OrganizationsService {
       metadata: { role: invite.role },
     });
 
-    void this.cache.invalidateOrganizationCache(orgId).catch(() => {});
+    void this.cache
+      .invalidateOrganizationCache(orgId)
+      .catch((err: unknown) =>
+        this.logger.error(
+          'Failed to invalidate organization cache',
+          err instanceof Error ? err : undefined,
+          OrganizationsService.name,
+        ),
+      );
+    void this.cache
+      .invalidateUserCache(userId)
+      .catch((err: unknown) =>
+        this.logger.error(
+          'Failed to invalidate user cache',
+          err instanceof Error ? err : undefined,
+          OrganizationsService.name,
+        ),
+      );
 
     this.gateway.emitOrgMemberAdded(invite.orgId, { userId, role: invite.role });
   }
@@ -353,6 +381,23 @@ export class OrganizationsService {
     ]);
 
     return { meta: buildPaginationMeta(total, dto.page, dto.limit), data: invitations };
+  }
+
+  async getUserOrgs(userId: string, dto: PaginationDto) {
+    const [orgs, total] = await this.prisma.$transaction([
+      this.prisma.orgMember.findMany({
+        where: { userId },
+        select: {
+          org: { select: { id: true, name: true, plan: true } },
+        },
+        skip: (dto.page - 1) * dto.limit,
+        take: dto.limit,
+        orderBy: { org: { createdAt: 'desc' } },
+      }),
+      this.prisma.orgMember.count({ where: { userId } }),
+    ]);
+
+    return { meta: buildPaginationMeta(total, dto.page, dto.limit), data: orgs };
   }
 
   private async findActiveUser(userId: string, tx?: Prisma.TransactionClient): Promise<User> {

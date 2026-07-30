@@ -29,7 +29,7 @@ import {
 } from 'src/common/decorators';
 import { PaginationDto } from 'src/common/dtos';
 import { Cache } from 'src/cache/decorators';
-import { requireParam } from 'src/cache/utils';
+import { requireParam, requireUser } from 'src/cache/utils';
 import { CacheTags } from 'src/cache/cache.tags';
 import { Idempotent } from 'src/idempotency/decorators';
 
@@ -129,5 +129,15 @@ export class OrganizationsController {
     @Query() dto: PaginationDto,
   ) {
     return this.orgService.listInvitations(orgId, userId, dto);
+  }
+
+  @Get('me')
+  @Cache(15, (req) => [CacheTags.user(requireUser(req).sub)])
+  @ResponseMessage('Organizations listed successfully.')
+  @ApiOperation({ summary: 'List organizations the current user belongs to.' })
+  @ApiPaginatedDataResponse(OrgDto, 'Organizations listed successfully.')
+  @ApiErrorResponses(401)
+  async getUserOrgs(@CurrentUser('sub') userId: string, @Query() dto: PaginationDto) {
+    return this.orgService.getUserOrgs(userId, dto);
   }
 }
