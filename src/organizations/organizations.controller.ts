@@ -13,6 +13,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { OrganizationsService } from './organizations.service';
 import {
   AcceptInviteDto,
+  BulkInviteDto,
   CreateOrganizationDto,
   DeclineInviteDto,
   InviteDto,
@@ -60,6 +61,19 @@ export class OrganizationsController {
     @CurrentUser('sub') userId: string,
   ) {
     return this.orgService.inviteMember(orgId, dto, userId);
+  }
+
+  @Post(':orgId/invitations/bulk')
+  @ResponseMessage('Bulk invitations processed.')
+  @ApiOperation({ summary: 'Invite multiple members to the organization in bulk.' })
+  @ApiDataResponse(Object, 'Bulk invitations processed.')
+  @ApiErrorResponses(401, 403, 404)
+  async bulkInvite(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Body() dto: BulkInviteDto,
+    @CurrentUser('sub') userId: string,
+  ) {
+    return this.orgService.bulkInviteMembers(orgId, dto, userId);
   }
 
   @Post(':orgId/resend')

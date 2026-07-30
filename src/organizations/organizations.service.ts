@@ -9,7 +9,7 @@ import {
 } from 'src/common/exceptions';
 import { Plan, Prisma, User } from '@prisma/client';
 import { OrgEntity } from './entities';
-import { AcceptInviteDto, DeclineInviteDto, InviteDto } from './dtos';
+import { AcceptInviteDto, BulkInviteDto, DeclineInviteDto, InviteDto } from './dtos';
 import { ConfigService } from '@nestjs/config';
 import { buildPaginationMeta } from 'src/common/utils';
 import { PaginationDto } from 'src/common/dtos';
@@ -127,6 +127,25 @@ export class OrganizationsService {
           ),
         );
     }
+  }
+
+  async bulkInviteMembers(orgId: string, dto: BulkInviteDto, actorId: string) {
+    const results: { email: string; success: boolean; error?: string }[] = [];
+
+    for (const email of dto.emails) {
+      try {
+        await this.inviteMember(orgId, { email, role: dto.role }, actorId);
+        results.push({ email, success: true });
+      } catch (err: unknown) {
+        results.push({
+          email,
+          success: false,
+          error: err instanceof Error ? err.message : 'Failed to invite',
+        });
+      }
+    }
+
+    return { results };
   }
 
   async resendInvite(orgId: string, dto: InviteDto, actorId: string) {
