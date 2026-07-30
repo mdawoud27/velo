@@ -80,7 +80,18 @@ export class TeamsService {
     await this.assertActorCanManageTeams(orgId, actorId);
     await this.getTeamOrThrow(teamId, orgId);
 
-    await this.prisma.team.update({ where: { id: teamId }, data: { deletedAt: new Date() } });
+    const now = new Date();
+    await this.prisma.$transaction([
+      this.prisma.team.update({ where: { id: teamId }, data: { deletedAt: now } }),
+      this.prisma.project.updateMany({
+        where: { teamId, deletedAt: null },
+        data: { deletedAt: now },
+      }),
+      this.prisma.task.updateMany({
+        where: { project: { teamId }, deletedAt: null },
+        data: { deletedAt: now },
+      }),
+    ]);
 
     this.activity.log({
       action: 'team.deleted',
