@@ -79,6 +79,73 @@ export class ApiErrorResponseDto {
   @ApiProperty() timestamp: string;
 }
 
+class UnauthorizedErrorBodyDto {
+  @ApiProperty({ example: 'UNAUTHORIZED' }) code: string;
+  @ApiProperty({ example: 'Unauthorized access' }) message: string;
+}
+
+export class ApiUnauthorizedErrorResponseDto {
+  @ApiProperty({ example: false }) success: false;
+  @ApiProperty({ type: () => UnauthorizedErrorBodyDto }) error: UnauthorizedErrorBodyDto;
+  @ApiProperty() timestamp: string;
+}
+
+class ForbiddenErrorBodyDto {
+  @ApiProperty({ example: 'FORBIDDEN' }) code: string;
+  @ApiProperty({ example: 'You do not have permission to access this resource' }) message: string;
+}
+
+export class ApiForbiddenErrorResponseDto {
+  @ApiProperty({ example: false }) success: false;
+  @ApiProperty({ type: () => ForbiddenErrorBodyDto }) error: ForbiddenErrorBodyDto;
+  @ApiProperty() timestamp: string;
+}
+
+class NotFoundErrorBodyDto {
+  @ApiProperty({ example: 'RESOURCE_NOT_FOUND' }) code: string;
+  @ApiProperty({ example: 'Resource not found' }) message: string;
+}
+
+export class ApiNotFoundErrorResponseDto {
+  @ApiProperty({ example: false }) success: false;
+  @ApiProperty({ type: () => NotFoundErrorBodyDto }) error: NotFoundErrorBodyDto;
+  @ApiProperty() timestamp: string;
+}
+
+class ConflictErrorBodyDto {
+  @ApiProperty({ example: 'CONFLICT' }) code: string;
+  @ApiProperty({ example: 'Resource state conflict' }) message: string;
+}
+
+export class ApiConflictErrorResponseDto {
+  @ApiProperty({ example: false }) success: false;
+  @ApiProperty({ type: () => ConflictErrorBodyDto }) error: ConflictErrorBodyDto;
+  @ApiProperty() timestamp: string;
+}
+
+class UnprocessableEntityErrorBodyDto {
+  @ApiProperty({ example: 'UNPROCESSABLE_ENTITY' }) code: string;
+  @ApiProperty({ example: 'Validation failed or entity cannot be processed' }) message: string;
+}
+
+export class ApiUnprocessableEntityErrorResponseDto {
+  @ApiProperty({ example: false }) success: false;
+  @ApiProperty({ type: () => UnprocessableEntityErrorBodyDto })
+  error: UnprocessableEntityErrorBodyDto;
+  @ApiProperty() timestamp: string;
+}
+
+class TooManyRequestsErrorBodyDto {
+  @ApiProperty({ example: 'TOO_MANY_REQUESTS' }) code: string;
+  @ApiProperty({ example: 'Rate limit exceeded. Please try again later.' }) message: string;
+}
+
+export class ApiTooManyRequestsErrorResponseDto {
+  @ApiProperty({ example: false }) success: false;
+  @ApiProperty({ type: () => TooManyRequestsErrorBodyDto }) error: TooManyRequestsErrorBodyDto;
+  @ApiProperty() timestamp: string;
+}
+
 class ValidationFieldDto {
   @ApiProperty({ example: 'email' }) field: string;
   @ApiProperty({ example: 'must be an email', required: false }) message?: string;
