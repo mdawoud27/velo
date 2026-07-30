@@ -35,6 +35,7 @@ export class AdminService {
       activeUsers,
       bannedUsers,
       totalOrgs,
+      totalTeams,
       totalTasks,
       activeProjects,
       planDistribution,
@@ -44,6 +45,7 @@ export class AdminService {
       this.prisma.user.count({ where: { bannedAt: null, deletedAt: null } }),
       this.prisma.user.count({ where: { bannedAt: { not: null } } }),
       this.prisma.organization.count({ where: { deletedAt: null } }),
+      this.prisma.team.count({ where: { deletedAt: null } }),
       this.prisma.task.count({ where: { deletedAt: null } }),
       this.prisma.project.count({ where: { status: 'ACTIVE', deletedAt: null } }),
       this.prisma.organization.groupBy({
@@ -67,6 +69,7 @@ export class AdminService {
           number
         >,
       },
+      teams: { total: totalTeams },
       projects: { active: activeProjects },
       tasks: { total: totalTasks },
       activity: { last7Days: recentActivity },
@@ -164,6 +167,24 @@ export class AdminService {
 
     this.activity.log({
       action: 'admin.user.unbanned',
+      entityType: 'User',
+      entityId: userId,
+      actorId,
+    });
+  }
+
+  async restoreUser(userId: string, actorId: string): Promise<void> {
+    const target = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!target) throw new ResourceNotFoundException('User', userId);
+    if (!target.deletedAt) throw new ForbiddenException('User is not deleted');
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { deletedAt: null },
+    });
+
+    this.activity.log({
+      action: 'admin.user.restored',
       entityType: 'User',
       entityId: userId,
       actorId,
