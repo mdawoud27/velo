@@ -8,6 +8,10 @@ import {
   ResetPassword,
   VerifyEmailDto,
   AuthTokensDto,
+  Enable2FaDto,
+  Disable2FaDto,
+  Verify2FaDto,
+  TwoFactorSetupResponseDto,
 } from './dtos';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards';
@@ -20,6 +24,7 @@ import {
   ResponseMessage,
 } from 'src/common/decorators';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -66,6 +71,50 @@ export class AuthController {
   @ApiErrorResponses(401, 403)
   async login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
+  }
+
+  @Post('2fa/generate')
+  @HttpCode(HttpStatus.OK)
+  @ResponseMessage('2FA setup secret and QR code generated')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Generate 2FA secret and QR code' })
+  @ApiDataResponse(TwoFactorSetupResponseDto, '2FA setup secret and QR code')
+  @ApiErrorResponses(401)
+  async generate2FaSecret(@CurrentUser('sub') userId: string) {
+    return this.authService.generate2FaSecret(userId);
+  }
+
+  @Post('2fa/enable')
+  @HttpCode(HttpStatus.OK)
+  @ResponseMessage('2FA enabled successfully')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Enable 2FA with verification token' })
+  @ApiErrorResponses(400, 401)
+  async enable2Fa(@CurrentUser('sub') userId: string, @Body() dto: Enable2FaDto) {
+    return this.authService.enable2Fa(userId, dto);
+  }
+
+  @Post('2fa/disable')
+  @HttpCode(HttpStatus.OK)
+  @ResponseMessage('2FA disabled successfully')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Disable 2FA with verification token' })
+  @ApiMessageResponse('2FA disabled successfully')
+  @ApiErrorResponses(400, 401)
+  async disable2Fa(@CurrentUser('sub') userId: string, @Body() dto: Disable2FaDto) {
+    return this.authService.disable2Fa(userId, dto);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Post('2fa/verify')
+  @HttpCode(HttpStatus.OK)
+  @ResponseMessage('2FA verified successfully')
+  @ApiOperation({ summary: 'Verify 2FA token or backup code during login' })
+  @ApiDataResponse(AuthTokensDto, '2FA verified and tokens generated')
+  @ApiErrorResponses(400, 401)
+  async verify2Fa(@Body() dto: Verify2FaDto) {
+    return this.authService.verify2Fa(dto);
   }
 
   @Public()
