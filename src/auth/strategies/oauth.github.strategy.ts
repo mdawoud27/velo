@@ -16,7 +16,10 @@ export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
     super({
       clientID: config.getOrThrow<string>('GITHUB_CLIENT_ID'),
       clientSecret: config.getOrThrow<string>('GITHUB_CLIENT_SECRET'),
-      callbackURL: config.getOrThrow<string>('GITHUB_CALLBACK_URL'),
+      callbackURL:
+        config.get<string>('NODE_ENV') === 'production'
+          ? config.getOrThrow<string>('GITHUB_CALLBACK_URL_PROD')
+          : config.getOrThrow<string>('GITHUB_CALLBACK_URL'),
       scope: ['user:email'],
       allRawEmails: true,
     });
