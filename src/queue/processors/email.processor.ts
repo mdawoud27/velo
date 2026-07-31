@@ -26,7 +26,7 @@ type EmailJob =
   | Job<DueReminderPayload, void, EmailJobType.DUE_REMINDER>
   | Job<SubscriptionExpiryWarningPayload, void, EmailJobType.SUBSCRIPTION_EXPIRY_WARNING>;
 
-@Processor(EMAIL_QUEUE)
+@Processor(EMAIL_QUEUE, { concurrency: 5 })
 export class EmailProcessor extends WorkerHost {
   constructor(
     private readonly mail: MailService,
