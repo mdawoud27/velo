@@ -294,7 +294,7 @@ export class AuthService {
     const userId = await this.tokensService.verifyTwoFaChallengeToken(dto.challengeToken);
 
     const user = await this.prisma.user.findUnique({ where: { id: userId, deletedAt: null } });
-    if (!user || !user.isTwoFactorEnabled || user.deletedAt) {
+    if (!user || !user.isTwoFactorEnabled || user.deletedAt || user.bannedAt) {
       throw new InvalidOrExpiredTokenException();
     }
 

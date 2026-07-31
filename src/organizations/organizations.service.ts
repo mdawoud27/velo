@@ -334,7 +334,7 @@ export class OrganizationsService {
   async getUserOrgs(userId: string, dto: PaginationDto) {
     const [orgs, total] = await this.prisma.$transaction([
       this.prisma.orgMember.findMany({
-        where: { userId },
+        where: { userId, org: { deletedAt: null } },
         select: {
           org: { select: { id: true, name: true, plan: true } },
         },
