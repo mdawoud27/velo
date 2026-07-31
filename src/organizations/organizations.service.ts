@@ -105,8 +105,8 @@ export class OrganizationsService {
       orgName: org.name,
       role: dto.role ?? OrgRole.MEMBER,
       inviterName: actor.name,
-      invitationUrl: `${this.config.getOrThrow('CLIENT_URL')}/accept-invite?token=${token}`,
-      declineInvitationUrl: `${this.config.getOrThrow('CLIENT_URL')}/decline-invite?token=${token}`,
+      invitationUrl: `${this.config.getOrThrow('FRONTEND_URL')}/accept-invite?token=${token}`,
+      declineInvitationUrl: `${this.config.getOrThrow('FRONTEND_URL')}/decline-invite?token=${token}`,
     });
 
     this.activity.log({
@@ -194,8 +194,8 @@ export class OrganizationsService {
       orgName: org.name,
       role: existingInvitation.role,
       inviterName: actor.name,
-      invitationUrl: `${this.config.getOrThrow('CLIENT_URL')}/accept-invite?token=${token}`,
-      declineInvitationUrl: `${this.config.getOrThrow('CLIENT_URL')}/decline-invite?token=${token}`,
+      invitationUrl: `${this.config.getOrThrow('FRONTEND_URL')}/accept-invite?token=${token}`,
+      declineInvitationUrl: `${this.config.getOrThrow('FRONTEND_URL')}/decline-invite?token=${token}`,
     });
 
     this.activity.log({

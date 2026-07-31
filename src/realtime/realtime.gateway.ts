@@ -21,7 +21,7 @@ import { ProjectMemberEntity } from 'src/projects/entities';
 import { TokensService } from 'src/auth/tokens.service';
 
 @WebSocketGateway({
-  cors: { origin: process.env.CLIENT_URL || 'http://localhost:3000', credentials: true },
+  cors: { origin: process.env.FRONTEND_URL || 'http://localhost:3000', credentials: true },
 })
 @UseGuards(WsJwtGuard)
 export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {

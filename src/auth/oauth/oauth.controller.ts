@@ -30,7 +30,7 @@ export class OAuthController {
   @UseGuards(AuthGuard('google'))
   @ApiOperation({ summary: 'Google OAuth callback' })
   @ApiRedirectResponse('Redirects to frontend after successful login')
-  @ApiDataResponse(AuthTokensDto, 'Returns tokens directly when CLIENT_URL is not set')
+  @ApiDataResponse(AuthTokensDto, 'Returns tokens directly when FRONTEND_URL is not set')
   async googleCallback(@CurrentUser() profile: OAuthProfile, @Res() res: Response) {
     await this.handleOAuthCallback(profile, res);
   }
@@ -47,7 +47,7 @@ export class OAuthController {
   @UseGuards(AuthGuard('github'))
   @ApiOperation({ summary: 'GitHub OAuth callback' })
   @ApiRedirectResponse('Redirects to frontend after successful login')
-  @ApiDataResponse(AuthTokensDto, 'Returns tokens directly when CLIENT_URL is not set')
+  @ApiDataResponse(AuthTokensDto, 'Returns tokens directly when FRONTEND_URL is not set')
   async githubCallback(@CurrentUser() profile: OAuthProfile, @Res() res: Response) {
     await this.handleOAuthCallback(profile, res);
   }
@@ -63,14 +63,14 @@ export class OAuthController {
 
   private async handleOAuthCallback(profile: OAuthProfile, res: Response) {
     const tokens = await this.oauthService.handleOAuthLogin(profile);
-    const clientUrl = this.config.get<string>('CLIENT_URL');
+    const frontendUrl = this.config.get<string>('FRONTEND_URL');
 
-    if (!clientUrl || clientUrl === '') {
+    if (!frontendUrl || frontendUrl === '') {
       res.json({ message: 'OAuth Login Successful!', ...tokens });
       return;
     }
 
     const code = await this.oauthService.storeOAuthCode(tokens);
-    res.redirect(`${clientUrl}/auth/callback?code=${code}`);
+    res.redirect(`${frontendUrl}/auth/callback?code=${code}`);
   }
 }

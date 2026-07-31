@@ -58,8 +58,8 @@ export class BillingService {
       customer: customerId,
       mode: 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${this.config.getOrThrow('CLIENT_URL')}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${this.config.getOrThrow('CLIENT_URL')}/billing/cancelled`,
+      success_url: `${this.config.getOrThrow('FRONTEND_URL')}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${this.config.getOrThrow('FRONTEND_URL')}/billing/cancelled`,
       metadata: { orgId },
       subscription_data: {
         metadata: { orgId }, // also on the subscription for lookup via subscription.updated
@@ -82,7 +82,7 @@ export class BillingService {
 
     const session = await this.stripe.billingPortal.sessions.create({
       customer: org.stripeCustomerId,
-      return_url: `${this.config.getOrThrow('CLIENT_URL')}/settings/billing`,
+      return_url: `${this.config.getOrThrow('FRONTEND_URL')}/settings/billing`,
     });
 
     return { url: session.url };
