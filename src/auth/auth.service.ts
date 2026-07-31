@@ -201,13 +201,6 @@ export class AuthService {
       orderBy: { joinedAt: 'asc' },
     });
 
-    if (user.isTwoFactorEnabled) {
-      return {
-        requires2FA: true,
-        userId: user.id,
-      };
-    }
-
     const firstOrg = orgMemberships[0];
     const { accessToken, refreshToken } = await this.tokensService.generateTokens(
       user,
@@ -223,7 +216,7 @@ export class AuthService {
   }
 
   async generate2FaSecret(userId: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const user = await this.prisma.user.findUnique({ where: { id: userId, deletedAt: null } });
     if (!user) throw new ResourceNotFoundException('User', userId);
 
     const secret = generateSecret();
@@ -257,11 +250,13 @@ export class AuthService {
       crypto.randomBytes(4).toString('hex').toUpperCase(),
     );
 
+    const hashedBackupCodes = await Promise.all(backupCodes.map((code) => bcrypt.hash(code, 10)));
+
     await this.prisma.user.update({
       where: { id: userId },
       data: {
         isTwoFactorEnabled: true,
-        twoFactorBackupCodes: backupCodes,
+        twoFactorBackupCodes: hashedBackupCodes,
       },
     });
 
@@ -269,7 +264,7 @@ export class AuthService {
   }
 
   async disable2Fa(userId: string, dto: Disable2FaDto) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const user = await this.prisma.user.findUnique({ where: { id: userId, deletedAt: null } });
     if (!user || !user.isTwoFactorEnabled || !user.twoFactorSecret) {
       throw new InvalidOrExpiredTokenException();
     }
@@ -298,7 +293,7 @@ export class AuthService {
   async verify2Fa(dto: Verify2FaDto) {
     const userId = await this.tokensService.verifyTwoFaChallengeToken(dto.challengeToken);
 
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const user = await this.prisma.user.findUnique({ where: { id: userId, deletedAt: null } });
     if (!user || !user.isTwoFactorEnabled || user.deletedAt) {
       throw new InvalidOrExpiredTokenException();
     }
@@ -314,9 +309,14 @@ export class AuthService {
       isValid = result.valid;
     }
 
-    if (!isValid && user.twoFactorBackupCodes.includes(dto.token)) {
-      isValid = true;
-      usedBackupCode = true;
+    if (!isValid) {
+      for (const hashed of user.twoFactorBackupCodes) {
+        if (await bcrypt.compare(dto.token, hashed)) {
+          isValid = true;
+          usedBackupCode = true;
+          break;
+        }
+      }
     }
 
     if (!isValid) {
@@ -324,7 +324,10 @@ export class AuthService {
     }
 
     if (usedBackupCode) {
-      const updatedCodes = user.twoFactorBackupCodes.filter((code) => code !== dto.token);
+      const updatedCodes: string[] = [];
+      for (const hashed of user.twoFactorBackupCodes) {
+        if (!(await bcrypt.compare(dto.token, hashed))) updatedCodes.push(hashed);
+      }
       await this.prisma.user.update({
         where: { id: user.id },
         data: { twoFactorBackupCodes: updatedCodes },

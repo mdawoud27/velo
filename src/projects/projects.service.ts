@@ -45,21 +45,29 @@ export class ProjectsService {
 
   async createProject(orgId: string, teamId: string, dto: CreateProjectDto, actorId: string) {
     await this.assertActorCanManageProjects(orgId, teamId, actorId);
-    await this.getTeamOrThrow(teamId, orgId);
 
-    const existingProject = await this.prisma.project.findFirst({
-      where: { teamId, name: dto.name, deletedAt: null },
-    });
-    if (existingProject) {
-      throw new ConflictException('Project already exists');
-    }
+    const project = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "Team" WHERE id = ${teamId} FOR UPDATE`;
 
-    const project = await this.prisma.project.create({
-      data: {
-        ...dto,
-        deadline: dto.deadline ? new Date(dto.deadline) : undefined,
-        teamId,
-      },
+      const team = await tx.team.findFirst({
+        where: { id: teamId, orgId, deletedAt: null },
+      });
+      if (!team) throw new ResourceNotFoundException('Team', teamId);
+
+      const existingProject = await tx.project.findFirst({
+        where: { teamId, name: dto.name, deletedAt: null },
+      });
+      if (existingProject) {
+        throw new ConflictException('Project already exists');
+      }
+
+      return tx.project.create({
+        data: {
+          ...dto,
+          deadline: dto.deadline ? new Date(dto.deadline) : undefined,
+          teamId,
+        },
+      });
     });
 
     this.activity.log({

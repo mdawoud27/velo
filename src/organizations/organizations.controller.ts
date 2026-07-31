@@ -64,6 +64,7 @@ export class OrganizationsController {
   }
 
   @Post(':orgId/invitations/bulk')
+  @Idempotent(60 * 60 * 24)
   @ResponseMessage('Bulk invitations processed.')
   @ApiOperation({ summary: 'Invite multiple members to the organization in bulk.' })
   @ApiDataResponse(Object, 'Bulk invitations processed.')

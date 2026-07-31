@@ -139,7 +139,7 @@ export class TokensService {
     return this.jwtService.signAsync(
       { sub: userId, purpose: '2fa_challenge' },
       {
-        secret: this.config.get<string>('JWT_2FA_CHALLENGE_SECRET'),
+        secret: this.config.getOrThrow<string>('JWT_2FA_CHALLENGE_SECRET'),
         expiresIn: '5m',
       },
     );
@@ -150,7 +150,7 @@ export class TokensService {
 
     try {
       payload = await this.jwtService.verifyAsync(challengeToken, {
-        secret: this.config.get<string>('JWT_2FA_CHALLENGE_SECRET'),
+        secret: this.config.getOrThrow<string>('JWT_2FA_CHALLENGE_SECRET'),
       });
     } catch {
       throw new InvalidOrExpiredTokenException();

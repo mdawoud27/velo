@@ -10,7 +10,7 @@ import {
   UpdateTaskDto,
   UpdateTaskStatusDto,
 } from './dtos';
-import { TaskEntity, TaskWithUsersEntity } from './entities';
+import { AttachmentEntity, TaskEntity, TaskWithUsersEntity } from './entities';
 import { OrgRole, Prisma, Task, TaskStatus, TeamRole, User } from '@prisma/client';
 import {
   BannedUserException,
@@ -551,7 +551,7 @@ export class TasksService {
     projectId: string,
     file: Express.Multer.File,
     uploaderId: string,
-  ) {
+  ): Promise<AttachmentEntity> {
     await this.assertActorCanManageTasks(orgId, teamId, projectId, uploaderId);
     await this.getProjectOrThrow(projectId, teamId, orgId);
     await assertProjectWritable(this.prisma, projectId);
@@ -570,7 +570,7 @@ export class TasksService {
 
     this.gateway.emitTaskUpdated(projectId, new TaskEntity(task));
 
-    return this.prisma.attachment.create({
+    const attachment = await this.prisma.attachment.create({
       data: {
         filename: file.originalname,
         url: result.secureUrl,
@@ -579,6 +579,8 @@ export class TasksService {
         uploaderId,
       },
     });
+
+    return new AttachmentEntity(attachment);
   }
 
   private async assertUserIsProjectMember(userId: string, projectId: string): Promise<void> {

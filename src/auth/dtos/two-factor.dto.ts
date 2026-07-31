@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, Length } from 'class-validator';
+import { IsNotEmpty, IsString, Length, MaxLength } from 'class-validator';
 
 export class Enable2FaDto {
   @ApiProperty({ example: '123456', description: '6-digit TOTP token' })
@@ -21,11 +21,13 @@ export class Verify2FaDto {
   @ApiProperty({ example: '123456', description: '6-digit TOTP token or backup code' })
   @IsString()
   @IsNotEmpty()
+  @MaxLength(20)
   token: string;
 
   @ApiProperty({ example: 'challenge-token' })
   @IsString()
   @IsNotEmpty()
+  @MaxLength(2048)
   challengeToken: string;
 }
 

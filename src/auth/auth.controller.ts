@@ -85,6 +85,7 @@ export class AuthController {
   }
 
   @Post('2fa/enable')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @ResponseMessage('2FA enabled successfully')
   @ApiBearerAuth('access-token')
@@ -95,6 +96,7 @@ export class AuthController {
   }
 
   @Post('2fa/disable')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @ResponseMessage('2FA disabled successfully')
   @ApiBearerAuth('access-token')

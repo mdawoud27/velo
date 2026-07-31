@@ -40,6 +40,7 @@ import { requireParam } from 'src/cache/utils';
 import { Idempotent } from 'src/idempotency/decorators';
 import { CacheTags } from 'src/cache/cache.tags';
 import { FilesInterceptor } from '@nestjs/platform-express';
+import { AttachmentEntity, AttachmentUploadResultDto } from './entities';
 
 @ApiTags('Tasks')
 @ApiBearerAuth()
@@ -236,7 +237,7 @@ export class TasksController {
   @Post(':id/attachments')
   @ResponseMessage('Attachments uploaded successfully.')
   @ApiOperation({ summary: 'Upload attachments to a task' })
-  @ApiDataResponse(Object, 'Attachments uploaded successfully.')
+  @ApiDataResponse(AttachmentUploadResultDto, 'Attachments processed.')
   @HttpCode(HttpStatus.OK)
   @ApiErrorResponses(401, 403, 404, 409)
   @UseInterceptors(FilesInterceptor('files'))
@@ -260,11 +261,27 @@ export class TasksController {
     @CurrentUser('sub') userId: string,
   ) {
     const fileList = Array.isArray(files) ? files : [files];
-    const attachments = await Promise.all(
+
+    const results = await Promise.allSettled(
       fileList.map((file) =>
         this.tasksService.addAttachments(id, orgId, teamId, projectId, file, userId),
       ),
     );
-    return attachments;
+
+    const succeeded: AttachmentEntity[] = [];
+    const failed: { filename: string; reason: string }[] = [];
+
+    results.forEach((result, i) => {
+      if (result.status === 'fulfilled') {
+        succeeded.push(result.value);
+      } else {
+        failed.push({
+          filename: fileList[i].originalname,
+          reason: result.reason instanceof Error ? result.reason.message : 'Upload failed',
+        });
+      }
+    });
+
+    return { succeeded, failed };
   }
 }
