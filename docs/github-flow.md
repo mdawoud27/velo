@@ -85,6 +85,7 @@ git commit -m "feat: add 2FA TOTP verification and backup codes"
    ```
 
 3. **Open Pull Request**:
+   - PR title must start with a valid prefix (`feat`, `fix`, `build`, `chore`, `refactor`, `docs`, `perf`, `test`) followed by a colon and a space and must end with a user story ID (e.g., " - [AUTH-01]")
    - Use `.github/PULL_REQUEST_TEMPLATE.md` to format your pull request.
    - Specify issue reference or task code (e.g., `Closes #123`).
    - Describe changes made and testing verification steps.
