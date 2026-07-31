@@ -1,4 +1,10 @@
-import { ConflictException, ForbiddenException, HttpStatus, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrganizationDto } from './dtos/create-org.dto';
 import {
@@ -7,9 +13,9 @@ import {
   PlanLimitException,
   ResourceNotFoundException,
 } from 'src/common/exceptions';
-import { Plan, Prisma, User } from '@prisma/client';
+import { Organization, Plan, Prisma, User } from '@prisma/client';
 import { OrgEntity } from './entities';
-import { AcceptInviteDto, DeclineInviteDto, InviteDto } from './dtos';
+import { AcceptInviteDto, BulkInviteDto, DeclineInviteDto, InviteDto } from './dtos';
 import { ConfigService } from '@nestjs/config';
 import { buildPaginationMeta } from 'src/common/utils';
 import { PaginationDto } from 'src/common/dtos';
@@ -46,6 +52,7 @@ export class OrganizationsService {
       await tx.orgMember.create({ data: { orgId: org.id, userId, role: OrgRole.OWNER } });
       return new OrgEntity(org);
     });
+
     this.activity.log({
       action: 'org.created',
       entityType: 'Organization',
@@ -53,6 +60,16 @@ export class OrganizationsService {
       actorId: userId,
       orgId: org.id,
     });
+
+    void this.cache
+      .invalidateUserCache(userId)
+      .catch((err: unknown) =>
+        this.logger.error(
+          'Failed to invalidate user cache',
+          err instanceof Error ? err : undefined,
+          OrganizationsService.name,
+        ),
+      );
     return new OrgEntity(org);
   }
 
@@ -60,73 +77,34 @@ export class OrganizationsService {
     const org = await this.prisma.organization.findUniqueOrThrow({ where: { id: orgId } });
     const actor = await this.findActiveUser(actorId, this.prisma);
     await this.assertActorCanManageMembers(orgId, actorId);
-    const invitedUser = await this.assertNotAlreadyMember(orgId, dto.email);
 
-    const existingInvitation = await this.prisma.orgInvitation.findFirst({
-      where: { orgId, email: dto.email, expiresAt: { gt: new Date() } },
-    });
-    if (existingInvitation) {
-      throw new ConflictException('A pending invitation already exists for this email');
+    await this.createInvitation(org, actor, dto, actorId);
+  }
+
+  async bulkInviteMembers(orgId: string, dto: BulkInviteDto, actorId: string) {
+    // Batch-level checks run once. A missing org or an unauthorized actor
+    // should surface as a real 404/403 for the whole request, not get
+    // swallowed into a per-email "success: false".
+    const org = await this.prisma.organization.findUniqueOrThrow({ where: { id: orgId } });
+    const actor = await this.findActiveUser(actorId, this.prisma);
+    await this.assertActorCanManageMembers(orgId, actorId);
+
+    const results: { email: string; success: boolean; error?: string }[] = [];
+
+    for (const email of dto.emails) {
+      try {
+        await this.createInvitation(org, actor, { email, role: dto.role }, actorId);
+        results.push({ email, success: true });
+      } catch (err: unknown) {
+        results.push({
+          email,
+          success: false,
+          error: this.toSafeInviteErrorMessage(err),
+        });
+      }
     }
 
-    const memberCount = await this.prisma.orgMember.count({ where: { orgId } });
-    const limits: Record<Plan, number> = { FREE: 3, PRO: 20, BUSINESS: Infinity };
-    if (memberCount >= limits[org.plan]) {
-      throw new PlanLimitException(`${org.plan} plan is full. Upgrade to invite more.`);
-    }
-
-    const token = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
-
-    await this.prisma.orgInvitation.create({
-      data: {
-        orgId,
-        email: dto.email,
-        token,
-        role: dto.role ?? OrgRole.MEMBER,
-        invitedById: actorId,
-        expiresAt,
-      },
-    });
-
-    await this.emailQueue.addInvitationEmail({
-      to: dto.email,
-      orgName: org.name,
-      role: dto.role ?? OrgRole.MEMBER,
-      inviterName: actor.name,
-      invitationUrl: `${this.config.getOrThrow('CLIENT_URL')}/accept-invite?token=${token}`,
-      declineInvitationUrl: `${this.config.getOrThrow('CLIENT_URL')}/decline-invite?token=${token}`,
-    });
-
-    this.activity.log({
-      action: 'org.member.invited',
-      entityType: 'Organization',
-      entityId: orgId,
-      actorId,
-      orgId,
-      metadata: { role: dto.role ?? OrgRole.MEMBER },
-    });
-
-    void this.cache.invalidateOrganizationCache(orgId).catch(() => {});
-
-    if (invitedUser.id !== actorId) {
-      void this.notifications
-        .create({
-          userId: invitedUser.id,
-          type: 'org.invitation.received',
-          title: 'You were invited to an organization',
-          body: org.name,
-          entityType: 'Organization',
-          entityId: orgId,
-        })
-        .catch((err: unknown) =>
-          this.logger.error(
-            'Failed to send org invitation notification',
-            err instanceof Error ? err : undefined,
-            OrganizationsService.name,
-          ),
-        );
-    }
+    return { results };
   }
 
   async resendInvite(orgId: string, dto: InviteDto, actorId: string) {
@@ -164,8 +142,8 @@ export class OrganizationsService {
       orgName: org.name,
       role: existingInvitation.role,
       inviterName: actor.name,
-      invitationUrl: `${this.config.getOrThrow('CLIENT_URL')}/accept-invite?token=${token}`,
-      declineInvitationUrl: `${this.config.getOrThrow('CLIENT_URL')}/decline-invite?token=${token}`,
+      invitationUrl: `${this.config.getOrThrow('FRONTEND_URL')}/accept-invite?token=${token}`,
+      declineInvitationUrl: `${this.config.getOrThrow('FRONTEND_URL')}/decline-invite?token=${token}`,
     });
 
     this.activity.log({
@@ -233,7 +211,24 @@ export class OrganizationsService {
       metadata: { role: invite.role },
     });
 
-    void this.cache.invalidateOrganizationCache(orgId).catch(() => {});
+    void this.cache
+      .invalidateOrganizationCache(orgId)
+      .catch((err: unknown) =>
+        this.logger.error(
+          'Failed to invalidate organization cache',
+          err instanceof Error ? err : undefined,
+          OrganizationsService.name,
+        ),
+      );
+    void this.cache
+      .invalidateUserCache(userId)
+      .catch((err: unknown) =>
+        this.logger.error(
+          'Failed to invalidate user cache',
+          err instanceof Error ? err : undefined,
+          OrganizationsService.name,
+        ),
+      );
 
     this.gateway.emitOrgMemberAdded(invite.orgId, { userId, role: invite.role });
   }
@@ -336,6 +331,23 @@ export class OrganizationsService {
     return { meta: buildPaginationMeta(total, dto.page, dto.limit), data: invitations };
   }
 
+  async getUserOrgs(userId: string, dto: PaginationDto) {
+    const [orgs, total] = await this.prisma.$transaction([
+      this.prisma.orgMember.findMany({
+        where: { userId, org: { deletedAt: null } },
+        select: {
+          org: { select: { id: true, name: true, plan: true } },
+        },
+        skip: (dto.page - 1) * dto.limit,
+        take: dto.limit,
+        orderBy: { org: { createdAt: 'desc' } },
+      }),
+      this.prisma.orgMember.count({ where: { userId } }),
+    ]);
+
+    return { meta: buildPaginationMeta(total, dto.page, dto.limit), data: orgs };
+  }
+
   private async findActiveUser(userId: string, tx?: Prisma.TransactionClient): Promise<User> {
     const client = tx ?? this.prisma;
     const user = await client.user.findUnique({ where: { id: userId } });
@@ -368,5 +380,95 @@ export class OrganizationsService {
     }
 
     return existingUser;
+  }
+
+  private async createInvitation(org: Organization, actor: User, dto: InviteDto, actorId: string) {
+    const invitedUser = await this.assertNotAlreadyMember(org.id, dto.email);
+
+    const existingInvitation = await this.prisma.orgInvitation.findFirst({
+      where: { orgId: org.id, email: dto.email, expiresAt: { gt: new Date() } },
+    });
+    if (existingInvitation) {
+      throw new ConflictException('A pending invitation already exists for this email');
+    }
+
+    const memberCount = await this.prisma.orgMember.count({ where: { orgId: org.id } });
+    const limits: Record<Plan, number> = { FREE: 3, PRO: 20, BUSINESS: Infinity };
+    if (memberCount >= limits[org.plan]) {
+      throw new PlanLimitException(`${org.plan} plan is full. Upgrade to invite more.`);
+    }
+
+    const token = crypto.randomUUID();
+    const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
+
+    await this.prisma.orgInvitation.create({
+      data: {
+        orgId: org.id,
+        email: dto.email,
+        token,
+        role: dto.role ?? OrgRole.MEMBER,
+        invitedById: actorId,
+        expiresAt,
+      },
+    });
+
+    try {
+      await this.emailQueue.addInvitationEmail({
+        to: dto.email,
+        orgName: org.name,
+        role: dto.role ?? OrgRole.MEMBER,
+        inviterName: actor.name,
+        invitationUrl: `${this.config.getOrThrow('FRONTEND_URL')}/accept-invite?token=${token}`,
+        declineInvitationUrl: `${this.config.getOrThrow('FRONTEND_URL')}/decline-invite?token=${token}`,
+      });
+    } catch (err: unknown) {
+      this.logger.error(
+        'Failed to queue invitation email; invitation was still created',
+        err instanceof Error ? err : undefined,
+        OrganizationsService.name,
+      );
+    }
+
+    this.activity.log({
+      action: 'org.member.invited',
+      entityType: 'Organization',
+      entityId: org.id,
+      actorId,
+      orgId: org.id,
+      metadata: { role: dto.role ?? OrgRole.MEMBER },
+    });
+
+    void this.cache.invalidateOrganizationCache(org.id).catch(() => {});
+
+    if (invitedUser.id !== actorId) {
+      void this.notifications
+        .create({
+          userId: invitedUser.id,
+          type: 'org.invitation.received',
+          title: 'You were invited to an organization',
+          body: org.name,
+          entityType: 'Organization',
+          entityId: org.id,
+        })
+        .catch((err: unknown) =>
+          this.logger.error(
+            'Failed to send org invitation notification',
+            err instanceof Error ? err : undefined,
+            OrganizationsService.name,
+          ),
+        );
+    }
+  }
+
+  private toSafeInviteErrorMessage(err: unknown): string {
+    if (err instanceof HttpException) {
+      return err.message;
+    }
+    this.logger.error(
+      'Unexpected error during bulk invite',
+      err instanceof Error ? err : undefined,
+      OrganizationsService.name,
+    );
+    return 'Failed to invite this email due to an unexpected error';
   }
 }

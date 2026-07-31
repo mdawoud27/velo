@@ -9,6 +9,7 @@ export class UserEntity implements User {
   isEmailVerified: boolean;
   systemRole: SystemRole;
   notifPreferences: Prisma.JsonValue;
+  isTwoFactorEnabled: boolean;
   createdAt: Date;
   updatedAt: Date;
 
@@ -29,6 +30,12 @@ export class UserEntity implements User {
 
   @Exclude()
   bannedAt: Date | null;
+
+  @Exclude()
+  twoFactorSecret: string | null;
+
+  @Exclude()
+  twoFactorBackupCodes: string[];
 
   constructor(user: User) {
     Object.assign(this, user);

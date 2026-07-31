@@ -13,6 +13,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { OrganizationsService } from './organizations.service';
 import {
   AcceptInviteDto,
+  BulkInviteDto,
   CreateOrganizationDto,
   DeclineInviteDto,
   InviteDto,
@@ -28,7 +29,7 @@ import {
 } from 'src/common/decorators';
 import { PaginationDto } from 'src/common/dtos';
 import { Cache } from 'src/cache/decorators';
-import { requireParam } from 'src/cache/utils';
+import { requireParam, requireUser } from 'src/cache/utils';
 import { CacheTags } from 'src/cache/cache.tags';
 import { Idempotent } from 'src/idempotency/decorators';
 
@@ -60,6 +61,20 @@ export class OrganizationsController {
     @CurrentUser('sub') userId: string,
   ) {
     return this.orgService.inviteMember(orgId, dto, userId);
+  }
+
+  @Post(':orgId/invitations/bulk')
+  @Idempotent(60 * 60 * 24)
+  @ResponseMessage('Bulk invitations processed.')
+  @ApiOperation({ summary: 'Invite multiple members to the organization in bulk.' })
+  @ApiDataResponse(Object, 'Bulk invitations processed.')
+  @ApiErrorResponses(401, 403, 404)
+  async bulkInvite(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Body() dto: BulkInviteDto,
+    @CurrentUser('sub') userId: string,
+  ) {
+    return this.orgService.bulkInviteMembers(orgId, dto, userId);
   }
 
   @Post(':orgId/resend')
@@ -115,5 +130,15 @@ export class OrganizationsController {
     @Query() dto: PaginationDto,
   ) {
     return this.orgService.listInvitations(orgId, userId, dto);
+  }
+
+  @Get('me')
+  @Cache(15, (req) => [CacheTags.user(requireUser(req).sub)])
+  @ResponseMessage('Organizations listed successfully.')
+  @ApiOperation({ summary: 'List organizations the current user belongs to.' })
+  @ApiPaginatedDataResponse(OrgDto, 'Organizations listed successfully.')
+  @ApiErrorResponses(401)
+  async getUserOrgs(@CurrentUser('sub') userId: string, @Query() dto: PaginationDto) {
+    return this.orgService.getUserOrgs(userId, dto);
   }
 }

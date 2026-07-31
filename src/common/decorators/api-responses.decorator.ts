@@ -6,6 +6,12 @@ import {
   MessageResponseDto,
   ApiErrorResponseDto,
   ApiValidationErrorResponseDto,
+  ApiUnauthorizedErrorResponseDto,
+  ApiForbiddenErrorResponseDto,
+  ApiNotFoundErrorResponseDto,
+  ApiConflictErrorResponseDto,
+  ApiUnprocessableEntityErrorResponseDto,
+  ApiTooManyRequestsErrorResponseDto,
 } from '../dtos/api-response.dto';
 
 /** GET / PATCH / DELETE that returns a data object */
@@ -24,10 +30,24 @@ export const ApiMessageResponse = (description?: string, status = 200) =>
 export const ApiErrorResponses = (...statuses: (400 | 401 | 402 | 403 | 404 | 409 | 422 | 429)[]) =>
   applyDecorators(
     ...statuses.map((status) => {
-      if (status === 400) {
-        return ApiResponse({ status: 400, type: ApiValidationErrorResponseDto });
+      switch (status) {
+        case 400:
+          return ApiResponse({ status: 400, type: ApiValidationErrorResponseDto });
+        case 401:
+          return ApiResponse({ status: 401, type: ApiUnauthorizedErrorResponseDto });
+        case 403:
+          return ApiResponse({ status: 403, type: ApiForbiddenErrorResponseDto });
+        case 404:
+          return ApiResponse({ status: 404, type: ApiNotFoundErrorResponseDto });
+        case 409:
+          return ApiResponse({ status: 409, type: ApiConflictErrorResponseDto });
+        case 422:
+          return ApiResponse({ status: 422, type: ApiUnprocessableEntityErrorResponseDto });
+        case 429:
+          return ApiResponse({ status: 429, type: ApiTooManyRequestsErrorResponseDto });
+        default:
+          return ApiResponse({ status, type: ApiErrorResponseDto });
       }
-      return ApiResponse({ status, type: ApiErrorResponseDto });
     }),
   );
 

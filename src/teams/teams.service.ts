@@ -78,9 +78,27 @@ export class TeamsService {
 
   async softDeleteTeam(teamId: string, orgId: string, actorId: string) {
     await this.assertActorCanManageTeams(orgId, actorId);
-    await this.getTeamOrThrow(teamId, orgId);
 
-    await this.prisma.team.update({ where: { id: teamId }, data: { deletedAt: new Date() } });
+    const now = new Date();
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "Team" WHERE id = ${teamId} FOR UPDATE`;
+
+      const team = await tx.team.findFirst({
+        where: { id: teamId, orgId, deletedAt: null },
+      });
+      if (!team) throw new ResourceNotFoundException('Team', teamId);
+
+      await tx.team.update({ where: { id: teamId }, data: { deletedAt: now } });
+      await tx.project.updateMany({
+        where: { teamId, deletedAt: null },
+        data: { deletedAt: now },
+      });
+      await tx.task.updateMany({
+        where: { project: { teamId }, deletedAt: null },
+        data: { deletedAt: now },
+      });
+    });
 
     this.activity.log({
       action: 'team.deleted',

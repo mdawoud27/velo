@@ -1,5 +1,10 @@
 import { Request } from 'express';
 
+interface AuthenticatedUser {
+  sub: string;
+  [key: string]: unknown;
+}
+
 export function requireParam(req: Request, key: string): string {
   const value = req.params[key];
 
@@ -8,4 +13,12 @@ export function requireParam(req: Request, key: string): string {
   }
 
   return value;
+}
+
+export function requireUser(req: Request): AuthenticatedUser {
+  const user = req.user as AuthenticatedUser | undefined;
+  if (!user?.sub) {
+    throw new Error('Expected authenticated user on request');
+  }
+  return user;
 }

@@ -13,7 +13,7 @@ import {
   Patch,
   Post,
   Query,
-  UploadedFile,
+  UploadedFiles,
   UseInterceptors,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -27,7 +27,6 @@ import {
 } from 'src/common/decorators';
 import {
   CreateTaskDto,
-  FileDto,
   FilterTasksDto,
   SearchTasksDto,
   TaskDto,
@@ -40,7 +39,8 @@ import { Cache } from 'src/cache/decorators';
 import { requireParam } from 'src/cache/utils';
 import { Idempotent } from 'src/idempotency/decorators';
 import { CacheTags } from 'src/cache/cache.tags';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { AttachmentEntity, AttachmentUploadResultDto } from './entities';
 
 @ApiTags('Tasks')
 @ApiBearerAuth()
@@ -235,28 +235,53 @@ export class TasksController {
   }
 
   @Post(':id/attachments')
-  @ResponseMessage('Attachment uploaded successfully.')
-  @ApiOperation({ summary: 'Upload an attachment to a task' })
-  @ApiDataResponse(FileDto, 'Attachment uploaded successfully.')
+  @ResponseMessage('Attachments uploaded successfully.')
+  @ApiOperation({ summary: 'Upload attachments to a task' })
+  @ApiDataResponse(AttachmentUploadResultDto, 'Attachments processed.')
   @HttpCode(HttpStatus.OK)
   @ApiErrorResponses(401, 403, 404, 409)
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FilesInterceptor('files'))
   async uploadAttachment(
     @Param('orgId', ParseUUIDPipe) orgId: string,
     @Param('teamId', ParseUUIDPipe) teamId: string,
     @Param('projectId', ParseUUIDPipe) projectId: string,
     @Param('id', ParseUUIDPipe) id: string,
-    @UploadedFile(
+    @UploadedFiles(
       new ParseFilePipe({
         validators: [
           new MaxFileSizeValidator({ maxSize: 10 * 1024 * 1024 }),
-          new FileTypeValidator({ fileType: /^(image\/(jpeg|png|gif)|application\/pdf)$/ }),
+          new FileTypeValidator({
+            fileType:
+              /^(image\/(jpeg|png|gif)|application\/pdf|text\/plain|application\/(vnd\.openxmlformats-officedocument\.wordprocessingml\.document|msword))$/,
+          }),
         ],
       }),
     )
-    file: Express.Multer.File,
+    files: Express.Multer.File[],
     @CurrentUser('sub') userId: string,
   ) {
-    return this.tasksService.addAttachments(id, orgId, teamId, projectId, file, userId);
+    const fileList = Array.isArray(files) ? files : [files];
+
+    const results = await Promise.allSettled(
+      fileList.map((file) =>
+        this.tasksService.addAttachments(id, orgId, teamId, projectId, file, userId),
+      ),
+    );
+
+    const succeeded: AttachmentEntity[] = [];
+    const failed: { filename: string; reason: string }[] = [];
+
+    results.forEach((result, i) => {
+      if (result.status === 'fulfilled') {
+        succeeded.push(result.value);
+      } else {
+        failed.push({
+          filename: fileList[i].originalname,
+          reason: result.reason instanceof Error ? result.reason.message : 'Upload failed',
+        });
+      }
+    });
+
+    return { succeeded, failed };
   }
 }
