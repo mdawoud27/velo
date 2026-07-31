@@ -14,6 +14,9 @@ import { LoggerService } from 'src/logger/logger.service';
           host: config.getOrThrow<string>('SMTP_HOST'),
           port: config.get<number>('SMTP_PORT', 587),
           secure: String(config.get('SMTP_SECURE', 'false')).toLowerCase() === 'true',
+          pool: true,
+          maxConnections: 5,
+          maxMessages: 10,
           auth: {
             user: config.getOrThrow<string>('SMTP_USER'),
             pass: config.getOrThrow<string>('SMTP_PASS'),
