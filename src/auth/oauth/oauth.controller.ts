@@ -62,15 +62,33 @@ export class OAuthController {
   }
 
   private async handleOAuthCallback(profile: OAuthProfile, res: Response) {
-    const tokens = await this.oauthService.handleOAuthLogin(profile);
-    const frontendUrl = this.config.get<string>('FRONTEND_URL');
+    try {
+      const tokens = await this.oauthService.handleOAuthLogin(profile);
+      const code = await this.oauthService.storeOAuthCode(tokens);
+      const frontendUrl = this.config.get<string>('FRONTEND_URL');
 
-    if (!frontendUrl || frontendUrl === '') {
-      res.json({ message: 'OAuth Login Successful!', ...tokens });
-      return;
+      // If a real frontend is configured, redirect there with the code
+      if (frontendUrl) {
+        return res.redirect(`${frontendUrl}/auth/callback?code=${code}`);
+      }
+
+      // Otherwise redirect to the API landing page with result
+      const params = new URLSearchParams({
+        code,
+        provider: profile.provider,
+      });
+      if (profile.name) params.set('name', profile.name);
+
+      res.redirect(`/?${params.toString()}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'OAuth login failed';
+      const frontendUrl = this.config.get<string>('FRONTEND_URL');
+
+      if (frontendUrl) {
+        return res.redirect(`${frontendUrl}/auth/callback?error=${encodeURIComponent(message)}`);
+      }
+
+      res.redirect(`/?oauth_error=${encodeURIComponent(message)}`);
     }
-
-    const code = await this.oauthService.storeOAuthCode(tokens);
-    res.redirect(`${frontendUrl}/auth/callback?code=${code}`);
   }
 }
