@@ -8,17 +8,21 @@ function decodeJwtPayload(token) {
   }
 }
 
-function showResult(type, html) {
+function showResult(type, title, detail) {
   const box = document.getElementById('oauth-result');
   box.className = 'oauth-result show ' + type;
-  box.innerHTML = html;
+
+  box.innerHTML = '';
+  const strong = document.createElement('strong');
+  strong.textContent = title;
+  const span = document.createElement('span');
+  span.textContent = detail;
+  box.appendChild(strong);
+  box.appendChild(span);
 }
 
 async function exchangeCode(code, provider, name) {
-  showResult(
-    'success',
-    '<strong>Exchanging login code…</strong><span>Please wait.</span>',
-  );
+  showResult('success', 'Exchanging login code…', 'Please wait.');
 
   try {
     const res = await fetch('/api/v1/auth/exchange-code', {
@@ -36,16 +40,13 @@ async function exchangeCode(code, provider, name) {
       const displayName = name || email;
       const label = name ? displayName + ' (' + email + ')' : displayName;
 
-      showResult(
-        'success',
-        '<strong>Logged in via ' + (provider || 'OAuth') + '</strong><span>' + label + '</span>',
-      );
+      showResult('success', 'Logged in via ' + (provider || 'OAuth'), label);
     } else {
       const message = json.message || json.error?.message || 'Code exchange failed';
-      showResult('error', '<strong>Login failed</strong><span>' + message + '</span>');
+      showResult('error', 'Login failed', message);
     }
   } catch (err) {
-    showResult('error', '<strong>Login failed</strong><span>' + err.message + '</span>');
+    showResult('error', 'Login failed', err.message);
   }
 }
 
@@ -62,7 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
     exchangeCode(code, provider, name);
   } else if (oauthError) {
     window.history.replaceState({}, '', '/');
-    showResult('error', '<strong>Login failed</strong><span>' + decodeURIComponent(oauthError) + '</span>');
+    showResult('error', 'Login failed', decodeURIComponent(oauthError));
   }
 
   // OAuth buttons: navigate directly (no popup)
