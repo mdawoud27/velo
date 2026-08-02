@@ -1,11 +1,10 @@
 import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
 import { map, Observable } from 'rxjs';
-import { ApiPaginatedResponse, ApiSuccessResponse, PaginationMeta } from '../interfaces';
+import { ApiPaginatedResponse, ApiSuccessResponse } from '../interfaces';
 import { Reflector } from '@nestjs/core';
 import { RESPONSE_MESSAGE_KEY } from '../decorators';
 import { ServiceMessage } from '../classes';
-
-type PaginatedPayload<T> = { data: T[]; meta: PaginationMeta };
+import { PaginatedPayload } from '../types';
 
 function isPaginatedPayload(value: unknown): value is PaginatedPayload<unknown> {
   return (

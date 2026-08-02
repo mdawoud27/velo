@@ -1,10 +1,7 @@
-import { Priority, Task, TaskStatus, User } from '@prisma/client';
+import { Priority, TaskStatus } from '@prisma/client';
 import { Exclude } from 'class-transformer';
-type TaskUserSummary = Pick<User, 'id' | 'name' | 'email' | 'avatarUrl'>;
-type TaskWithUsers = Task & {
-  assignee: TaskUserSummary | null;
-  creator: TaskUserSummary;
-};
+import { TaskUserSummary, TaskWithUsers } from '../types';
+
 export class TaskWithUsersEntity {
   id: string;
   title: string;

@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { RedisService } from 'src/redis/redis.service';
-import { CACHE_INDEX_PREFIX } from './constants';
-import { CacheTags } from './cache.tags';
+import { CacheTags, CACHE_INDEX_PREFIX } from './constants';
 
 @Injectable()
 export class CacheService {

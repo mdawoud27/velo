@@ -1,22 +1,19 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { Prisma, User } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-import type { JwtPayload } from 'src/auth/interfaces';
 import { TokensService } from 'src/auth/tokens.service';
 import { UserEntity } from './entities';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 import { InvalidCredentialsException, ResourceNotFoundException } from 'src/common/exceptions';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { RedisService } from 'src/redis/redis.service';
-import type { NotifPreferences, UploadedFile } from './types';
+import type { AccessPayload, NotifPreferences, UploadedFile } from './types';
 import { NotifPreferencesDto, UpdateAccountDto, UpdatePasswordDto } from './dtos';
 import { ActivityService } from 'src/activity/activity.service';
 import { CacheService } from 'src/cache/cache.service';
 import { RealtimeGateway } from 'src/realtime/realtime.gateway';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { LoggerService } from 'src/logger/logger.service';
-
-type AccessPayload = JwtPayload & { exp?: number };
 
 @Injectable()
 export class UsersService {

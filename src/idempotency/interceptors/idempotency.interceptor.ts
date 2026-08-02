@@ -11,7 +11,6 @@ import { Response } from 'express';
 import { Observable, of } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { RedisService } from 'src/redis/redis.service';
-import { JwtPayload } from 'src/auth/interfaces';
 import {
   IDEMPOTENCY_TTL_KEY,
   IDEMPOTENCY_KEY_PREFIX,
@@ -19,18 +18,8 @@ import {
   IDEMPOTENCY_PROCESSING_PREFIX,
 } from '../constants';
 import { randomUUID } from 'node:crypto';
-
-interface StoredIdempotentResponse {
-  statusCode: number;
-  body: unknown;
-}
-
-type AuthedRequest = Request & {
-  user?: JwtPayload;
-  method: string;
-  originalUrl: string;
-  headers: Record<string, string | string[] | undefined>;
-};
+import { AuthedRequest } from 'src/cache/types';
+import { StoredIdempotentResponse } from '../interfaces';
 
 @Injectable()
 export class IdempotencyInterceptor implements NestInterceptor {

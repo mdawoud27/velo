@@ -38,9 +38,9 @@ import { CurrentUser } from 'src/auth/decorators';
 import { Cache } from 'src/cache/decorators';
 import { requireParam } from 'src/cache/utils';
 import { Idempotent } from 'src/idempotency/decorators';
-import { CacheTags } from 'src/cache/cache.tags';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { AttachmentEntity, AttachmentUploadResultDto } from './entities';
+import { CacheTags } from 'src/cache/constants';
 
 @ApiTags('Tasks')
 @ApiBearerAuth()

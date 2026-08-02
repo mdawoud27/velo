@@ -1,8 +1,5 @@
-import { TeamMember, User, TeamRole } from '@prisma/client';
-
-type TeamMemberUser = TeamMember & {
-  user: Pick<User, 'id' | 'name' | 'email' | 'avatarUrl'>;
-};
+import { TeamRole } from '@prisma/client';
+import { TeamMemberUser } from '../types';
 
 export class TeamMemberWithUserEntity {
   id: string;

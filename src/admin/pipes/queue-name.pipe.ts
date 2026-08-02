@@ -1,7 +1,6 @@
 import { PipeTransform, Injectable, BadRequestException } from '@nestjs/common';
-import { EMAIL_QUEUE, EXPORT_QUEUE } from 'src/queue/constants';
+import { VALID_QUEUE_NAMES } from '../constants';
 
-const VALID_QUEUE_NAMES = [EMAIL_QUEUE, EXPORT_QUEUE] as const;
 export type ValidQueueName = (typeof VALID_QUEUE_NAMES)[number];
 
 @Injectable()

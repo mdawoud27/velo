@@ -13,7 +13,7 @@ import {
   PlanLimitException,
   ResourceNotFoundException,
 } from 'src/common/exceptions';
-import { Organization, Plan, Prisma, User } from '@prisma/client';
+import { Organization, OrgRole, Plan, Prisma, User } from '@prisma/client';
 import { OrgEntity } from './entities';
 import { AcceptInviteDto, BulkInviteDto, DeclineInviteDto, InviteDto } from './dtos';
 import { ConfigService } from '@nestjs/config';
@@ -25,12 +25,6 @@ import { RealtimeGateway } from 'src/realtime/realtime.gateway';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { LoggerService } from 'src/logger/logger.service';
 import { EmailQueueService } from 'src/queue/services';
-
-export enum OrgRole {
-  OWNER = 'OWNER',
-  ADMIN = 'ADMIN',
-  MEMBER = 'MEMBER',
-}
 
 @Injectable()
 export class OrganizationsService {

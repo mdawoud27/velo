@@ -525,6 +525,7 @@ export class ProjectsService {
   ): Promise<void> {
     await this.findActiveOrg(orgId);
     await this.findActiveUser(actorId);
+    await this.getTeamOrThrow(teamId, orgId);
 
     const orgMembership = await this.prisma.orgMember.findUnique({
       where: { userId_orgId: { userId: actorId, orgId } },

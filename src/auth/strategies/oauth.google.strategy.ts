@@ -2,22 +2,22 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy, Profile } from 'passport-google-oauth20';
 import { ConfigService } from '@nestjs/config';
-import { OAuthProfile } from '../interfaces';
-
-interface GoogleJson {
-  email_verified?: boolean;
-}
+import { GoogleJson, OAuthProfile } from '../interfaces';
+import { resolveOAuthEnv } from '../utils/resolve-oauth-env';
 
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
-  constructor(private readonly config: ConfigService) {
+  constructor(config: ConfigService) {
+    const { clientId, clientSecret, callbackURL } = resolveOAuthEnv({
+      provider: 'GOOGLE',
+      config,
+      perEnvCredentials: false,
+    });
+
     super({
-      clientID: config.getOrThrow<string>('GOOGLE_CLIENT_ID'),
-      clientSecret: config.getOrThrow<string>('GOOGLE_CLIENT_SECRET'),
-      callbackURL:
-        config.get<string>('NODE_ENV') === 'production'
-          ? config.getOrThrow<string>('GOOGLE_CALLBACK_URL_PROD')
-          : config.getOrThrow<string>('GOOGLE_CALLBACK_URL'),
+      clientID: clientId,
+      clientSecret,
+      callbackURL,
       scope: ['email', 'profile'],
     });
   }

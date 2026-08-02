@@ -1,7 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { PLAN_KEY } from '../decorators';
+import { PLAN_KEY } from '../constants';
 import { JwtPayload } from '../interfaces';
 import { Plan } from '../types';
 

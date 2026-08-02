@@ -40,3 +40,10 @@ export const REALTIME_EVICTION_QUEUE = 'realtime-eviction';
 export enum RealtimeEvictionJobType {
   EVICT_FROM_ROOM = 'evict-from-room',
 }
+
+export const EVICTION_JOB_OPTIONS: JobsOptions = {
+  attempts: 3,
+  backoff: { type: 'exponential', delay: 2000 },
+  removeOnComplete: 100,
+  removeOnFail: 50,
+};

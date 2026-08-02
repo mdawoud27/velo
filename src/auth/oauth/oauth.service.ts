@@ -4,10 +4,9 @@ import { OAuthProfile } from '../interfaces';
 import { TokensService } from '../tokens.service';
 import { RedisService } from 'src/redis/redis.service';
 import { randomBytes } from 'crypto';
-import { Prisma, User } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { AccountDeactivatedException } from 'src/common/exceptions';
-
-type TokenUser = Pick<User, 'id' | 'email' | 'systemRole' | 'bannedAt' | 'deletedAt'>;
+import type { TokenUser } from './types';
 
 @Injectable()
 export class OAuthService {

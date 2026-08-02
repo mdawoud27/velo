@@ -1,8 +1,4 @@
-import { ProjectMember, User } from '@prisma/client';
-
-type ProjectMemberUser = ProjectMember & {
-  user: Pick<User, 'id' | 'name' | 'email' | 'avatarUrl'>;
-};
+import { ProjectMemberUser } from '../types';
 
 export class ProjectMemberWithUserEntity {
   id: string;

@@ -26,9 +26,7 @@ import { NotifPreferencesDto, UpdateAccountDto, UpdatePasswordDto, UserDto } fro
 import type { UploadedFile as UploadedFileType } from './types';
 import { UsersService } from './users.service';
 import { Cache } from 'src/cache/decorators';
-
-const MAX_AVATAR_SIZE = 5 * 1024 * 1024;
-const AVATAR_MIME_TYPE = /^image\/(jpeg|png|gif|webp)$/;
+import { AVATAR_MIME_TYPE, MAX_AVATAR_SIZE } from './constants';
 
 type AccessPayload = JwtPayload & { exp?: number };
 
