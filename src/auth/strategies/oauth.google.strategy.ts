@@ -2,22 +2,21 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy, Profile } from 'passport-google-oauth20';
 import { ConfigService } from '@nestjs/config';
-import { OAuthProfile } from '../interfaces';
-
-interface GoogleJson {
-  email_verified?: boolean;
-}
+import { GoogleJson, OAuthProfile } from '../interfaces';
 
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   constructor(private readonly config: ConfigService) {
     super({
-      clientID: config.getOrThrow<string>('GOOGLE_CLIENT_ID'),
-      clientSecret: config.getOrThrow<string>('GOOGLE_CLIENT_SECRET'),
+      clientID: config.get<string>('GOOGLE_CLIENT_ID') || 'unconfigured_google_client_id',
+      clientSecret:
+        config.get<string>('GOOGLE_CLIENT_SECRET') || 'unconfigured_google_client_secret',
       callbackURL:
-        config.get<string>('NODE_ENV') === 'production'
-          ? config.getOrThrow<string>('GOOGLE_CALLBACK_URL_PROD')
-          : config.getOrThrow<string>('GOOGLE_CALLBACK_URL'),
+        config.get<string>('GOOGLE_CALLBACK_URL') ||
+        (config.get<string>('NODE_ENV') === 'production'
+          ? config.get<string>('GOOGLE_CALLBACK_URL_PROD') ||
+            'http://localhost:3000/api/v1/auth/google/callback'
+          : 'http://localhost:3000/api/v1/auth/google/callback'),
       scope: ['email', 'profile'],
     });
   }

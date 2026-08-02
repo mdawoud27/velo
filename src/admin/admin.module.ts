@@ -3,9 +3,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 import { AuditInterceptor } from './interceptors';
-import { EMAIL_QUEUE, EXPORT_QUEUE } from 'src/queue/constants';
-
-const MANAGED_QUEUES = [EMAIL_QUEUE, EXPORT_QUEUE];
+import { MANAGED_QUEUES } from './constants';
 
 @Module({
   imports: [...MANAGED_QUEUES.map((name) => BullModule.registerQueue({ name }))],

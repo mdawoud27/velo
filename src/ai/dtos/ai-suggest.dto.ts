@@ -1,11 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsString, MinLength, MaxLength, IsOptional, IsEnum } from 'class-validator';
-
-export enum AiSuggestMode {
-  TASK_BREAKDOWN = 'task_breakdown',
-  DESCRIPTION = 'description',
-  PRIORITY = 'priority',
-}
+import { AiSuggestMode } from '../constants';
 
 export class AiSuggestDto {
   @ApiProperty({

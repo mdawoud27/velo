@@ -2,8 +2,8 @@ import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
 import { RealtimeGateway } from 'src/realtime/realtime.gateway';
 import { REALTIME_EVICTION_QUEUE } from '../constants/constants';
-import { EvictFromRoomPayload } from '../services';
 import { LoggerService } from 'src/logger/logger.service';
+import { EvictFromRoomPayload } from '../interfaces';
 
 @Processor(REALTIME_EVICTION_QUEUE)
 export class RealtimeEvictionProcessor extends WorkerHost {

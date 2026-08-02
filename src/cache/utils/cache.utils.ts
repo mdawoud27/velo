@@ -1,9 +1,5 @@
 import { Request } from 'express';
-
-interface AuthenticatedUser {
-  sub: string;
-  [key: string]: unknown;
-}
+import { AuthenticatedUser } from '../interfaces';
 
 export function requireParam(req: Request, key: string): string {
   const value = req.params[key];

@@ -4,13 +4,9 @@ import { Observable, from } from 'rxjs';
 import { mergeMap, map } from 'rxjs/operators';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { LoggerService } from 'src/logger/logger.service';
-import { AUDIT_ACTION_KEY } from '../decorators/audit.decorator';
+import { AUDIT_ACTION_KEY } from '../constants';
 import type { JwtPayload } from 'src/auth/interfaces';
-import type { Request } from 'express';
-
-interface AdminRequest extends Request {
-  user: JwtPayload;
-}
+import { AdminRequest } from '../interfaces';
 
 @Injectable()
 export class AuditInterceptor implements NestInterceptor {

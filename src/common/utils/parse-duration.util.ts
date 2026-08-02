@@ -1,10 +1,4 @@
-const UNIT_MAP: Record<string, number> = {
-  s: 1,
-  m: 60,
-  h: 3600,
-  d: 86400,
-  w: 604800,
-};
+import { UNIT_MAP } from '../constants';
 
 export function parseDurationToSeconds(value: string): number {
   const trimmed = value.trim();

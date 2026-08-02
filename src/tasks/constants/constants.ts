@@ -4,3 +4,8 @@ export const ASSIGNEE_WITH_PREFS_SELECT = {
   name: true,
   notifPreferences: true,
 } as const;
+
+export enum TagsMatchMode {
+  ANY = 'any', // hasSome
+  ALL = 'all', // hasEvery
+}

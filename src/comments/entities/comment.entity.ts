@@ -1,11 +1,6 @@
-import { Comment, User } from '@prisma/client';
+import { Comment } from '@prisma/client';
 import { Exclude } from 'class-transformer';
-
-type AuthorSummary = Pick<User, 'id' | 'name' | 'email' | 'avatarUrl'>;
-
-type CommentWithAuthor = Comment & {
-  author?: AuthorSummary;
-};
+import { AuthorSummary, CommentWithAuthor } from '../types';
 
 export class CommentEntity implements Comment {
   id: string;

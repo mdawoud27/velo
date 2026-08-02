@@ -1,24 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { OrgMember, User } from '@prisma/client';
 import { RedisService } from 'src/redis/redis.service';
-import { JwtPayload } from './interfaces';
+import { JwtPayload, StoredRefreshToken } from './interfaces';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 import { createHash } from 'crypto';
 import { parseDurationToSeconds } from 'src/common/utils';
 import { InvalidOrExpiredTokenException } from 'src/common/exceptions';
-
-type TokenUser = Pick<User, 'id' | 'email' | 'systemRole'>;
-type TokenOrgMembership = Pick<OrgMember, 'orgId' | 'role'>;
-
-export type RotationStatus = 'valid' | 'missing' | 'mismatch' | 'race_lost';
-
-interface StoredRefreshToken {
-  hash: string;
-  nonce: string;
-}
+import { TokenUser, TokenOrgMembership, RotationStatus } from './types';
 
 @Injectable()
 export class TokensService {

@@ -34,10 +34,10 @@ import { ProjectMemberWithUserEntity } from './entities';
 import { PaginationDto } from 'src/common/dtos';
 import { Cache } from 'src/cache/decorators';
 import { requireParam } from 'src/cache/utils';
-import { CacheTags } from 'src/cache/cache.tags';
 import { Idempotent } from 'src/idempotency/decorators';
 import { ExportQueueService } from 'src/queue/services';
 import { ExportJobResponseDto, JobStatusDto } from 'src/queue/dtos';
+import { CacheTags } from 'src/cache/constants';
 
 @ApiTags('Projects')
 @ApiBearerAuth()

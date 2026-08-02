@@ -5,7 +5,6 @@ import {
   CreateTaskDto,
   FilterTasksDto,
   SearchTasksDto,
-  TagsMatchMode,
   TaskTagsDto,
   UpdateTaskDto,
   UpdateTaskStatusDto,
@@ -19,7 +18,12 @@ import {
 } from 'src/common/exceptions';
 import { assertProjectWritable } from 'src/common/helpers/project-guard.helper';
 import { buildPaginationMeta } from 'src/common/utils';
-import { VALID_TRANSITIONS, USER_SUMMARY_SELECT, ASSIGNEE_WITH_PREFS_SELECT } from './constants';
+import {
+  VALID_TRANSITIONS,
+  USER_SUMMARY_SELECT,
+  ASSIGNEE_WITH_PREFS_SELECT,
+  TagsMatchMode,
+} from './constants';
 import { CacheService } from 'src/cache/cache.service';
 import { RealtimeGateway } from 'src/realtime/realtime.gateway';
 import { NotificationsService } from 'src/notifications/notifications.service';

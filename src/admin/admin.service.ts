@@ -11,11 +11,7 @@ import { EMAIL_QUEUE, EXPORT_QUEUE } from 'src/queue/constants';
 import { buildPaginationMeta } from 'src/common/utils';
 import { PaginationDto } from 'src/common/dtos';
 import { EmailJobData, ExportJobData } from 'src/queue/interfaces';
-
-const KNOWN_QUEUES: Record<string, string> = {
-  [EMAIL_QUEUE]: EMAIL_QUEUE,
-  [EXPORT_QUEUE]: EXPORT_QUEUE,
-};
+import { KNOWN_QUEUES } from './constants';
 
 @Injectable()
 export class AdminService {
