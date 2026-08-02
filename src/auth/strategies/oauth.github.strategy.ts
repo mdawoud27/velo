@@ -3,20 +3,21 @@ import { PassportStrategy } from '@nestjs/passport';
 import { Strategy, Profile } from 'passport-github2';
 import { ConfigService } from '@nestjs/config';
 import { GitHubEmail, OAuthProfile } from '../interfaces';
+import { resolveOAuthEnv } from '../utils/resolve-oauth-env';
 
 @Injectable()
 export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
-  constructor(private readonly config: ConfigService) {
+  constructor(config: ConfigService) {
+    const { clientId, clientSecret, callbackURL } = resolveOAuthEnv({
+      provider: 'GITHUB',
+      config,
+      perEnvCredentials: true,
+    });
+
     super({
-      clientID: config.get<string>('GITHUB_CLIENT_ID') || 'unconfigured_github_client_id',
-      clientSecret:
-        config.get<string>('GITHUB_CLIENT_SECRET') || 'unconfigured_github_client_secret',
-      callbackURL:
-        config.get<string>('GITHUB_CALLBACK_URL') ||
-        (config.get<string>('NODE_ENV') === 'production'
-          ? config.get<string>('GITHUB_CALLBACK_URL_PROD') ||
-            'http://localhost:3000/api/v1/auth/github/callback'
-          : 'http://localhost:3000/api/v1/auth/github/callback'),
+      clientID: clientId,
+      clientSecret,
+      callbackURL,
       scope: ['user:email'],
       allRawEmails: true,
     });

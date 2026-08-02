@@ -3,20 +3,21 @@ import { PassportStrategy } from '@nestjs/passport';
 import { Strategy, Profile } from 'passport-google-oauth20';
 import { ConfigService } from '@nestjs/config';
 import { GoogleJson, OAuthProfile } from '../interfaces';
+import { resolveOAuthEnv } from '../utils/resolve-oauth-env';
 
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
-  constructor(private readonly config: ConfigService) {
+  constructor(config: ConfigService) {
+    const { clientId, clientSecret, callbackURL } = resolveOAuthEnv({
+      provider: 'GOOGLE',
+      config,
+      perEnvCredentials: false,
+    });
+
     super({
-      clientID: config.get<string>('GOOGLE_CLIENT_ID') || 'unconfigured_google_client_id',
-      clientSecret:
-        config.get<string>('GOOGLE_CLIENT_SECRET') || 'unconfigured_google_client_secret',
-      callbackURL:
-        config.get<string>('GOOGLE_CALLBACK_URL') ||
-        (config.get<string>('NODE_ENV') === 'production'
-          ? config.get<string>('GOOGLE_CALLBACK_URL_PROD') ||
-            'http://localhost:3000/api/v1/auth/google/callback'
-          : 'http://localhost:3000/api/v1/auth/google/callback'),
+      clientID: clientId,
+      clientSecret,
+      callbackURL,
       scope: ['email', 'profile'],
     });
   }
