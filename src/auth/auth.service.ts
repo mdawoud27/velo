@@ -1,13 +1,18 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { RedisService } from 'src/redis/redis.service';
+import { generateSecret, generateURI, verify } from 'otplib';
+import QRCode from 'qrcode';
 import {
+  Disable2FaDto,
+  Enable2FaDto,
   ForgotPasswordDto,
   LoginDto,
   RefreshTokenDto,
   RegistrationDto,
   ResendEmailDto,
   ResetPassword,
+  Verify2FaDto,
   VerifyEmailDto,
 } from './dtos';
 import bcrypt from 'bcryptjs';
@@ -20,6 +25,7 @@ import {
   EmailNotVerifiedException,
   InvalidCredentialsException,
   InvalidOrExpiredTokenException,
+  ResourceNotFoundException,
 } from 'src/common/exceptions';
 import { LoggerService } from 'src/logger/logger.service';
 import { JwtService } from '@nestjs/jwt';
@@ -184,18 +190,168 @@ export class AuthService {
       throw new BannedUserException();
     }
 
-    const orgMember = await this.prisma.orgMember.findFirst({
+    if (user.isTwoFactorEnabled) {
+      const challengeToken = await this.tokensService.generateTwoFaChallengeToken(user.id);
+      return { requires2FA: true, challengeToken };
+    }
+
+    const orgMemberships = await this.prisma.orgMember.findMany({
       where: { userId: user.id },
+      include: { org: { select: { id: true, name: true } } },
       orderBy: { joinedAt: 'asc' },
-      select: { orgId: true, role: true },
     });
 
+    const firstOrg = orgMemberships[0];
     const { accessToken, refreshToken } = await this.tokensService.generateTokens(
       user,
-      orgMember ?? undefined,
+      firstOrg ? { orgId: firstOrg.orgId, role: firstOrg.role } : undefined,
     );
 
-    return { accessToken, refreshToken, user: new UserEntity(user) };
+    return {
+      accessToken,
+      refreshToken,
+      user: new UserEntity(user),
+      orgs: orgMemberships.map((m) => ({ orgId: m.orgId, name: m.org.name, role: m.role })),
+    };
+  }
+
+  async generate2FaSecret(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId, deletedAt: null } });
+    if (!user) throw new ResourceNotFoundException('User', userId);
+
+    const secret = generateSecret();
+    const otpAuthUrl = generateURI({ issuer: 'Velo', label: user.email, secret });
+    const qrCodeUrl = await QRCode.toDataURL(otpAuthUrl);
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { twoFactorSecret: secret },
+    });
+
+    return { secret, qrCodeUrl };
+  }
+
+  async enable2Fa(userId: string, dto: Enable2FaDto) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId, deletedAt: null } });
+    if (!user || !user.twoFactorSecret) {
+      throw new InvalidOrExpiredTokenException();
+    }
+
+    const { valid } = await verify({
+      secret: user.twoFactorSecret,
+      token: dto.token,
+    });
+
+    if (!valid) {
+      throw new InvalidOrExpiredTokenException();
+    }
+
+    const backupCodes = Array.from({ length: 8 }, () =>
+      crypto.randomBytes(4).toString('hex').toUpperCase(),
+    );
+
+    const hashedBackupCodes = await Promise.all(backupCodes.map((code) => bcrypt.hash(code, 10)));
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        isTwoFactorEnabled: true,
+        twoFactorBackupCodes: hashedBackupCodes,
+      },
+    });
+
+    return { backupCodes };
+  }
+
+  async disable2Fa(userId: string, dto: Disable2FaDto) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId, deletedAt: null } });
+    if (!user || !user.isTwoFactorEnabled || !user.twoFactorSecret) {
+      throw new InvalidOrExpiredTokenException();
+    }
+
+    const { valid } = await verify({
+      secret: user.twoFactorSecret,
+      token: dto.token,
+    });
+
+    if (!valid) {
+      throw new InvalidOrExpiredTokenException();
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        isTwoFactorEnabled: false,
+        twoFactorSecret: null,
+        twoFactorBackupCodes: [],
+      },
+    });
+
+    return new ServiceMessage('2FA disabled successfully');
+  }
+
+  async verify2Fa(dto: Verify2FaDto) {
+    const userId = await this.tokensService.verifyTwoFaChallengeToken(dto.challengeToken);
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId, deletedAt: null } });
+    if (!user || !user.isTwoFactorEnabled || user.deletedAt || user.bannedAt) {
+      throw new InvalidOrExpiredTokenException();
+    }
+
+    let isValid = false;
+    let usedBackupCode = false;
+
+    if (user.twoFactorSecret) {
+      const result = await verify({
+        secret: user.twoFactorSecret,
+        token: dto.token,
+      });
+      isValid = result.valid;
+    }
+
+    if (!isValid) {
+      for (const hashed of user.twoFactorBackupCodes) {
+        if (await bcrypt.compare(dto.token, hashed)) {
+          isValid = true;
+          usedBackupCode = true;
+          break;
+        }
+      }
+    }
+
+    if (!isValid) {
+      throw new InvalidOrExpiredTokenException();
+    }
+
+    if (usedBackupCode) {
+      const updatedCodes: string[] = [];
+      for (const hashed of user.twoFactorBackupCodes) {
+        if (!(await bcrypt.compare(dto.token, hashed))) updatedCodes.push(hashed);
+      }
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { twoFactorBackupCodes: updatedCodes },
+      });
+    }
+
+    const orgMemberships = await this.prisma.orgMember.findMany({
+      where: { userId: user.id },
+      include: { org: { select: { id: true, name: true } } },
+      orderBy: { joinedAt: 'asc' },
+    });
+
+    const firstOrg = orgMemberships[0];
+    const { accessToken, refreshToken } = await this.tokensService.generateTokens(
+      user,
+      firstOrg ? { orgId: firstOrg.orgId, role: firstOrg.role } : undefined,
+    );
+
+    return {
+      accessToken,
+      refreshToken,
+      user: new UserEntity(user),
+      orgs: orgMemberships.map((m) => ({ orgId: m.orgId, name: m.org.name, role: m.role })),
+    };
   }
 
   async refreshToken(dto: RefreshTokenDto) {

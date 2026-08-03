@@ -79,6 +79,17 @@ export class AdminController {
     return this.adminService.unbanUser(userId, actorId);
   }
 
+  @Patch('users/:userId/restore')
+  @Audit('admin.user.restored')
+  @ResponseMessage('User restored successfully')
+  @ApiOperation({ summary: 'Restore a soft-deleted user account' })
+  @ApiMessageResponse('User restored')
+  @ApiErrorResponses(400, 401, 403, 404)
+  @HttpCode(HttpStatus.OK)
+  restoreUser(@Param('userId', ParseUUIDPipe) userId: string, @CurrentUser('sub') actorId: string) {
+    return this.adminService.restoreUser(userId, actorId);
+  }
+
   @Patch('users/:userId/promote')
   @Audit('admin.user.promoted')
   @ResponseMessage('User promoted to super admin')

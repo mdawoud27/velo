@@ -2,21 +2,22 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy, Profile } from 'passport-github2';
 import { ConfigService } from '@nestjs/config';
-import { OAuthProfile } from '../interfaces';
-
-interface GitHubEmail {
-  value: string;
-  primary?: boolean;
-  verified?: boolean;
-}
+import { GitHubEmail, OAuthProfile } from '../interfaces';
+import { resolveOAuthEnv } from '../utils/resolve-oauth-env';
 
 @Injectable()
 export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
-  constructor(private readonly config: ConfigService) {
+  constructor(config: ConfigService) {
+    const { clientId, clientSecret, callbackURL } = resolveOAuthEnv({
+      provider: 'GITHUB',
+      config,
+      perEnvCredentials: true,
+    });
+
     super({
-      clientID: config.getOrThrow<string>('GITHUB_CLIENT_ID'),
-      clientSecret: config.getOrThrow<string>('GITHUB_CLIENT_SECRET'),
-      callbackURL: config.getOrThrow<string>('GITHUB_CALLBACK_URL'),
+      clientID: clientId,
+      clientSecret,
+      callbackURL,
       scope: ['user:email'],
       allRawEmails: true,
     });

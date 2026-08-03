@@ -2,14 +2,9 @@ import { CallHandler, ExecutionContext, Injectable, Logger, NestInterceptor } fr
 import { Reflector } from '@nestjs/core';
 import { Observable, of } from 'rxjs';
 import { tap } from 'rxjs/operators';
-import { Request } from 'express';
 import { RedisService } from 'src/redis/redis.service';
-import { JwtPayload } from 'src/auth/interfaces';
-import { CACHE_TTL_KEY, CACHE_TAGS_KEY, CACHE_INDEX_PREFIX } from '../constants';
-import { CacheTagsResolver } from '../decorators';
-import { CacheTags } from '../cache.tags';
-
-type AuthedRequest = Request & { user?: JwtPayload };
+import { CACHE_TTL_KEY, CACHE_TAGS_KEY, CACHE_INDEX_PREFIX, CacheTags } from '../constants';
+import { AuthedRequest, CacheTagsResolver } from '../types';
 
 @Injectable()
 export class CacheInterceptor implements NestInterceptor {

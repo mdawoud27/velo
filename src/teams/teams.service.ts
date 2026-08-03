@@ -11,7 +11,7 @@ import { CacheService } from 'src/cache/cache.service';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { RealtimeGateway } from 'src/realtime/realtime.gateway';
 import { LoggerService } from 'src/logger/logger.service';
-import { RealtimeEvictionQueueService } from 'src/queue/services';
+import { EmailQueueService, RealtimeEvictionQueueService } from 'src/queue/services';
 
 @Injectable()
 export class TeamsService {
@@ -23,6 +23,7 @@ export class TeamsService {
     private readonly notifications: NotificationsService,
     private readonly logger: LoggerService,
     private readonly realtimeEvictionQueue: RealtimeEvictionQueueService,
+    private readonly emailQueue: EmailQueueService,
   ) {}
 
   async createTeam(orgId: string, dto: CreateTeamDto, actorId: string) {
@@ -78,9 +79,27 @@ export class TeamsService {
 
   async softDeleteTeam(teamId: string, orgId: string, actorId: string) {
     await this.assertActorCanManageTeams(orgId, actorId);
-    await this.getTeamOrThrow(teamId, orgId);
 
-    await this.prisma.team.update({ where: { id: teamId }, data: { deletedAt: new Date() } });
+    const now = new Date();
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "Team" WHERE id = ${teamId} FOR UPDATE`;
+
+      const team = await tx.team.findFirst({
+        where: { id: teamId, orgId, deletedAt: null },
+      });
+      if (!team) throw new ResourceNotFoundException('Team', teamId);
+
+      await tx.team.update({ where: { id: teamId }, data: { deletedAt: now } });
+      await tx.project.updateMany({
+        where: { teamId, deletedAt: null },
+        data: { deletedAt: now },
+      });
+      await tx.task.updateMany({
+        where: { project: { teamId }, deletedAt: null },
+        data: { deletedAt: now },
+      });
+    });
 
     this.activity.log({
       action: 'team.deleted',
@@ -121,7 +140,7 @@ export class TeamsService {
     await this.assertActorCanManageTeams(orgId, actorId);
     const team = await this.getTeamOrThrow(teamId, orgId);
 
-    await this.findActiveUser(dto.userId);
+    const targetUser = await this.findActiveUser(dto.userId);
 
     const orgMember = await this.prisma.orgMember.findUnique({
       where: { userId_orgId: { userId: dto.userId, orgId } },
@@ -170,6 +189,23 @@ export class TeamsService {
         .catch((err: unknown) =>
           this.logger.error(
             'Failed to send team membership notification',
+            err instanceof Error ? err : undefined,
+            TeamsService.name,
+          ),
+        );
+
+      void this.emailQueue
+        .addInvitationEmail({
+          to: targetUser.email,
+          orgName: team.name,
+          role: dto.role ?? TeamRole.MEMBER,
+          inviterName: 'Team Admin',
+          invitationUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/teams/${teamId}`,
+          declineInvitationUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/teams/${teamId}`,
+        })
+        .catch((err: unknown) =>
+          this.logger.error(
+            'Failed to send team membership email',
             err instanceof Error ? err : undefined,
             TeamsService.name,
           ),

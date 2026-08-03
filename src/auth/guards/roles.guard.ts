@@ -1,8 +1,9 @@
-import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
-import { OrgRole } from '../types';
+import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { ROLES_KEY } from '../decorators';
-import { JwtPayload } from '../interfaces';
+import type { Request } from 'express';
+import { OrgRole, SystemRole } from '@prisma/client';
+import { ROLES_KEY } from '../constants';
+import type { JwtPayload } from '../interfaces';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -16,8 +17,17 @@ export class RolesGuard implements CanActivate {
 
     if (!requiredRoles) return true;
 
-    const { user } = context.switchToHttp().getRequest<{ user?: JwtPayload }>();
+    const request = context.switchToHttp().getRequest<Request & { user?: JwtPayload }>();
+    const { user } = request;
     if (!user) return false;
+
+    if (user.systemRole === SystemRole.SUPER_ADMIN) return true;
+    const requestedOrgId =
+      (request.params?.orgId as string | undefined) ?? (request.query?.orgId as string | undefined);
+
+    if (!requestedOrgId || requestedOrgId !== user.orgId) {
+      throw new ForbiddenException('You do not have access to this organization');
+    }
 
     return requiredRoles.some((role) => user.orgRole === role);
   }

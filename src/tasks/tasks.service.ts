@@ -5,12 +5,11 @@ import {
   CreateTaskDto,
   FilterTasksDto,
   SearchTasksDto,
-  TagsMatchMode,
   TaskTagsDto,
   UpdateTaskDto,
   UpdateTaskStatusDto,
 } from './dtos';
-import { TaskEntity, TaskWithUsersEntity } from './entities';
+import { AttachmentEntity, TaskEntity, TaskWithUsersEntity } from './entities';
 import { OrgRole, Prisma, Task, TaskStatus, TeamRole, User } from '@prisma/client';
 import {
   BannedUserException,
@@ -19,7 +18,12 @@ import {
 } from 'src/common/exceptions';
 import { assertProjectWritable } from 'src/common/helpers/project-guard.helper';
 import { buildPaginationMeta } from 'src/common/utils';
-import { VALID_TRANSITIONS, USER_SUMMARY_SELECT, ASSIGNEE_WITH_PREFS_SELECT } from './constants';
+import {
+  VALID_TRANSITIONS,
+  USER_SUMMARY_SELECT,
+  ASSIGNEE_WITH_PREFS_SELECT,
+  TagsMatchMode,
+} from './constants';
 import { CacheService } from 'src/cache/cache.service';
 import { RealtimeGateway } from 'src/realtime/realtime.gateway';
 import { NotificationsService } from 'src/notifications/notifications.service';
@@ -551,7 +555,7 @@ export class TasksService {
     projectId: string,
     file: Express.Multer.File,
     uploaderId: string,
-  ) {
+  ): Promise<AttachmentEntity> {
     await this.assertActorCanManageTasks(orgId, teamId, projectId, uploaderId);
     await this.getProjectOrThrow(projectId, teamId, orgId);
     await assertProjectWritable(this.prisma, projectId);
@@ -570,7 +574,7 @@ export class TasksService {
 
     this.gateway.emitTaskUpdated(projectId, new TaskEntity(task));
 
-    return this.prisma.attachment.create({
+    const attachment = await this.prisma.attachment.create({
       data: {
         filename: file.originalname,
         url: result.secureUrl,
@@ -579,6 +583,8 @@ export class TasksService {
         uploaderId,
       },
     });
+
+    return new AttachmentEntity(attachment);
   }
 
   private async assertUserIsProjectMember(userId: string, projectId: string): Promise<void> {

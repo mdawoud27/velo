@@ -34,8 +34,8 @@ import { OrgRole } from '@prisma/client';
 import { TeamMemberWithUserEntity } from './entities';
 import { Cache } from 'src/cache/decorators';
 import { requireParam } from 'src/cache/utils';
-import { CacheTags } from 'src/cache/cache.tags';
 import { Idempotent } from 'src/idempotency/decorators';
+import { CacheTags } from 'src/cache/constants';
 
 @ApiTags('Teams')
 @ApiBearerAuth()

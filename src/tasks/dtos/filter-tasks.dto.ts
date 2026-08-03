@@ -11,11 +11,7 @@ import {
   MaxLength,
 } from 'class-validator';
 import { PaginationDto } from 'src/common/dtos';
-
-export enum TagsMatchMode {
-  ANY = 'any', // hasSome
-  ALL = 'all', // hasEvery
-}
+import { TagsMatchMode } from '../constants';
 
 export class FilterTasksDto extends PaginationDto {
   @IsEnum(TaskStatus)

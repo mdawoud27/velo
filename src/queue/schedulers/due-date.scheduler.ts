@@ -70,7 +70,7 @@ export class DueDateScheduler {
               month: 'long',
               day: 'numeric',
             }),
-            taskUrl: `${process.env.CLIENT_URL}/tasks/${task.id}`,
+            taskUrl: `${process.env.FRONTEND_URL}/tasks/${task.id}`,
           });
           sent++;
         } catch {

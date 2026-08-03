@@ -13,3 +13,4 @@ export * from './task-row.interface';
 export * from './email-data.interface';
 export * from './export-data.interface';
 export * from './admin-queue.interface';
+export * from './evict.interface';

@@ -1,32 +1,11 @@
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
-import { Job } from 'bullmq';
 import { LoggerService } from '../../logger/logger.service';
 import { MailService } from '../../mail/mail.service';
 import { EMAIL_QUEUE, EmailJobType } from '../constants/constants';
-import {
-  CommentPayload,
-  DueReminderPayload,
-  InvitationPayload,
-  MentionPayload,
-  PasswordResetPayload,
-  SubscriptionExpiryWarningPayload,
-  TaskAssignedPayload,
-  VerifyEmailPayload,
-  WelcomeEmailPayload,
-} from '../interfaces';
+import { EmailJob } from '../types';
+import { DueReminderPayload } from '../interfaces';
 
-type EmailJob =
-  | Job<WelcomeEmailPayload, void, EmailJobType.WELCOME>
-  | Job<VerifyEmailPayload, void, EmailJobType.VERIFY_EMAIL>
-  | Job<PasswordResetPayload, void, EmailJobType.PASSWORD_RESET>
-  | Job<InvitationPayload, void, EmailJobType.INVITATION>
-  | Job<TaskAssignedPayload, void, EmailJobType.TASK_ASSIGNED>
-  | Job<MentionPayload, void, EmailJobType.MENTION>
-  | Job<CommentPayload, void, EmailJobType.COMMENT>
-  | Job<DueReminderPayload, void, EmailJobType.DUE_REMINDER>
-  | Job<SubscriptionExpiryWarningPayload, void, EmailJobType.SUBSCRIPTION_EXPIRY_WARNING>;
-
-@Processor(EMAIL_QUEUE)
+@Processor(EMAIL_QUEUE, { concurrency: 5 })
 export class EmailProcessor extends WorkerHost {
   constructor(
     private readonly mail: MailService,

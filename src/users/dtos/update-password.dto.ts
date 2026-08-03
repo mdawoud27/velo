@@ -1,8 +1,5 @@
 import { IsNotEmpty, IsString, Matches, MaxLength, MinLength } from 'class-validator';
-
-const STRONG_PASSWORD_REGEX = /^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).*$/;
-const STRONG_PASSWORD_MESSAGE =
-  'Password must contain at least one uppercase letter, one lowercase letter, one number, and one symbol';
+import { STRONG_PASSWORD_MESSAGE, STRONG_PASSWORD_REGEX } from '../constants';
 
 export class UpdatePasswordDto {
   @IsNotEmpty()

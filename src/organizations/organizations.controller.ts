@@ -8,17 +8,21 @@ import {
   ParseUUIDPipe,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { OrganizationsService } from './organizations.service';
 import {
   AcceptInviteDto,
+  BulkInviteDto,
   CreateOrganizationDto,
   DeclineInviteDto,
   InviteDto,
   OrgDto,
 } from './dtos';
-import { CurrentUser } from 'src/auth/decorators';
+import { CurrentUser, Roles } from 'src/auth/decorators';
+import { RolesGuard } from 'src/auth/guards';
+import { OrgRole } from '@prisma/client';
 import {
   ApiDataResponse,
   ApiErrorResponses,
@@ -28,9 +32,9 @@ import {
 } from 'src/common/decorators';
 import { PaginationDto } from 'src/common/dtos';
 import { Cache } from 'src/cache/decorators';
-import { requireParam } from 'src/cache/utils';
-import { CacheTags } from 'src/cache/cache.tags';
+import { requireParam, requireUser } from 'src/cache/utils';
 import { Idempotent } from 'src/idempotency/decorators';
+import { CacheTags } from 'src/cache/constants';
 
 @ApiTags('Organizations')
 @ApiBearerAuth()
@@ -49,11 +53,13 @@ export class OrganizationsController {
   }
 
   @Post(':orgId/invite')
+  @Roles(OrgRole.OWNER, OrgRole.ADMIN)
+  @UseGuards(RolesGuard)
   @Idempotent(60 * 60 * 24)
   @ResponseMessage('Invitation sent successfully.')
   @ApiOperation({ summary: 'Invite a new member to the organization.' })
   @ApiMessageResponse('Invitation sent successfully.', 201)
-  @ApiErrorResponses(401, 404, 409)
+  @ApiErrorResponses(401, 403, 404, 409)
   async inviteMember(
     @Param('orgId', ParseUUIDPipe) orgId: string,
     @Body() dto: InviteDto,
@@ -62,11 +68,29 @@ export class OrganizationsController {
     return this.orgService.inviteMember(orgId, dto, userId);
   }
 
+  @Post(':orgId/invitations/bulk')
+  @Roles(OrgRole.OWNER, OrgRole.ADMIN)
+  @UseGuards(RolesGuard)
+  @Idempotent(60 * 60 * 24)
+  @ResponseMessage('Bulk invitations processed.')
+  @ApiOperation({ summary: 'Invite multiple members to the organization in bulk.' })
+  @ApiDataResponse(Object, 'Bulk invitations processed.')
+  @ApiErrorResponses(401, 403, 404)
+  async bulkInvite(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Body() dto: BulkInviteDto,
+    @CurrentUser('sub') userId: string,
+  ) {
+    return this.orgService.bulkInviteMembers(orgId, dto, userId);
+  }
+
   @Post(':orgId/resend')
+  @Roles(OrgRole.OWNER, OrgRole.ADMIN)
+  @UseGuards(RolesGuard)
   @ResponseMessage('Invitation resent successfully.')
   @ApiOperation({ summary: 'Resend an invitation to the organization.' })
   @ApiMessageResponse('Invitation resent successfully.', 201)
-  @ApiErrorResponses(401, 404, 409)
+  @ApiErrorResponses(401, 403, 404, 409)
   async resendInvite(
     @Param('orgId', ParseUUIDPipe) orgId: string,
     @Body() dto: InviteDto,
@@ -104,16 +128,28 @@ export class OrganizationsController {
   }
 
   @Get(':orgId/invitations')
+  @Roles(OrgRole.OWNER, OrgRole.ADMIN)
+  @UseGuards(RolesGuard)
   @Cache(15, (req) => [CacheTags.org(requireParam(req, 'orgId'))])
   @ResponseMessage('Invitations listed successfully.')
   @ApiOperation({ summary: 'List invitations to the organization.' })
   @ApiPaginatedDataResponse(OrgDto, 'Invitations listed successfully.')
-  @ApiErrorResponses(401, 404, 409)
+  @ApiErrorResponses(401, 403, 404, 409)
   async listInvitations(
     @Param('orgId', ParseUUIDPipe) orgId: string,
     @CurrentUser('sub') userId: string,
     @Query() dto: PaginationDto,
   ) {
     return this.orgService.listInvitations(orgId, userId, dto);
+  }
+
+  @Get('me')
+  @Cache(15, (req) => [CacheTags.user(requireUser(req).sub)])
+  @ResponseMessage('Organizations listed successfully.')
+  @ApiOperation({ summary: 'List organizations the current user belongs to.' })
+  @ApiPaginatedDataResponse(OrgDto, 'Organizations listed successfully.')
+  @ApiErrorResponses(401)
+  async getUserOrgs(@CurrentUser('sub') userId: string, @Query() dto: PaginationDto) {
+    return this.orgService.getUserOrgs(userId, dto);
   }
 }

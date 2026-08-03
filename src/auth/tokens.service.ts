@@ -1,23 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { OrgMember, User } from '@prisma/client';
 import { RedisService } from 'src/redis/redis.service';
-import { JwtPayload } from './interfaces';
+import { JwtPayload, StoredRefreshToken } from './interfaces';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 import { createHash } from 'crypto';
 import { parseDurationToSeconds } from 'src/common/utils';
-
-type TokenUser = Pick<User, 'id' | 'email' | 'systemRole'>;
-type TokenOrgMembership = Pick<OrgMember, 'orgId' | 'role'>;
-
-export type RotationStatus = 'valid' | 'missing' | 'mismatch' | 'race_lost';
-
-interface StoredRefreshToken {
-  hash: string;
-  nonce: string;
-}
+import { InvalidOrExpiredTokenException } from 'src/common/exceptions';
+import { TokenUser, TokenOrgMembership, RotationStatus } from './types';
 
 @Injectable()
 export class TokensService {
@@ -132,6 +123,34 @@ export class TokensService {
   async isIssuedBeforeRevocation(userId: string, issuedAt: number): Promise<boolean> {
     const validAfter = await this.redis.get(`tokens-valid-after:${userId}`);
     return validAfter !== null && issuedAt < Number(validAfter);
+  }
+
+  async generateTwoFaChallengeToken(userId: string): Promise<string> {
+    return this.jwtService.signAsync(
+      { sub: userId, purpose: '2fa_challenge' },
+      {
+        secret: this.config.getOrThrow<string>('JWT_2FA_CHALLENGE_SECRET'),
+        expiresIn: '5m',
+      },
+    );
+  }
+
+  async verifyTwoFaChallengeToken(challengeToken: string): Promise<string> {
+    let payload: { sub: string; purpose: string };
+
+    try {
+      payload = await this.jwtService.verifyAsync(challengeToken, {
+        secret: this.config.getOrThrow<string>('JWT_2FA_CHALLENGE_SECRET'),
+      });
+    } catch {
+      throw new InvalidOrExpiredTokenException();
+    }
+
+    if (payload.purpose !== '2fa_challenge' || !payload.sub) {
+      throw new InvalidOrExpiredTokenException();
+    }
+
+    return payload.sub;
   }
 
   private async storeRefreshToken(userId: string, refreshToken: string): Promise<void> {
