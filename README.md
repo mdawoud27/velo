@@ -160,9 +160,10 @@ A multi-tenant project management API for organizations, teams, projects, and ta
 
 ### Prerequisites
 
-- Node.js 22+ (the Docker images use Node 24)
-- pnpm
-- PostgreSQL and Redis, either running locally or through the provided Docker Compose setup
+- Node.js 24+
+- pnpm 10+
+- PostgreSQL 18+
+- Redis 8+
 
 ### Installation
 
