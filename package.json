@@ -1,10 +1,10 @@
 {
   "name": "velo",
-  "version": "0.10.101",
+  "version": "0.11.0",
   "description": "",
   "author": "",
   "private": true,
-  "license": "UNLICENSED",
+  "license": "MIT",
   "scripts": {
     "build": "prisma generate && nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
