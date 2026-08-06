@@ -21,10 +21,10 @@ updates:
     labels:
       - "dependencies"
 
-  # Production Dockerfile at repo root
-  # Note: Dependabot's docker ecosystem only recognizes a file literally named
-  # "Dockerfile" (or "Containerfile") in the given directory, so Dockerfile.dev
-  # is not picked up here; that's a Dependabot limitation, not a config gap.
+  # Dockerfile and Dockerfile.dev at repo root
+  # Dependabot's docker ecosystem matches any filename containing "dockerfile"
+  # or "containerfile" (case-insensitive), so both Dockerfile and Dockerfile.dev
+  # are picked up from this one directory entry, no separate entry needed.
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
