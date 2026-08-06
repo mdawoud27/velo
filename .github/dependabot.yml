@@ -3,63 +3,56 @@
 version: 2
 updates:
   # Node dependencies: package.json + pnpm-lock.yaml (npm ecosystem parses pnpm lockfiles too)
-  - package-ecosystem: "npm"
-    directory: "/"
+  - package-ecosystem: 'npm'
+    directory: '/'
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: 'weekly'
+      day: 'monday'
     open-pull-requests-limit: 10
     groups:
       minor-and-patch:
         update-types:
-          - "minor"
-          - "patch"
+          - 'minor'
+          - 'patch'
     commit-message:
-      prefix: "chore(deps)"
-      prefix-development: "chore(deps-dev)"
-      include: "scope"
+      prefix: 'chore(deps)'
+      prefix-development: 'chore(deps-dev)'
     labels:
-      - "dependencies"
-
+      - 'dependencies'
   # Dockerfile and Dockerfile.dev at repo root
   # Dependabot's docker ecosystem matches any filename containing "dockerfile"
   # or "containerfile" (case-insensitive), so both Dockerfile and Dockerfile.dev
   # are picked up from this one directory entry, no separate entry needed.
-  - package-ecosystem: "docker"
-    directory: "/"
+  - package-ecosystem: 'docker'
+    directory: '/'
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: 'weekly'
+      day: 'monday'
     commit-message:
-      prefix: "chore(docker)"
-      include: "scope"
+      prefix: 'chore(docker)'
     labels:
-      - "dependencies"
-      - "docker"
-
+      - 'dependencies'
+      - 'docker'
   # docker-compose.yml / docker-compose.dev.yml at repo root
-  - package-ecosystem: "docker-compose"
-    directory: "/"
+  - package-ecosystem: 'docker-compose'
+    directory: '/'
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: 'weekly'
+      day: 'monday'
     commit-message:
-      prefix: "chore(docker)"
-      include: "scope"
+      prefix: 'chore(docker)'
     labels:
-      - "dependencies"
-      - "docker"
-
+      - 'dependencies'
+      - 'docker'
   # GitHub Actions workflows in .github/workflows
   # (directory is always "/" for this ecosystem regardless of where workflows live)
-  - package-ecosystem: "github-actions"
-    directory: "/"
+  - package-ecosystem: 'github-actions'
+    directory: '/'
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: 'weekly'
+      day: 'monday'
     commit-message:
-      prefix: "chore(ci)"
-      include: "scope"
+      prefix: 'chore(ci)'
     labels:
-      - "dependencies"
-      - "ci"
+      - 'dependencies'
+      - 'ci'
