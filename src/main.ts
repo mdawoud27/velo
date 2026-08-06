@@ -1,3 +1,4 @@
+import './common/utils/force-ipv4';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
