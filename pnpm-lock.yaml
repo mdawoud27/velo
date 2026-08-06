@@ -75,8 +75,8 @@ importers:
         specifier: ^0.15.1
         version: 0.15.1
       connect-redis:
-        specifier: ^9.0.0
-        version: 9.0.0(express-session@1.19.0)(redis@6.0.0)
+        specifier: ^10.0.0
+        version: 10.0.0(express-session@1.19.0)(redis@6.0.0)
       crypto:
         specifier: ^1.0.1
         version: 1.0.1
@@ -2388,9 +2388,9 @@ packages:
   config-chain@1.1.13:
     resolution: {integrity: sha512-qj+f8APARXHrM0hraqXYb2/bOVSV4PvJQlNZ/DVj0QrmNM2q2euizkeuVckQ57J+W0mRH6Hvi+k50M4Jul2VRQ==}
 
-  connect-redis@9.0.0:
-    resolution: {integrity: sha512-QwzyvUePTMvEzG1hy45gZYw3X3YHrjmEdSkayURlcZft7hqadQ3X39wYkmCqblK2rGlw+XItELYt6GnyG6DEIQ==}
-    engines: {node: '>=18'}
+  connect-redis@10.0.0:
+    resolution: {integrity: sha512-x6EotIY20pvocamMtcOsgxFzYufAMfipE+rjWa0cZMeSx+3K0yoHi4Nv4sfMlgF+Z5KnUbMFxyCx9pDZP39p0Q==}
+    engines: {node: '>=22'}
     peerDependencies:
       express-session: '>=1'
       redis: '>=5'
@@ -7957,7 +7957,7 @@ snapshots:
       proto-list: 1.2.4
     optional: true
 
-  connect-redis@9.0.0(express-session@1.19.0)(redis@6.0.0):
+  connect-redis@10.0.0(express-session@1.19.0)(redis@6.0.0):
     dependencies:
       express-session: 1.19.0
       redis: 6.0.0
