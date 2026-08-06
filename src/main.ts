@@ -1,4 +1,3 @@
-import './common/utils/force-ipv4';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
@@ -14,10 +13,8 @@ import { requestIdMiddleware } from './common/middlewares';
 import { RedisService } from './redis/redis.service';
 import { RedisSessionStore } from './common/session/redis-session.store';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import dns from 'node:dns';
 
 async function bootstrap() {
-  dns.setDefaultResultOrder('ipv4first');
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     rawBody: true,
     bufferLogs: true,
