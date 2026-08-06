@@ -21,9 +21,10 @@ jobs:
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
         run: |
           ALLOWED_USER="mdawoud27"
+          ALLOWED_BOT="dependabot[bot]"
 
-          if [ "$PR_AUTHOR" != "$ALLOWED_USER" ] && [ "$TARGET_BRANCH" = "main" ]; then
-            echo "Unauthorized PR to main by $PR_AUTHOR, only $ALLOWED_USER is allowed."
+          if [ "$PR_AUTHOR" != "$ALLOWED_USER" ] && [ "$PR_AUTHOR" != "$ALLOWED_BOT" ] && [ "$TARGET_BRANCH" = "main" ]; then
+            echo "Unauthorized PR to main by $PR_AUTHOR, only $ALLOWED_USER or Dependabot are allowed."
             exit 1
           fi
 
@@ -39,8 +40,15 @@ jobs:
         env:
           BRANCH_NAME: ${{ github.head_ref }}
           BRANCH_PATTERN: '^(feat|fix|build|chore|refactor|docs|perf|test)/([0-9]+/)?[a-z0-9]+(-[a-z0-9]+)*$'
+          DEPENDABOT_PATTERN: '^dependabot/'
         run: |
           echo "Checking branch: $BRANCH_NAME"
+
+          if echo "$BRANCH_NAME" | grep -Eq "$DEPENDABOT_PATTERN"; then
+            echo "Dependabot branch detected, skipping kebab-case check."
+            exit 0
+          fi
+
           if ! echo "$BRANCH_NAME" | grep -Eq "$BRANCH_PATTERN"; then
             echo "Branch name doesn't match the required pattern. Please setup your git hooks locally to avoid this error."
             exit 1
@@ -55,7 +63,8 @@ jobs:
     steps:
       - name: Check PR title format
         env:
-          PR_TITLE: ${{github.event.pull_request.title}}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
           PREFIX_PATTERN: '^(feat|fix|build|chore|refactor|docs|perf|test)(\(.+\))?: .+'
           POSTFIX_PATTERN: " - \\[[A-Z]+-[0-9]+\\]$"
         run: |
@@ -65,6 +74,11 @@ jobs:
           if ! echo "$CLEAN_TITLE" | grep -Eq "$PREFIX_PATTERN"; then
             echo "PR title must start with a valid prefix (feat, fix, build, chore, refactor, docs, perf, test) followed by a colon and a space."
             exit 1
+          fi
+
+          if [ "$PR_AUTHOR" = "dependabot[bot]" ]; then
+            echo "Dependabot PR detected, skipping user story ID check."
+            exit 0
           fi
 
           if ! echo "$CLEAN_TITLE" | grep -Eq "$POSTFIX_PATTERN"; then
