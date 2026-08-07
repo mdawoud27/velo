@@ -182,7 +182,7 @@ export class CloudinaryService {
       .map((key) => `${key}=${params[key]}`)
       .join('&');
 
-    return createHash('sha1').update(`${payload}${apiSecret}`).digest('hex');
+    return createHash('sha256').update(`${payload}${apiSecret}`).digest('hex');
   }
 
   private timestamp(): string {
