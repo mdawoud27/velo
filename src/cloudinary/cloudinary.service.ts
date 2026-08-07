@@ -81,7 +81,8 @@ export class CloudinaryService {
   extractPublicId(url: string): string | null {
     try {
       const parsed = new URL(url);
-      if (!parsed.hostname.endsWith('cloudinary.com')) return null;
+      const hostname = parsed.hostname.toLowerCase();
+      if (hostname !== 'cloudinary.com' && !hostname.endsWith('.cloudinary.com')) return null;
 
       const parts = parsed.pathname.split('/').filter(Boolean);
       const uploadIndex = parts.indexOf('upload');
