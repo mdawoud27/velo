@@ -4,7 +4,7 @@ ARG PRISMA_GENERATE_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/v
 
 RUN apk add --no-cache libssl3
 
-RUN corepack enable && corepack prepare pnpm@10.18.0 --activate
+RUN npm install -g pnpm@10.18.0
 
 WORKDIR /app
 
