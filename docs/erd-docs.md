@@ -2,7 +2,7 @@
 
 ## Overview
 
-Velo's database is a **PostgreSQL** relational database managed via **Prisma ORM**. The schema models a three-level hierarchy: `Organization → Team → Project → Task`, with cross-cutting entities for collaboration (Comments, Attachments, Notifications, ActivityLog) and billing (StripeEvent).
+Velo's database is a **PostgreSQL** relational database managed via **Prisma ORM**. The schema models a three-level hierarchy: `Organization → Team → Project → Task`, with cross-cutting entities for invitations (`OrgInvitation`), collaboration (`Comment`, `Attachment`, `Notification`, `ActivityLog`), security (`AuditLog`), and billing (`StripeEvent`).
 
 ---
 
@@ -14,19 +14,24 @@ Velo's database is a **PostgreSQL** relational database managed via **Prisma ORM
 
 The central actor in the system. Users participate in organizations, teams, and projects through junction tables.
 
-| Field              | Type      | Notes                                          |
-| ------------------ | --------- | ---------------------------------------------- |
-| `id`               | UUID      | PK, auto-generated                             |
-| `email`            | String    | Unique, used for login & invites               |
-| `password`         | String?   | Null for Google OAuth users                    |
-| `name`             | String    | Display name                                   |
-| `avatarUrl`        | String?   | Cloudinary URL                                 |
-| `isEmailVerified`  | Boolean   | Default `false`; must be `true` to create orgs |
-| `googleId`         | String?   | Unique; set on OAuth login                     |
-| `systemRole`       | Enum      | `USER` \| `SUPER_ADMIN`                        |
-| `bannedAt`         | DateTime? | Non-null = banned, blocks all requests         |
-| `notifPreferences` | JSON      | Per-notification-type opt-out flags            |
-| `stripeCustomerId` | String?   | Stripe customer reference                      |
+| Field                  | Type      | Notes                                          |
+| ---------------------- | --------- | ---------------------------------------------- |
+| `id`                   | UUID      | PK, auto-generated                             |
+| `email`                | String    | Unique, used for login & invites               |
+| `password`             | String?   | Null for OAuth users                           |
+| `name`                 | String    | Display name                                   |
+| `avatarUrl`            | String?   | Cloudinary URL                                 |
+| `isEmailVerified`      | Boolean   | Default `false`; must be `true` to create orgs |
+| `twoFactorSecret`      | String?   | Encrypted TOTP 2FA secret                      |
+| `isTwoFactorEnabled`   | Boolean   | Default `false`                                |
+| `twoFactorBackupCodes` | String[]  | Backup recovery codes                          |
+| `googleId`             | String?   | Unique; set on Google OAuth login              |
+| `githubId`             | String?   | Unique; set on GitHub OAuth login              |
+| `systemRole`           | Enum      | `USER` \| `SUPER_ADMIN`                        |
+| `bannedAt`             | DateTime? | Non-null = banned, blocks all requests         |
+| `deletedAt`            | DateTime? | Soft delete timestamp                          |
+| `notifPreferences`     | JSON      | Per-notification-type opt-out flags            |
+| `stripeCustomerId`     | String?   | Stripe customer reference                      |
 
 ---
 
@@ -34,14 +39,15 @@ The central actor in the system. Users participate in organizations, teams, and 
 
 Top-level tenant. Contains teams. Billing state is tracked here.
 
-| Field                  | Type      | Notes                         |
-| ---------------------- | --------- | ----------------------------- |
-| `id`                   | UUID      | PK                            |
-| `name`                 | String    | Display name                  |
-| `plan`                 | Enum      | `FREE` \| `PRO` \| `BUSINESS` |
-| `stripeCustomerId`     | String?   | Unique Stripe customer ID     |
-| `stripeSubscriptionId` | String?   | Active subscription reference |
-| `deletedAt`            | DateTime? | Soft delete; nullifies access |
+| Field                    | Type      | Notes                         |
+| ------------------------ | --------- | ----------------------------- |
+| `id`                     | UUID      | PK                            |
+| `name`                   | String    | Display name                  |
+| `plan`                   | Enum      | `FREE` \| `PRO` \| `BUSINESS` |
+| `stripeCustomerId`       | String?   | Unique Stripe customer ID     |
+| `stripeSubscriptionId`   | String?   | Active subscription reference |
+| `stripeCurrentPeriodEnd` | DateTime? | Subscription period end date  |
+| `deletedAt`              | DateTime? | Soft delete; nullifies access |
 
 **Plan Limits:**
 
@@ -59,10 +65,26 @@ Many-to-many between `User` and `Organization` with a role.
 
 | Field    | Type | Notes                          |
 | -------- | ---- | ------------------------------ |
-| `userId` | UUID | FK → User                      |
-| `orgId`  | UUID | FK → Organization              |
+| `userId` | UUID | FK → User (onDelete: Cascade)  |
+| `orgId`  | UUID | FK → Organization (onDelete: Cascade) |
 | `role`   | Enum | `OWNER` \| `ADMIN` \| `MEMBER` |
 | Unique   |      | `(userId, orgId)`              |
+
+---
+
+#### `OrgInvitation`
+
+Pending invitations sent to prospective organization members.
+
+| Field         | Type     | Notes                                   |
+| ------------- | -------- | --------------------------------------- |
+| `id`          | UUID     | PK                                      |
+| `orgId`       | UUID     | FK → Organization (onDelete: Cascade)   |
+| `email`       | String   | Email address of invitee                |
+| `token`       | String   | Unique invitation acceptance token      |
+| `role`        | Enum     | `OWNER` \| `ADMIN` \| `MEMBER`          |
+| `expiresAt`   | DateTime | Expiration timestamp                    |
+| `invitedById` | UUID     | FK → User (onDelete: Cascade)           |
 
 ---
 
@@ -72,7 +94,7 @@ Belongs to an Organization. Groups members and owns Projects.
 
 | Field       | Type      | Notes                                     |
 | ----------- | --------- | ----------------------------------------- |
-| `orgId`     | UUID      | FK → Organization                         |
+| `orgId`     | UUID      | FK → Organization (onDelete: Cascade)     |
 | `deletedAt` | DateTime? | Soft delete; cascades to ARCHIVE projects |
 
 ---
@@ -81,8 +103,11 @@ Belongs to an Organization. Groups members and owns Projects.
 
 Many-to-many between `User` and `Team`.
 
-| Unique | `(userId, teamId)` |
-| ------ | ------------------ |
+| Field  | Type | Notes                                 |
+| ------ | ---- | ------------------------------------- |
+| `userId` | UUID | FK → User (onDelete: Cascade)       |
+| `teamId` | UUID | FK → Team (onDelete: Cascade)       |
+| Unique |      | `(userId, teamId)`                    |
 
 ---
 
@@ -93,7 +118,7 @@ Belongs to a Team. Contains Tasks. Has two inactive states: ARCHIVED (read-only,
 | Field       | Type      | Notes                                  |
 | ----------- | --------- | -------------------------------------- |
 | `status`    | Enum      | `ACTIVE` \| `ARCHIVED`                 |
-| `teamId`    | UUID      | FK → Team                              |
+| `teamId`    | UUID      | FK → Team (onDelete: Cascade)          |
 | `deletedAt` | DateTime? | Soft delete; excludes from all queries |
 
 ---
@@ -102,8 +127,11 @@ Belongs to a Team. Contains Tasks. Has two inactive states: ARCHIVED (read-only,
 
 Many-to-many between `User` and `Project`.
 
-| Unique | `(userId, projectId)` |
-| ------ | --------------------- |
+| Field     | Type | Notes                                  |
+| --------- | ---- | -------------------------------------- |
+| `userId`    | UUID | FK → User (onDelete: Cascade)        |
+| `projectId` | UUID | FK → Project (onDelete: Cascade)     |
+| Unique    |      | `(userId, projectId)`                  |
 
 ---
 
@@ -115,9 +143,10 @@ Core work unit. Self-referential for subtasks. Has status machine: `TODO → IN_
 | -------------- | --------- | ------------------------------------------------ |
 | `status`       | Enum      | `TODO` \| `IN_PROGRESS` \| `IN_REVIEW` \| `DONE` |
 | `priority`     | Enum      | `LOW` \| `MEDIUM` \| `HIGH` \| `URGENT`          |
+| `projectId`    | UUID      | FK → Project (onDelete: Cascade)                 |
 | `assigneeId`   | UUID?     | FK → User (nullable)                             |
 | `creatorId`    | UUID      | FK → User                                        |
-| `parentTaskId` | UUID?     | FK → Task (self-ref, for subtasks)               |
+| `parentTaskId` | UUID?     | FK → Task (self-ref, onDelete: SetNull)          |
 | `tags`         | String[]  | PostgreSQL array                                 |
 | `deletedAt`    | DateTime? | Soft delete; recoverable within 30 days          |
 
@@ -137,8 +166,11 @@ File uploaded to Cloudinary/S3 and linked to a Task. Max 10 MB. Stores filename,
 
 Junction between User and Task. Watchers receive all task change notifications without being the assignee.
 
-| Unique | `(userId, taskId)` |
-| ------ | ------------------ |
+| Field  | Type | Notes                                |
+| ------ | ---- | ------------------------------------ |
+| `userId` | UUID | FK → User (onDelete: Cascade)      |
+| `taskId` | UUID | FK → Task (onDelete: Cascade)      |
+| Unique |      | `(userId, taskId)`                   |
 
 #### `ActivityLog`
 
@@ -166,6 +198,7 @@ Idempotency table. Stores processed Stripe event IDs (`evt_xxx`) to prevent dupl
 
 ```text
 User ────────────────── OrgMember ────────── Organization
+User ────────────────── OrgInvitation ────── Organization
 User ────────────────── TeamMember ─────────── Team
 User ────────────────── ProjectMember ──────── Project
 Organization ──────────────────────────────────────────► Team (1:many)
@@ -185,8 +218,8 @@ User ─────────────────────────
 
 | Deleted Entity   | Cascade Behavior                                                                                              |
 | ---------------- | ------------------------------------------------------------------------------------------------------------- |
-| **Organization** | Soft-deleted → all teams/projects/tasks archived; members lose access                                         |
-| **Team**         | `deletedAt` set → child projects set to `ARCHIVED` status (NOT soft-deleted)                                  |
+| **Organization** | Soft-deleted → all teams/projects/tasks archived; members lose access; `OrgMember` / `OrgInvitation` deleted  |
+| **Team**         | `deletedAt` set → child projects set to `ARCHIVED` status (NOT soft-deleted); `TeamMember` deleted            |
 | **Project**      | `DELETE /:id` → `deletedAt` set, hidden from queries. `PATCH { status: ARCHIVED }` → read-only, still visible |
 | **Task**         | `deletedAt` set → recoverable within 30 days via admin restore                                                |
 | **User**         | Account deactivated via `bannedAt`; task history preserved; reassignment required                             |
@@ -200,8 +233,8 @@ User ─────────────────────────
 | --------------- | ------------------------------------------ |
 | `SystemRole`    | `USER`, `SUPER_ADMIN`                      |
 | `OrgRole`       | `OWNER`, `ADMIN`, `MEMBER`                 |
-| `Plan`          | `FREE`, `PRO`, `BUSINESS`                  |
 | `TeamRole`      | `LEAD`, `MEMBER`                           |
+| `Plan`          | `FREE`, `PRO`, `BUSINESS`                  |
 | `ProjectStatus` | `ACTIVE`, `ARCHIVED`                       |
 | `TaskStatus`    | `TODO`, `IN_PROGRESS`, `IN_REVIEW`, `DONE` |
 | `Priority`      | `LOW`, `MEDIUM`, `HIGH`, `URGENT`          |

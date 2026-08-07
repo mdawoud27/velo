@@ -4,9 +4,9 @@
 
 A multi-tenant project management API for organizations, teams, projects, and tasks, with real-time collaboration, background jobs, billing, and AI-assisted planning built in.
 
-[![NestJS](https://img.shields.io/badge/NestJS-11.0-E0234E?logo=nestjs&logoColor=white)](https://nestjs.com/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Prisma](https://img.shields.io/badge/Prisma-7.8-2D3748?logo=prisma&logoColor=white)](https://www.prisma.io/)
+[![NestJS](https://img.shields.io/badge/NestJS-11.1-E0234E?logo=nestjs&logoColor=white)](https://nestjs.com/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-6.0-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Prisma](https://img.shields.io/badge/Prisma-7.9-2D3748?logo=prisma&logoColor=white)](https://www.prisma.io/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-336791?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Redis](https://img.shields.io/badge/Redis-8-DC382D?logo=redis&logoColor=white)](https://redis.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -105,9 +105,9 @@ A multi-tenant project management API for organizations, teams, projects, and ta
 
 ### Core
 
-- **NestJS** 11 - Progressive Node.js framework
-- **TypeScript** 5.7 - Type-safe JavaScript
-- **Prisma** 7.8 - Type-safe ORM, using driver adapters (`@prisma/adapter-pg`)
+- **NestJS** 11.1 - Progressive Node.js framework
+- **TypeScript** 6.0 - Type-safe JavaScript
+- **Prisma** 7.9 - Type-safe ORM, using driver adapters (`@prisma/adapter-pg`)
 - **PostgreSQL** - Primary database
 
 ### Authentication
@@ -160,10 +160,10 @@ A multi-tenant project management API for organizations, teams, projects, and ta
 
 ### Prerequisites
 
-- Node.js 24+
-- pnpm 10+
-- PostgreSQL 18+
-- Redis 8+
+- Node.js
+- pnpm
+- PostgreSQL
+- Redis
 
 ### Installation
 
