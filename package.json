@@ -58,7 +58,7 @@
     "handlebars": "^4.7.9",
     "helmet": "^8.2.0",
     "ioredis": "^6.0.0",
-    "multer": "^2.1.1",
+    "multer": "^2.2.0",
     "nestjs-pino": "^4.6.1",
     "nodemailer": "^9.0.3",
     "otplib": "^13.4.1",
@@ -110,8 +110,8 @@
     "ts-loader": "^9.6.2",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.7.3",
-    "typescript-eslint": "^8.65.0"
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.20.0"
   },
   "jest": {
     "moduleFileExtensions": [
