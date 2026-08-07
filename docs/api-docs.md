@@ -11,13 +11,13 @@ All endpoints require a Bearer JWT access token unless marked **Public**.
 Authorization: Bearer <access_token>
 ```
 
-Access tokens expire in **15 minutes**. Use `POST /auth/refresh` with a refresh token to rotate.
+Access tokens expire in **15 minutes**. Use `POST /auth/refresh-token` with a refresh token to rotate.
 
 ---
 
 ## Response Envelope
 
-All responses share a consistent shape:
+All API responses follow a unified response structure managed by global interceptors and filters.
 
 ### Success
 
@@ -25,7 +25,8 @@ All responses share a consistent shape:
 {
   "success": true,
   "message": "Task created successfully",
-  "data": {}
+  "data": {},
+  "timestamp": "Friday, August 7, 2026 at 11:27:31 AM GMT+3"
 }
 ```
 
@@ -34,13 +35,15 @@ All responses share a consistent shape:
 ```json
 {
   "success": true,
+  "message": "Tasks listed successfully.",
   "data": [],
   "meta": {
-    "total": 120,
     "page": 1,
     "limit": 20,
+    "total": 120,
     "totalPages": 6
-  }
+  },
+  "timestamp": "Friday, August 7, 2026 at 11:27:31 AM GMT+3"
 }
 ```
 
@@ -49,12 +52,11 @@ All responses share a consistent shape:
 ```json
 {
   "success": false,
-  "statusCode": 403,
-  "error": "PLAN_LIMIT_REACHED",
-  "message": "Free plan allows up to 3 members. Upgrade to Pro to add more.",
-  "upgradeUrl": "https://app.velo.dev/billing",
-  "timestamp": "2026-06-01T10:00:00Z",
-  "path": "/api/v1/organizations/abc/invite"
+  "error": {
+    "code": "PLAN_LIMIT_REACHED",
+    "message": "Free plan allows up to 3 members. Upgrade to Pro to add more."
+  },
+  "timestamp": "2026-08-07T08:27:45.000Z"
 }
 ```
 
@@ -81,9 +83,10 @@ All responses share a consistent shape:
 | -------------- | ---------------------------- |
 | Global         | 100 requests / minute per IP |
 | Auth endpoints | 10 requests / minute per IP  |
+| 2FA endpoints  | 5 requests / minute per user |
 | AI endpoints   | 10 requests / hour per user  |
 
-Exceeded limits return `429 Too Many Requests` with a `Retry-After` header.
+Exceeded limits return `429 Too Many Requests` with error code `TOO_MANY_REQUESTS`.
 
 ---
 
@@ -112,12 +115,27 @@ Register a new user account.
 ```json
 {
   "success": true,
-  "message": "Registration successful. Please check your email to verify your account.",
-  "data": { "id": "uuid", "email": "mo@example.com", "name": "Mohamed Dawoud" }
+  "message": "Check your inbox to verify your email",
+  "data": { "id": "uuid", "email": "mo@example.com", "name": "Mohamed Dawoud" },
+  "timestamp": "Friday, August 7, 2026 at 11:27:31 AM GMT+3"
 }
 ```
 
-**Side effects:** Enqueues verification email via BullMQ. Token stored in Redis (TTL: 24h).
+---
+
+#### `POST /resend-verification-email` Public
+
+Resend verification email to user.
+
+**Body:** `{ "email": "mo@example.com" }`
+
+---
+
+#### `POST /verify-email` Public
+
+Confirm email address.
+
+**Body:** `{ "token": "<verification_token>" }`
 
 ---
 
@@ -136,11 +154,64 @@ Authenticate and receive JWT tokens.
 ```json
 {
   "success": true,
+  "message": "User logged in successfully",
   "data": {
     "accessToken": "eyJ...",
     "refreshToken": "eyJ...",
     "user": { "id": "uuid", "name": "Mohamed Dawoud", "email": "mo@example.com" }
-  }
+  },
+  "timestamp": "Friday, August 7, 2026 at 11:27:31 AM GMT+3"
+}
+```
+
+---
+
+#### `POST /2fa/generate`
+
+Generate 2FA secret and QR code.
+
+**Response `200`:** Returns 2FA secret URI and QR code image URL.
+
+---
+
+#### `POST /2fa/enable`
+
+Enable 2FA using a TOTP verification code.
+
+**Body:** `{ "token": "123456" }`
+
+---
+
+#### `POST /2fa/disable`
+
+Disable 2FA using a TOTP verification code.
+
+**Body:** `{ "token": "123456" }`
+
+---
+
+#### `POST /2fa/verify` Public
+
+Verify 2FA token or backup code during login flow.
+
+**Body:** `{ "tempToken": "eyJ...", "code": "123456" }`
+
+---
+
+#### `POST /refresh-token` Public
+
+Rotate the refresh token and receive a new access token.
+
+**Body:** `{ "refreshToken": "eyJ..." }`
+
+**Response `200`:**
+
+```json
+{
+  "success": true,
+  "message": "New tokens generated successfully",
+  "data": { "accessToken": "eyJ...", "refreshToken": "eyJ..." },
+  "timestamp": "Friday, August 7, 2026 at 11:27:31 AM GMT+3"
 }
 ```
 
@@ -148,19 +219,25 @@ Authenticate and receive JWT tokens.
 
 #### `GET /google` Public
 
-Redirects to Google OAuth consent screen.
+Initiate Google OAuth flow.
 
 #### `GET /google/callback` Public
 
-Google OAuth callback. Auto-creates account on first login; links to existing account if email matches. Returns JWT tokens.
+Google OAuth callback.
 
----
+#### `GET /github` Public
 
-#### `POST /verify-email` Public
+Initiate GitHub OAuth flow.
 
-Confirm email address.
+#### `GET /github/callback` Public
 
-**Body:** `{ "token": "<verification_token>" }`
+GitHub OAuth callback.
+
+#### `POST /exchange-code` Public
+
+Exchange one-time OAuth code for JWT tokens.
+
+**Body:** `{ "code": "<oauth_code>" }`
 
 ---
 
@@ -169,8 +246,6 @@ Confirm email address.
 Request a password reset email.
 
 **Body:** `{ "email": "mo@example.com" }`
-
-**Side effects:** Enqueues reset email. Token stored in Redis (TTL: 1h).
 
 ---
 
@@ -182,29 +257,9 @@ Set a new password using a reset token.
 
 ---
 
-#### `POST /refresh` Refresh Token
-
-Rotate the refresh token and receive a new access token.
-
-**Header:** `Authorization: Bearer <refresh_token>`
-
-**Response `200`:**
-
-```json
-{
-  "data": { "accessToken": "eyJ...", "refreshToken": "eyJ..." }
-}
-```
-
-**Notes:** Old refresh token is deleted atomically. New token written in same Redis operation.
-
----
-
 #### `POST /logout`
 
-Invalidate the current session.
-
-**Side effects:** Refresh token deleted from Redis. Access token JTI added to Redis blacklist (TTL: remaining token lifetime).
+Invalidate current session.
 
 ---
 
@@ -212,33 +267,27 @@ Invalidate the current session.
 
 #### `GET /me`
 
-Get the authenticated user's profile.
-
-**Response `200`:**
-
-```json
-{
-  "data": {
-    "id": "uuid",
-    "email": "mo@example.com",
-    "name": "Mohamed Dawoud",
-    "avatarUrl": "https://res.cloudinary.com/...",
-    "isEmailVerified": true,
-    "systemRole": "USER",
-    "createdAt": "2026-01-01T00:00:00Z"
-  }
-}
-```
+Get authenticated user profile.
 
 ---
 
 #### `PATCH /me`
 
-Update profile name or avatar.
+Update profile details.
 
-**Body:** `{ "name": "New Name", "avatarUrl": "https://..." }`
+**Body:** `{ "name": "New Name" }`
 
-**Side effects:** Invalidates `cache:user-profile:{id}` in Redis.
+---
+
+#### `GET /me/notification-preferences`
+
+Get notification preferences.
+
+---
+
+#### `PATCH /me/notification-preferences`
+
+Update notification preferences.
 
 ---
 
@@ -252,7 +301,19 @@ Change password while logged in.
 
 #### `DELETE /me`
 
-Deactivate own account.
+Soft-delete own account.
+
+---
+
+#### `PATCH /me/avatar`
+
+Upload user avatar (`multipart/form-data`, field: `avatar`, max 5 MB).
+
+---
+
+#### `DELETE /me/avatar`
+
+Delete user avatar.
 
 ---
 
@@ -260,19 +321,13 @@ Deactivate own account.
 
 #### `POST /`
 
-Create a new organization. Caller becomes `OWNER`. Plan starts at `FREE`.
+Create a new organization. Supports idempotency key header.
 
-**Body:**
-
-```json
-{ "name": "Acme Corp", "description": "Our software agency" }
-```
-
-**Guard:** Requires `isEmailVerified = true`.
+**Body:** `{ "name": "Acme Corp", "description": "Software agency" }`
 
 ---
 
-#### `GET /`
+#### `GET /me`
 
 List all organizations the current user belongs to.
 
@@ -280,272 +335,223 @@ List all organizations the current user belongs to.
 
 ---
 
-#### `GET /:id`
+#### `POST /:orgId/invite`
 
-Get organization details. **Role:** Member.
-
----
-
-#### `PATCH /:id`
-
-Update name or description. **Role:** Owner or Admin.
-
-**Body:** `{ "name": "New Name", "description": "Updated desc" }`
-
----
-
-#### `DELETE /:id`
-
-Soft-delete the organization. **Role:** Owner.
-
----
-
-#### `POST /:id/invite`
-
-Invite a user by email. **Role:** Owner or Admin.
+Invite a member to the organization by email. **Role:** Owner or Admin.
 
 **Body:** `{ "email": "sara@example.com", "role": "MEMBER" }`
 
-**Side effects:** Enqueues invite email with a token link.
+---
 
-**Error:** Returns `PLAN_LIMIT_REACHED` with upgrade URL if seat limit would be exceeded.
+#### `POST /:orgId/invitations/bulk`
+
+Invite multiple members in bulk. **Role:** Owner or Admin.
+
+**Body:** `{ "invitations": [{ "email": "a@ex.com", "role": "MEMBER" }] }`
 
 ---
 
-#### `POST /:id/invitations/:token/accept` Public
+#### `POST /:orgId/resend`
+
+Resend an invitation. **Role:** Owner or Admin.
+
+---
+
+#### `POST /:orgId/accept`
 
 Accept an organization invitation.
 
-#### `POST /:id/invitations/:token/decline` Public
+**Body:** `{ "token": "<invite_token>" }`
+
+---
+
+#### `POST /:orgId/decline`
 
 Decline an organization invitation.
 
----
-
-#### `GET /:id/members`
-
-List all members with their roles. **Role:** Member.
+**Body:** `{ "token": "<invite_token>" }`
 
 ---
 
-#### `PATCH /:id/members/:userId/role`
+#### `GET /:orgId/invitations`
 
-Change a member's role. **Role:** Owner or Admin.
-
-**Body:** `{ "role": "ADMIN" }`
+List pending invitations for the organization. **Role:** Owner or Admin.
 
 ---
 
-#### `DELETE /:id/members/:userId`
-
-Remove a member. **Role:** Owner or Admin.
-
-**Side effects:** Removes member from all teams within the organization.
-
----
-
-### Teams: `/api/v1/teams`
+### Teams: `/api/v1/organizations/:orgId/teams`
 
 #### `POST /`
 
-Create a team inside an organization. **Role:** Org Admin.
+Create a team inside an organization. Supports idempotency key header.
 
-**Body:** `{ "name": "Backend Team", "description": "...", "orgId": "uuid" }`
+**Body:** `{ "name": "Backend Team", "description": "Core dev team" }`
 
 ---
 
-#### `GET /mine`
+#### `GET /`
 
-List all teams the current user belongs to.
+List all teams in the organization.
+
+**Query:** `?page=1&limit=20`
 
 ---
 
 #### `GET /:id`
 
-Get team details. **Role:** Team Member.
+Get team details.
 
 ---
 
 #### `PATCH /:id`
 
-Update team name or description. **Role:** Lead.
+Update team details. **Role:** Owner or Admin.
 
 ---
 
 #### `DELETE /:id`
 
-Soft-delete the team. **Role:** Lead or Org Admin.
-
-**Side effects:** All child projects set to `ARCHIVED` status.
+Soft-delete a team. **Role:** Owner or Admin.
 
 ---
 
 #### `POST /:id/members`
 
-Add an organization member to the team. **Role:** Lead.
+Add a member to the team. **Role:** Owner or Admin.
 
-**Body:** `{ "userId": "uuid" }`
+**Body:** `{ "userId": "uuid", "role": "MEMBER" }`
+
+---
+
+#### `GET /:id/members`
+
+List team members.
+
+**Query:** `?page=1&limit=20`
+
+---
+
+#### `PATCH /:id/members/:userId`
+
+Update team member role. **Role:** Owner or Admin.
+
+**Body:** `{ "role": "LEAD" }`
 
 ---
 
 #### `DELETE /:id/members/:userId`
 
-Remove a member from the team. **Role:** Lead.
-
-**Notes:** Does NOT remove the user from the organization.
+Remove member from team. **Role:** Owner or Admin.
 
 ---
 
-### Projects: `/api/v1/projects`
+### Projects: `/api/v1/organizations/:orgId/teams/:teamId/projects`
 
 #### `POST /`
 
-Create a project inside a team. **Role:** Lead.
+Create a project inside a team. Supports idempotency key header.
 
 **Body:**
 
 ```json
 {
   "name": "API Redesign",
-  "description": "...",
-  "teamId": "uuid",
+  "description": "Redesign project",
   "deadline": "2026-09-01T00:00:00Z"
 }
 ```
 
 ---
 
-#### `GET /mine`
+#### `GET /`
 
-List all projects the current user has access to.
+List all projects in the team.
+
+**Query:** `?page=1&limit=20`
 
 ---
 
 #### `GET /:id`
 
-Get project details. **Role:** Member.
+Get project details.
 
 ---
 
 #### `PATCH /:id`
 
-Update project details or archive it. **Role:** Lead.
+Update project details.
 
-**Body:** `{ "name": "...", "status": "ARCHIVED", "deadline": "2026-10-01T00:00:00Z" }`
+---
 
-**Notes:** Setting `status: "ARCHIVED"` makes the project read-only but keeps it visible.
+#### `PATCH /:id/status`
+
+Archive or reactivate a project.
+
+**Body:** `{ "status": "ARCHIVED" }`
 
 ---
 
 #### `DELETE /:id`
 
-Soft-delete the project. **Role:** Lead.
-
----
-
-#### `GET /:id/summary`
-
-Get aggregated task counts by status + overdue count.
-
-**Response `200`:**
-
-```json
-{
-  "data": {
-    "todo": 12,
-    "inProgress": 5,
-    "inReview": 3,
-    "done": 28,
-    "overdue": 2,
-    "total": 48
-  }
-}
-```
-
----
-
-#### `GET /:id/board`
-
-Get tasks grouped by status for Kanban display. Cached 30 seconds in Redis.
-
-**Response `200`:**
-
-```json
-{
-  "data": {
-    "TODO": [{ "id": "...", "title": "...", "priority": "HIGH", "assignee": {} }],
-    "IN_PROGRESS": [],
-    "IN_REVIEW": [],
-    "DONE": []
-  }
-}
-```
-
----
-
-#### `POST /:id/export`
-
-Enqueue an Excel export job. **Role:** Lead.
-
-**Side effects:** BullMQ job created → ExcelJS generates styled `.xlsx` → uploaded to Cloudinary → download link emailed to requester.
-
-**Response `202`:**
-
-```json
-{ "data": { "jobId": "bullmq-job-id" } }
-```
-
----
-
-#### `GET /:id/export/status`
-
-Check export job status.
-
-**Response `200`:**
-
-```json
-{
-  "data": {
-    "status": "done",
-    "downloadUrl": "https://res.cloudinary.com/...",
-    "completedAt": "2026-06-01T10:05:00Z"
-  }
-}
-```
-
-Possible `status` values: `pending`, `processing`, `done`, `failed`.
+Delete an archived project.
 
 ---
 
 #### `POST /:id/members`
 
-Add a member to the project. **Role:** Lead.
+Add a team member to the project.
 
 **Body:** `{ "userId": "uuid" }`
 
 ---
 
-#### `DELETE /:id/members/:userId`
+#### `GET /:id/members`
 
-Remove a member from the project. **Role:** Lead.
-
----
-
-#### `GET /:id/activity`
-
-Get project-level activity feed. **Role:** Member.
-
-**Query:** `?page=1&limit=20&entityType=Task`
+List project members.
 
 ---
 
-### Tasks: `/api/v1/tasks`
+#### `DELETE /:id/members`
+
+Remove a member from the project.
+
+**Body:** `{ "userId": "uuid" }`
+
+---
+
+#### `GET /:id/board`
+
+Get Kanban board tasks grouped by status.
+
+---
+
+#### `GET /:id/summary`
+
+Get task counts aggregated by status and overdue status.
+
+---
+
+#### `POST /:id/export`
+
+Request an Excel export job for the project.
+
+**Response `201`:** `{ "data": { "jobId": "bullmq-job-id" } }`
+
+---
+
+#### `GET /:id/export/status`
+
+Poll status of a project export job.
+
+**Query:** `?jobId=<job_id>`
+
+---
+
+### Tasks: `/api/v1/organizations/:orgId/teams/:teamId/projects/:projectId/tasks`
 
 #### `POST /`
 
-Create a task. Supports idempotency.
-
-**Header:** `Idempotency-Key: <unique-client-key>` (optional; prevents duplicate creation on retry)
+Create a task inside a project. Supports idempotency key header.
 
 **Body:**
 
@@ -553,7 +559,6 @@ Create a task. Supports idempotency.
 {
   "title": "Implement refresh token rotation",
   "description": "Use SETNX pattern in Redis...",
-  "projectId": "uuid",
   "assigneeId": "uuid",
   "priority": "HIGH",
   "status": "TODO",
@@ -563,31 +568,27 @@ Create a task. Supports idempotency.
 }
 ```
 
-**Side effects on assignment:** ActivityLog entry + in-app notification + BullMQ email job enqueued.
-
 ---
 
 #### `GET /`
 
-List tasks with filters.
+List and filter tasks in the project.
 
-**Query parameters:**
+**Query parameters:** `status`, `assigneeId`, `priority`, `tags`, `tagsMode`, `untaggedOnly`, `page`, `limit`
 
-| Param        | Type   | Description                                |
-| ------------ | ------ | ------------------------------------------ |
-| `projectId`  | UUID   | Required. Filter by project                |
-| `status`     | Enum   | `TODO`, `IN_PROGRESS`, `IN_REVIEW`, `DONE` |
-| `assigneeId` | UUID   | Filter by assignee                         |
-| `priority`   | Enum   | `LOW`, `MEDIUM`, `HIGH`, `URGENT`          |
-| `search`     | String | Full-text search on title + description    |
-| `page`       | Int    | Default: 1                                 |
-| `limit`      | Int    | Default: 20                                |
+---
+
+#### `GET /search`
+
+Full-text search tasks by title and description.
+
+**Query:** `?query=token&page=1&limit=20`
 
 ---
 
 #### `GET /:id`
 
-Get full task detail including latest comments, attachments, and activity.
+Get full task detail.
 
 ---
 
@@ -595,547 +596,202 @@ Get full task detail including latest comments, attachments, and activity.
 
 Update task fields.
 
-**Body:** Any subset of task fields.
+---
 
-**Notes:** Status transitions enforced by state machine. Invalid transitions return `422`.
+#### `PATCH /:id/status`
+
+Update task status transition.
+
+**Body:** `{ "status": "IN_PROGRESS" }`
 
 ---
 
 #### `DELETE /:id`
 
-Soft-delete a task. Sets `deletedAt`. Recoverable within 30 days via admin.
+Soft-delete task.
 
 ---
 
-#### `PATCH /bulk`
+#### `PATCH /:id/tags`
 
-Bulk-update status or assignee on multiple tasks atomically. **Role:** Lead.
+Add tags to task.
 
-**Body:**
-
-```json
-{
-  "taskIds": ["uuid1", "uuid2", "uuid3"],
-  "update": { "status": "IN_REVIEW" }
-}
-```
-
-Executed inside a Prisma transaction. Protected by Redis distributed lock.
+**Body:** `{ "tags": ["frontend", "v2"] }`
 
 ---
 
-#### `GET /:id/activity`
+#### `DELETE /:id/tags`
 
-Task-level activity log.
+Remove tags from task.
 
-**Query:** `?page=1&limit=20`
+**Body:** `{ "tags": ["v2"] }`
 
 ---
 
 #### `POST /:id/watch`
 
-Watch a task to receive all change notifications.
+Watch a task.
 
 ---
 
 #### `DELETE /:id/watch`
 
-Stop watching a task.
+Unwatch a task.
 
 ---
 
-#### `GET /:id/watchers`
+#### `POST /:id/attachments`
 
-List all users watching a task.
+Upload attachments to a task (`multipart/form-data`, field: `files`, max 10 MB per file).
 
 ---
 
-### Comments: `/api/v1/comments`
+### Comments: `/api/v1/organizations/:orgId/teams/:teamId/projects/:projectId/tasks/:taskId/comments`
 
 #### `POST /`
 
-Add a comment to a task.
+Create a comment on a task. Parse `@mentions` in body.
 
-**Body:**
-
-```json
-{
-  "taskId": "uuid",
-  "body": "Hey @sara can you take a look at this? The token rotation logic needs review."
-}
-```
-
-**Side effects:** `@mention` usernames parsed; each match triggers a `MENTIONED` notification. Also notifies task owner + all previous commenters + watchers (deduped).
+**Body:** `{ "body": "Hey @sara check this PR" }`
 
 ---
 
-#### `GET /task/:taskId`
+#### `GET /`
 
-List all comments on a task in chronological order.
-
-**Query:** `?page=1&limit=50`
+List comments on a task.
 
 ---
 
 #### `PATCH /:id`
 
-Edit a comment. **Role:** Author only.
-
-**Body:** `{ "body": "Updated comment text" }`
+Update comment body.
 
 ---
 
 #### `DELETE /:id`
 
-Soft-delete a comment. **Role:** Author or Project Admin.
-
-Body replaced with `[deleted]` on soft-delete.
+Soft-delete comment.
 
 ---
 
-### Attachments: `/api/v1/attachments`
-
-#### `POST /task/:taskId`
-
-Upload a file attachment to a task. **Content-Type:** `multipart/form-data`
-
-**Form field:** `file` (max 10 MB)
-
-**Side effects:** File validated by Multer → uploaded to Cloudinary → URL stored in DB.
-
-**Response `201`:**
-
-```json
-{
-  "data": {
-    "id": "uuid",
-    "filename": "design-mockup.png",
-    "url": "https://res.cloudinary.com/...",
-    "size": 204800,
-    "createdAt": "2026-06-01T10:00:00Z"
-  }
-}
-```
-
----
-
-#### `GET /task/:taskId`
-
-List all attachments on a task.
-
----
-
-#### `DELETE /:id`
-
-Delete an attachment. **Role:** Uploader or Project Admin.
-
----
-
-### Notifications: `/api/v1/notifications`
+### Activity Logs: `/api/v1/activity-logs`
 
 #### `GET /`
 
-Get the authenticated user's notifications, paginated.
+List activity audit trail for organization/project. **Role:** Org Owner.
 
-**Query:** `?page=1&limit=20&isRead=false`
-
----
-
-#### `GET /unread-count`
-
-Get the current unread notification count.
-
-**Response `200`:**
-
-```json
-{ "data": { "count": 7 } }
-```
-
----
-
-#### `PATCH /:id/read`
-
-Mark a single notification as read.
-
----
-
-#### `PATCH /read-all`
-
-Mark all notifications as read.
+**Query:** `?orgId=uuid&projectId=uuid&actorId=uuid&entityType=Task&action=task.created&page=1&limit=10`
 
 ---
 
 ### Billing: `/api/v1/billing`
 
-#### `GET /plans` Public
+#### `POST /checkout`
 
-List all available subscription plans.
+Create a Stripe Checkout session for plan upgrade.
 
-**Response `200`:**
-
-```json
-{
-  "data": [
-    {
-      "id": "free",
-      "name": "Free",
-      "price": 0,
-      "maxMembers": 3,
-      "features": ["3 members", "Basic tasks"]
-    },
-    {
-      "id": "pro",
-      "name": "Pro",
-      "price": 9,
-      "maxMembers": 20,
-      "features": ["20 members", "Excel export", "AI suggestions"]
-    },
-    {
-      "id": "business",
-      "name": "Business",
-      "price": 29,
-      "maxMembers": null,
-      "features": ["Unlimited members", "All features"]
-    }
-  ]
-}
-```
+**Body:** `{ "plan": "PRO" }`
 
 ---
 
-#### `POST /checkout`
+#### `POST /portal`
 
-Create a Stripe Checkout session. **Role:** Org Owner.
-
-**Body:** `{ "orgId": "uuid", "plan": "PRO" }`
-
-**Response `200`:**
-
-```json
-{ "data": { "checkoutUrl": "https://checkout.stripe.com/..." } }
-```
+Create a Stripe Customer Portal session.
 
 ---
 
 #### `GET /subscription`
 
-Get current subscription details for the caller's organization. **Role:** Org Owner.
-
-**Response `200`:**
-
-```json
-{
-  "data": {
-    "plan": "PRO",
-    "status": "active",
-    "currentPeriodEnd": "2026-07-01T00:00:00Z",
-    "cancelAtPeriodEnd": false
-  }
-}
-```
+Get current organization subscription status.
 
 ---
 
-#### `POST /webhook` Stripe Signature (No JWT)
+#### `POST /webhook` Public
 
-Stripe webhook receiver. Validates `Stripe-Signature` header via `stripe.webhooks.constructEvent()`.
-
-**Handled events:**
-
-| Stripe Event                    | Action                        |
-| ------------------------------- | ----------------------------- |
-| `checkout.session.completed`    | Upgrade org plan              |
-| `invoice.paid`                  | Renew subscription            |
-| `invoice.payment_failed`        | Enqueue payment failure email |
-| `customer.subscription.deleted` | Downgrade org to FREE         |
-
-**Idempotency:** Stripe event ID stored in `StripeEvent` table. Duplicate events detected by PK conflict and ignored.
+Stripe webhook endpoint.
 
 ---
 
 ### AI: `/api/v1/ai`
 
-**Rate limit:** 10 requests / hour per user. Stored in Redis (`ai-rate:{userId}`, TTL: 1h).
+Requires `PRO` or `BUSINESS` plan. Rate limit: 10 requests / hour per user.
 
 #### `POST /suggest`
 
-Get AI-generated task metadata from a plain-language description.
+Generate AI task suggestions (JSON response).
 
-**Body:** `{ "description": "Build the password reset flow with email token and Redis TTL" }`
-
-**Response `200`:**
-
-```json
-{
-  "data": {
-    "title": "Implement Password Reset Flow",
-    "priority": "HIGH",
-    "estimatedDeadline": "2026-06-15"
-  }
-}
-```
-
-**Rate limit exceeded -`429`:**
-
-```json
-{
-  "success": false,
-  "statusCode": 429,
-  "error": "TOO_MANY_REQUESTS",
-  "message": "AI request limit reached (10/hour). Try again later.",
-  "retryAfter": 1800
-}
-```
+**Body:** `{ "prompt": "Break down authentication workflow" }`
 
 ---
 
-#### `POST /suggest/stream`
+#### `GET /suggest/stream` SSE
 
-Stream AI task suggestions token-by-token via Server-Sent Events.
-
-**Body:** `{ "description": "Build real-time notifications with Socket.IO and Redis" }`
-
-**Response:** SSE stream (`Content-Type: text/event-stream`)
-
-```json
-data: {"token": "Imp"}
-data: {"token": "lement"}
-data: {"token": " Real"}
-...
-data: {"done": true, "result": { "title": "...", "priority": "MEDIUM", "estimatedDeadline": "..." }}
-```
-
-**Note:** POST is used instead of GET to avoid exposing the description in server/proxy access logs via the query string.
+Stream AI task suggestions via Server-Sent Events.
 
 ---
 
 ### Admin: `/api/v1/admin`
 
-**Guard:** All routes require `systemRole: SUPER_ADMIN`. Protected by `AdminGuard` layered on top of `JwtAuthGuard`.
-
-All admin actions are recorded in `AuditLog` with actor, action, target entity, and timestamp.
-
----
-
-#### `GET /users`
-
-List all registered users.
-
-**Query:** `?page=1&limit=20&search=sara&banned=false`
-
-**Response:** Paginated list with `id`, `name`, `email`, `systemRole`, `bannedAt`, `createdAt`.
-
----
-
-#### `PATCH /users/:id/ban`
-
-Ban a user account. Sets `bannedAt = now()`. Banned users receive `403` on all subsequent requests.
-
----
-
-#### `PATCH /users/:id/unban`
-
-Unban a user. Clears `bannedAt`.
-
----
-
-#### `GET /organizations`
-
-List all organizations with plan info and member count.
-
-**Query:** `?page=1&limit=20&plan=FREE`
-
----
+Requires `SUPER_ADMIN` system role.
 
 #### `GET /stats`
 
-Platform-wide statistics.
+Get platform-wide statistics.
 
-**Response `200`:**
+#### `GET /users`
 
-```json
-{
-  "data": {
-    "totalUsers": 1240,
-    "verifiedUsers": 1180,
-    "bannedUsers": 5,
-    "totalOrganizations": 320,
-    "activeOrganizations": 290,
-    "totalProjects": 1850,
-    "totalTasks": 14300,
-    "activeSubscriptions": 85
-  }
-}
-```
+List all platform users.
 
----
+#### `PATCH /users/:userId/ban`
 
-#### `GET /queues`
+Ban a user account (`{ "reason": "Spamming" }`).
 
-List all BullMQ queues with job counts.
+#### `PATCH /users/:userId/unban`
 
-**Response `200`:**
+Unban a user account.
 
-```json
-{
-  "data": [
-    { "name": "email-queue", "active": 2, "waiting": 14, "failed": 1, "completed": 3820 },
-    { "name": "export-queue", "active": 0, "waiting": 2, "failed": 0, "completed": 145 }
-  ]
-}
-```
+#### `PATCH /users/:userId/restore`
 
----
+Restore a soft-deleted user account.
 
-#### `GET /queues/:name/failed`
+#### `PATCH /users/:userId/promote`
 
-List failed jobs in a specific queue.
+Promote a user to `SUPER_ADMIN`.
 
----
+#### `PATCH /organizations/:orgId/plan`
 
-#### `POST /queues/:name/failed/:id/retry`
+Override organization plan (`{ "plan": "BUSINESS" }`).
 
-Manually retry a specific failed job.
+#### `GET /tasks/deleted`
 
----
+List soft-deleted tasks.
 
-#### `GET /audit`
+#### `POST /tasks/:taskId/restore`
 
-Paginated audit log of all admin actions.
+Restore a soft-deleted task.
 
-**Query:** `?page=1&limit=20&actorId=uuid&action=admin.user.banned`
+#### `GET /audit-logs`
+
+List admin audit logs.
+
+#### `GET /queues/:queueName`
+
+Get BullMQ queue statistics.
+
+#### `GET /queues/:queueName/failed`
+
+List failed jobs in a queue.
+
+#### `POST /queues/:queueName/jobs/:jobId/retry`
+
+Retry a failed BullMQ job.
+
+#### `DELETE /queues/:queueName/jobs/:jobId`
+
+Delete a job from a queue.
 
 ---
 
-#### `POST /tasks/:id/restore`
+### Health: `/health`
 
-Restore a soft-deleted task. Only available within 30 days of deletion.
-
-**Notes:** Sets `deletedAt = null`. Tasks older than 30 days are permanently purged by a scheduled cleanup job.
-
----
-
-### Health: `/api/v1/health`
-
-#### `GET /` Public
-
-Check service health.
-
-**Response `200`:**
-
-```json
-{
-  "status": "ok",
-  "version": "1.0.0",
-  "checks": {
-    "database": { "status": "up", "responseTimeMs": 4 },
-    "redis": { "status": "up", "responseTimeMs": 1 }
-  }
-}
-```
-
----
-
-## WebSocket API (Socket.IO)
-
-**Connection endpoint:** `wss://<host>`
-
-**Authentication:** JWT must be passed on the handshake:
-
-```javascript
-const socket = io('wss://api.velo.dev', {
-  auth: { token: '<access_token>' },
-});
-```
-
-Invalid or expired tokens close the connection immediately with a `401` disconnect reason.
-
----
-
-### Client → Server Events
-
-| Event           | Payload                 | Description                                      |
-| --------------- | ----------------------- | ------------------------------------------------ |
-| `join:project`  | `{ projectId: string }` | Subscribe to a project's real-time board updates |
-| `leave:project` | `{ projectId: string }` | Unsubscribe from a project room                  |
-
-On connection, the server automatically adds the socket to the personal room `user:{userId}` for private notifications.
-
----
-
-### Server → Client Events
-
-#### Project room events (emitted to `project:{projectId}`)
-
-| Event           | Payload                                      | Trigger                            |
-| --------------- | -------------------------------------------- | ---------------------------------- |
-| `task:created`  | `{ task: TaskObject }`                       | New task created in project        |
-| `task:updated`  | `{ taskId: string, changes: Partial<Task> }` | Task fields updated                |
-| `task:deleted`  | `{ taskId: string }`                         | Task soft-deleted                  |
-| `comment:added` | `{ comment: CommentObject }`                 | New comment on any task in project |
-| `user:joined`   | `{ userId: string, name: string }`           | User joined the project view       |
-| `user:left`     | `{ userId: string }`                         | User left the project view         |
-
-#### Personal room events (emitted to `user:{userId}`)
-
-| Event              | Payload                                | Trigger                 |
-| ------------------ | -------------------------------------- | ----------------------- |
-| `notification:new` | `{ notification: NotificationObject }` | New in-app notification |
-
----
-
-### Example Client Integration
-
-```javascript
-const socket = io('wss://api.velo.dev', {
-  auth: { token: localStorage.getItem('accessToken') },
-});
-
-// Join a project board
-socket.emit('join:project', { projectId: 'abc-123' });
-
-// Listen for board changes
-socket.on('task:created', ({ task }) => {
-  addTaskToBoard(task);
-});
-
-socket.on('task:updated', ({ taskId, changes }) => {
-  updateTaskOnBoard(taskId, changes);
-});
-
-socket.on('task:deleted', ({ taskId }) => {
-  removeTaskFromBoard(taskId);
-});
-
-// Listen for personal notifications
-socket.on('notification:new', ({ notification }) => {
-  showToast(notification.title);
-  incrementUnreadBadge();
-});
-```
-
----
-
-## Email Notifications (BullMQ: `email-queue`)
-
-Emails are queued asynchronously and processed by `EmailProcessor` using **Nodemailer** + **Handlebars** HTML templates. Queue retries: 3 attempts, exponential backoff. Failed jobs go to the dead-letter queue.
-
-| Trigger                    | Template                    | Recipient                        |
-| -------------------------- | --------------------------- | -------------------------------- |
-| User registered            | `welcome-verify.hbs`        | New user                         |
-| Task assigned              | `task-assigned.hbs`         | Assignee                         |
-| Organization invite        | `org-invite.hbs`            | Invited user                     |
-| Password reset requested   | `reset-password.hbs`        | User                             |
-| Task due tomorrow          | `due-reminder.hbs`          | Assignee (daily cron 08:00 UTC)  |
-| Payment failed             | `payment-failed.hbs`        | Org owner                        |
-| Subscription expiring soon | `subscription-expiring.hbs` | Org owner (daily cron 09:00 UTC) |
-
----
-
-## Scheduled Jobs
-
-| Job                         | Cron        | Description                                                 |
-| --------------------------- | ----------- | ----------------------------------------------------------- |
-| Due-date reminders          | `0 8 * * *` | Emails assignees of tasks due tomorrow                      |
-| Subscription expiry warning | `0 9 * * *` | Emails org owners whose subscription expires within 7 days  |
-| Soft-delete cleanup         | `0 3 * * *` | Permanently purges tasks soft-deleted more than 30 days ago |
+Get system health check (database, redis, memory).
