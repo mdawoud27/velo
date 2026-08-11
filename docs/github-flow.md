@@ -101,6 +101,6 @@ git commit -m "feat: add 2FA TOTP verification and backup codes"
 Tag releases using Semantic Versioning (`vX.Y.Z`):
 
 ```bash
-git tag -a v0.11.0 -m "Release v0.11.0"
-git push origin v0.11.0
+git tag -a v0.11.7 -m "Release v0.11.7"
+git push origin v0.11.7
 ```

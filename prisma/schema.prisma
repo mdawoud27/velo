@@ -287,7 +287,7 @@ model AuditLog {
   metadata   Json     @default("{}")
   createdAt  DateTime @default(now())
 
-  actor User @relation(fields: [actorId], references: [id])
+  actor User @relation(fields: [actorId], references: [id], onDelete: Cascade)
 
   @@index([actorId])
   @@index([targetType, targetId])

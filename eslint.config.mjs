@@ -33,4 +33,9 @@ export default tseslint.config(
       'no-duplicate-imports': ['error', { allowSeparateTypeImports: true }],
     },
   },
+  {
+    files: ['**/*.spec.ts', '**/*.e2e-spec.ts', 'test/**/*.ts'],
+    ...tseslint.configs.disableTypeChecked,
+  },
 );
+

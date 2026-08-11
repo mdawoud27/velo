@@ -11,6 +11,9 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
 
+permissions:
+  contents: read
+
 jobs:
   setup:
     name: Setup
@@ -20,7 +23,7 @@ jobs:
     steps:
       - name: Get branch name
         id: branch_name
-        uses: tj-actions/branch-names@v8
+        uses: tj-actions/branch-names@v9
 
   create_neon_branch:
     name: Create Neon Branch

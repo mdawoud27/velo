@@ -1,0 +1,58 @@
+# Dependabot configuration for Velo
+# Docs: https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+version: 2
+updates:
+  # Node dependencies: package.json + pnpm-lock.yaml (npm ecosystem parses pnpm lockfiles too)
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+    open-pull-requests-limit: 10
+    groups:
+      minor-and-patch:
+        update-types:
+          - 'minor'
+          - 'patch'
+    commit-message:
+      prefix: 'chore(deps)'
+      prefix-development: 'chore(deps-dev)'
+    labels:
+      - 'dependencies'
+  # Dockerfile and Dockerfile.dev at repo root
+  # Dependabot's docker ecosystem matches any filename containing "dockerfile"
+  # or "containerfile" (case-insensitive), so both Dockerfile and Dockerfile.dev
+  # are picked up from this one directory entry, no separate entry needed.
+  - package-ecosystem: 'docker'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+    commit-message:
+      prefix: 'chore(docker)'
+    labels:
+      - 'dependencies'
+      - 'docker'
+  # docker-compose.yml / docker-compose.dev.yml at repo root
+  - package-ecosystem: 'docker-compose'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+    commit-message:
+      prefix: 'chore(docker)'
+    labels:
+      - 'dependencies'
+      - 'docker'
+  # GitHub Actions workflows in .github/workflows
+  # (directory is always "/" for this ecosystem regardless of where workflows live)
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+    commit-message:
+      prefix: 'chore(ci)'
+    labels:
+      - 'dependencies'
+      - 'ci'
