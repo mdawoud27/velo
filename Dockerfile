@@ -1,4 +1,4 @@
-FROM node:25-alpine AS builder
+FROM node:26-alpine AS builder
 
 ARG PRISMA_GENERATE_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/velo
 
@@ -28,7 +28,7 @@ RUN --mount=type=cache,id=s/4a3cd1ac-69c9-4723-a0cd-21e3de014e57-/root/.pnpm-sto
 # For prisma runtime files
 COPY ./tsconfig.json ./tsconfig.json
 
-FROM node:25-alpine AS runner
+FROM node:26-alpine AS runner
 
 ENV NODE_ENV=production
 ENV PORT=3000
