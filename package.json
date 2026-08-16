@@ -1,8 +1,8 @@
 {
   "name": "velo",
-  "version": "0.11.9",
-  "description": "",
-  "author": "",
+  "version": "1.1.2",
+  "description": "A multi-tenant SaaS backend for project management, built with NestJS, Prisma, and PostgreSQL, with real-time updates, Redis caching, and background job processing",
+  "author": "Mohamed Dawoud",
   "private": true,
   "license": "MIT",
   "scripts": {
@@ -130,7 +130,11 @@
     "coverageDirectory": "../coverage",
     "testEnvironment": "node",
     "moduleNameMapper": {
-      "^src/(.*)$": "<rootDir>/$1"
-    }
+      "^src/(.*)$": "<rootDir>/$1",
+      "^otplib$": "<rootDir>/../node_modules/.pnpm/otplib@13.4.1/node_modules/otplib/dist/index.cjs"
+    },
+    "transformIgnorePatterns": [
+      "node_modules/(?!.*(@scure|@otplib|@noble).*)"
+    ]
   }
 }
