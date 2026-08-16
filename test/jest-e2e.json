@@ -5,5 +5,12 @@
   "testRegex": ".e2e-spec.ts$",
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
-  }
+  },
+  "moduleNameMapper": {
+    "^src/(.*)$": "<rootDir>/../src/$1",
+    "^otplib$": "<rootDir>/../node_modules/.pnpm/otplib@13.4.1/node_modules/otplib/dist/index.cjs"
+  },
+  "transformIgnorePatterns": [
+    "node_modules/(?!.*(@scure|@otplib|@noble).*)"
+  ]
 }
