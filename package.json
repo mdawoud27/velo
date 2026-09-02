@@ -131,7 +131,7 @@
     "testEnvironment": "node",
     "moduleNameMapper": {
       "^src/(.*)$": "<rootDir>/$1",
-      "^otplib$": "<rootDir>/../node_modules/.pnpm/otplib@13.4.1/node_modules/otplib/dist/index.cjs"
+      "^otplib$": "<rootDir>/../node_modules/otplib/dist/index.cjs"
     },
     "transformIgnorePatterns": [
       "node_modules/(?!.*(@scure|@otplib|@noble).*)"
