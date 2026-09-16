@@ -13,6 +13,14 @@ permissions:
 
 env:
   DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/velo_test'
+  FRONTEND_URL: 'http://localhost:3000'
+  JWT_REFRESH_SECRET: 'test-jwt-refresh-secret-for-ci'
+  JWT_REFRESH_EXPIRES_IN: '7d'
+  GROQ_API_KEY: 'test-groq-api-key'
+  STRIPE_SECRET_KEY: 'sk_test_dummykeyfortesting'
+  STRIPE_WEBHOOK_SECRET: 'whsec_test_dummysecretforci'
+  STRIPE_PRO_PRICE_ID: 'price_test_pro_dummy'
+  STRIPE_BUSINESS_PRICE_ID: 'price_test_business_dummy'
 
 jobs:
   format-check:
