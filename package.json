@@ -1,6 +1,6 @@
 {
   "name": "velo",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "description": "A multi-tenant SaaS backend for project management, built with NestJS, Prisma, and PostgreSQL, with real-time updates, Redis caching, and background job processing",
   "author": "Mohamed Dawoud",
   "private": true,
