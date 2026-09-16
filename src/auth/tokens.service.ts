@@ -155,11 +155,8 @@ export class TokensService {
   private async storeRefreshToken(userId: string, refreshToken: string): Promise<void> {
     const hash = await bcrypt.hash(this.toSafeHash(refreshToken), 12);
     const data: StoredRefreshToken = { hash, nonce: uuidv4() };
-    await this.redis.setex(
-      `refresh:${userId}`,
-      JSON.stringify(data),
-      parseDurationToSeconds(this.config.getOrThrow('JWT_REFRESH_EXPIRES_IN')),
-    );
+    const ttl = parseDurationToSeconds(this.config.getOrThrow('JWT_REFRESH_EXPIRES_IN'));
+    await this.redis.setex(`refresh:${userId}`, JSON.stringify(data), ttl);
   }
 
   private toSafeHash(input: string): string {

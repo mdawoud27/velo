@@ -203,7 +203,6 @@ export class ProjectsService {
 
   async softDeleteProject(projectId: string, teamId: string, orgId: string, actorId: string) {
     await this.assertActorCanManageProjects(orgId, teamId, actorId);
-    await assertProjectWritable(this.prisma, projectId);
 
     const project = await this.getProjectOrThrow(projectId, teamId, orgId);
 
