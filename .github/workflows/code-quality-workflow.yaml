@@ -151,7 +151,7 @@ jobs:
         run: pnpm run db:generate
 
       - name: Push Database Schema
-        run: pnpm prisma db push --skip-generate
+        run: pnpm prisma db push --accept-data-loss
 
       - name: Run E2E Tests
         run: pnpm run test:e2e
