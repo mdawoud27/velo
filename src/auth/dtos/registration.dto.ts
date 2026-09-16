@@ -1,3 +1,4 @@
+import { Transform } from 'class-transformer';
 import { IsEmail, IsNotEmpty, IsString, Matches, MaxLength, MinLength } from 'class-validator';
 
 export class RegistrationDto {
@@ -7,6 +8,9 @@ export class RegistrationDto {
   @MinLength(3)
   name: string;
 
+  @Transform(({ value }: { value: unknown }): unknown => {
+    return typeof value === 'string' ? value.trim() : value;
+  })
   @IsNotEmpty()
   @IsEmail()
   @MaxLength(254)

@@ -3,12 +3,15 @@
   "rootDir": ".",
   "testEnvironment": "node",
   "testRegex": ".e2e-spec.ts$",
+  "testTimeout": 60000,
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
   },
+  "setupFiles": ["<rootDir>/support/e2e-setup.ts"],
+  "globalTeardown": "<rootDir>/support/global-teardown.ts",
   "moduleNameMapper": {
     "^src/(.*)$": "<rootDir>/../src/$1",
-    "^otplib$": "<rootDir>/../node_modules/.pnpm/otplib@13.4.1/node_modules/otplib/dist/index.cjs"
+    "^otplib$": "<rootDir>/../node_modules/otplib/dist/index.cjs"
   },
   "transformIgnorePatterns": [
     "node_modules/(?!.*(@scure|@otplib|@noble).*)"

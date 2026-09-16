@@ -3,6 +3,8 @@ on:
   pull_request:
     branches: [main, dev]
     types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main, dev]
 
 permissions:
   contents: read
@@ -10,9 +12,9 @@ permissions:
   issues: write
 
 jobs:
-  style-quality:
+  format-check:
     if: github.event.pull_request.draft == false
-    name: Code Style & Quality
+    name: Code Formatting (Prettier)
     runs-on: ubuntu-latest
 
     steps:
@@ -32,18 +34,61 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: generate prisma schema
-        run: pnpm run db:generate
-        env:
-          DATABASE_URL: "postgresql://user:password@localhost:5432/mydb"
-
-      - name: Run Formatter
+      - name: Run Formatter Check
         run: pnpm run format:check
 
-      - name: Run Linter
+  lint-check:
+    if: github.event.pull_request.draft == false
+    name: Code Linting (ESLint)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.18.0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: 'pnpm'
+          cache-dependency-path: '**/pnpm-lock.yaml'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Linter Check
         run: pnpm run lint:check
 
-      - name: Run Unit Tests
+  unit-tests:
+    if: github.event.pull_request.draft == false
+    needs: [format-check, lint-check]
+    name: Unit Tests & Coverage
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.18.0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: 'pnpm'
+          cache-dependency-path: '**/pnpm-lock.yaml'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: pnpm run db:generate
+
+      - name: Run Unit Tests with Coverage
         run: pnpm run test:cov
 
       - name: Comment Coverage on PR
@@ -54,3 +99,54 @@ jobs:
           filter-changed-files: true
           delete-old-comments: true
           title: Unit Tests Coverage Report
+
+  e2e-tests:
+    if: github.event.pull_request.draft == false
+    needs: unit-tests
+    name: E2E Tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: velo_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.18.0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: 'pnpm'
+          cache-dependency-path: '**/pnpm-lock.yaml'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: pnpm run db:generate
+
+      - name: Push Database Schema
+        run: pnpm prisma db push --skip-generate
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/velo_test"
+
+      - name: Run E2E Tests
+        run: pnpm run test:e2e
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/velo_test"
