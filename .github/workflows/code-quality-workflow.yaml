@@ -11,6 +11,9 @@ permissions:
   pull-requests: write
   issues: write
 
+env:
+  DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/velo_test'
+
 jobs:
   format-check:
     if: github.event.pull_request.draft == false
@@ -149,10 +152,6 @@ jobs:
 
       - name: Push Database Schema
         run: pnpm prisma db push --skip-generate
-        env:
-          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/velo_test'
 
       - name: Run E2E Tests
         run: pnpm run test:e2e
-        env:
-          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/velo_test'
