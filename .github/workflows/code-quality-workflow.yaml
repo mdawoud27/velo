@@ -14,6 +14,8 @@ permissions:
 env:
   DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/velo_test'
   FRONTEND_URL: 'http://localhost:3000'
+  JWT_ACCESS_SECRET: 'test-jwt-access-secret-for-ci'
+  JWT_ACCESS_EXPIRES_IN: '15m'
   JWT_REFRESH_SECRET: 'test-jwt-refresh-secret-for-ci'
   JWT_REFRESH_EXPIRES_IN: '7d'
   GROQ_API_KEY: 'test-groq-api-key'
@@ -21,6 +23,12 @@ env:
   STRIPE_WEBHOOK_SECRET: 'whsec_test_dummysecretforci'
   STRIPE_PRO_PRICE_ID: 'price_test_pro_dummy'
   STRIPE_BUSINESS_PRICE_ID: 'price_test_business_dummy'
+  SMTP_HOST: 'localhost'
+  SMTP_PORT: '1025'
+  SMTP_SECURE: 'false'
+  SMTP_USER: 'test-smtp-user'
+  SMTP_PASS: 'test-smtp-pass'
+  REDIS_URL: 'redis://localhost:6379'
 
 jobs:
   format-check:
