@@ -131,7 +131,7 @@ export async function createTestApp(): Promise<INestApplication> {
       saveUninitialized: false,
       cookie: {
         httpOnly: true,
-        secure: false,
+        secure: process.env.NODE_ENV !== 'test',
         sameSite: 'lax',
         maxAge: 10 * 60 * 1000,
       },
