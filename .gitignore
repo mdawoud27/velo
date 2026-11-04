@@ -70,3 +70,4 @@ src/scripts/**
 feedback/**
 
 /generated/prisma
+/nginx/certs/
